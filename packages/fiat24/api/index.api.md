@@ -4,13 +4,83 @@
 
 ```ts
 
+import { Address } from 'viem';
+import { Hash } from 'viem';
+import { Hex } from 'viem';
+
+// @public
+export type AccountStatus = "na" | "soft-blocked" | "tourist" | "blocked" | "closed" | "live";
+
+// @public (undocumented)
+export function accountStatusFromIndex(index: number): AccountStatus;
+
+// @public (undocumented)
+export type ApprovalSpender = "card" | "deposit" | "account";
+
+// @public (undocumented)
+export const arbitrum: Deployment;
+
+// @public
+export function assertTokenId(tokenId: bigint): void;
+
+// @public (undocumented)
+export type Asset = Currency | "USDC" | "F24";
+
+// @public
+export const CHAIN_ID = 42161;
+
+// @public
+export function contractAddress(deployment: Deployment, name: ContractName): Address;
+
+// @public
+export type ContractName = "account" | Currency | "deposit" | "card" | "priceList" | "f24Sales" | "f24";
+
+// @public
+export function contractOf(deployment: Deployment, address: Address): ContractName | undefined;
+
+// @public (undocumented)
+export const CURRENCIES: ReadonlyArray<Currency>;
+
+// @public (undocumented)
+export type Currency = "USD24" | "EUR24" | "CHF24" | "CNH24";
+
+// @public (undocumented)
+export const DECIMALS: Readonly<Record<Asset, number>>;
+
+// @public
+export function decodeFiat24Revert(data: Hex): RevertReason;
+
+// @public (undocumented)
+export type Deployment = {
+    readonly chainId: 42161;
+    readonly block: bigint;
+    readonly account: PinnedProxy;
+    readonly tokens: Readonly<Record<Currency, PinnedProxy>>;
+    readonly deposit: PinnedProxy;
+    readonly card: PinnedProxy;
+    readonly priceList: PinnedProxy;
+    readonly f24Sales: PinnedProxy;
+    readonly f24: {
+        readonly address: Address;
+        readonly codeHash: Hex;
+    };
+    readonly usdc: Address;
+    readonly proxyAdmin: {
+        readonly address: Address;
+        readonly owner: Address;
+    };
+};
+
+// @public (undocumented)
+export type DriftField = "implementation" | "admin" | "priceList" | "f24" | "f24Sales" | "usdc";
+
 // @public
 export class Fiat24Error extends Error {
-    constructor(code: Fiat24ErrorCode, message: string, options?: {
-        readonly cause?: unknown;
-    });
+    constructor(code: Fiat24ErrorCode, message: string, detail?: Fiat24ErrorDetail);
     // (undocumented)
     readonly code: Fiat24ErrorCode;
+    // (undocumented)
+    readonly detail: Fiat24ErrorDetail;
     // (undocumented)
     readonly name = "Fiat24Error";
 }
@@ -19,7 +89,161 @@ export class Fiat24Error extends Error {
 export type Fiat24ErrorCode = (typeof fiat24ErrorCodes)[number];
 
 // @public (undocumented)
-export const fiat24ErrorCodes: readonly ["invalid-argument", "contract-changed", "unknown-outcome"];
+export const fiat24ErrorCodes: readonly ["invalid-amount", "too-many-decimals", "amount-out-of-range", "invalid-account-id", "invalid-address", "invalid-argument", "internal-account", "unlimited-approval", "unsupported-currency", "unsupported-chain", "no-account", "not-live", "recipient-not-live", "stale-recipient", "address-ineligible", "account-id-taken", "insufficient-balance", "insufficient-allowance", "limit-exceeded", "transfer-not-allowed", "below-minimum", "above-maximum", "unavailable", "contract-changed", "quote-changed", "rpc-error", "invalid-rpc-response", "malformed-log", "contract-revert", "tx-reverted", "network-error", "unauthorized", "rate-limited", "http-error", "invalid-response", "api-rejected", "api-mismatch", "session-required", "signer-rejected", "unknown-outcome", "invalid-state"];
+
+// @public (undocumented)
+export type Fiat24ErrorDetail = {
+    readonly contract?: ContractName;
+    readonly field?: DriftField;
+    readonly reason?: UnavailableReason;
+    readonly status?: number;
+    readonly endpoint?: string;
+    readonly revert?: RevertReason;
+    readonly txHash?: Hex;
+};
+
+// @public (undocumented)
+export type Fiat24Intent = {
+    readonly kind: "transfer";
+    readonly currency: Currency;
+    readonly amount: bigint;
+    readonly to: Recipient;
+} | {
+    readonly kind: "exchange";
+    readonly side: "exact-in" | "exact-out";
+    readonly from: Currency;
+    readonly to: Currency;
+    readonly amount: bigint;
+} | {
+    readonly kind: "payout";
+    readonly currency: PayoutCurrency;
+    readonly amount: bigint;
+    readonly contactId: string;
+    readonly purposeId?: bigint;
+    readonly ref?: string;
+    readonly payee: "off-chain";
+} | {
+    readonly kind: "approve";
+    readonly asset: Asset;
+    readonly spender: ApprovalSpender;
+    readonly amount: bigint;
+} | {
+    readonly kind: "mint";
+    readonly tokenId: bigint;
+    readonly payment: "f24" | "eth";
+} | {
+    readonly kind: "top-up";
+    readonly output: Currency;
+    readonly usdcAmount: bigint;
+};
+
+// @public (undocumented)
+export type Fiat24SessionGrant = {
+    readonly chainId: 42161;
+    readonly tokenId: bigint;
+    readonly deadline: bigint;
+    readonly hash: string;
+    readonly message: string;
+};
+
+// @public (undocumented)
+export type Fiat24SessionSigner = Pick<Fiat24Signer, "address" | "signSessionGrant">;
+
+// @public (undocumented)
+export type Fiat24Signer = {
+    readonly address: Address;
+    readonly sendTransaction: (request: Fiat24TransactionRequest) => Promise<Hash>;
+    readonly signSessionGrant: (grant: Fiat24SessionGrant) => Promise<Hex>;
+};
+
+// @public (undocumented)
+export type Fiat24TransactionRequest = {
+    readonly chainId: 42161;
+    readonly from: Address;
+    readonly to: Address;
+    readonly data: Hex;
+    readonly value: bigint;
+    readonly nonce: number;
+    readonly intent: Fiat24Intent;
+};
+
+// @public (undocumented)
+export function formatAmount(asset: Asset, units: bigint): string;
+
+// @public
+export function getDeployment(chainId: number): Deployment | undefined;
+
+// @public
+export function ibanOf(tokenId: bigint): string;
+
+// @public (undocumented)
+export const INTERNAL_ACCOUNTS: Readonly<{
+    treasury: 9100n;
+    cashDesk: 9101n;
+    payoutDesk: 9102n;
+    sundry: 9103n;
+    payoutBurn: 9104n;
+    cryptoDesk: 9105n;
+    closedCollector: 9106n;
+    cardBooked: 9110n;
+    feeDesk: 9203n;
+}>;
+
+// @public (undocumented)
+export function isFiat24Error(value: unknown): value is Fiat24Error;
+
+// @public (undocumented)
+export function isInternalAccount(tokenId: bigint): boolean;
+
+// @public (undocumented)
+export function isStandardMintId(tokenId: bigint): boolean;
+
+// @public
+export function isValidIban(text: string): boolean;
+
+// @public (undocumented)
+export const MAX_UNITS: bigint;
+
+// @public (undocumented)
+export function parseAmount(asset: Asset, text: string): bigint;
+
+// @public (undocumented)
+export type PayoutCurrency = "EUR24" | "CHF24";
+
+// @public
+export type PinnedProxy = {
+    readonly proxy: Address;
+    readonly implementation: Address;
+    readonly codeHash: Hex;
+    readonly admin: Address;
+};
+
+// @public (undocumented)
+export type Recipient = {
+    readonly address: Address;
+} | {
+    readonly tokenId: bigint;
+};
+
+// @public
+export function revertCode(reason: RevertReason): Fiat24ErrorCode;
+
+// @public
+export type RevertReason = {
+    readonly kind: "error";
+    readonly reason: string;
+} | {
+    readonly kind: "custom";
+    readonly name: string;
+} | {
+    readonly kind: "panic";
+    readonly code: bigint;
+} | {
+    readonly kind: "unknown";
+};
+
+// @public (undocumented)
+export type UnavailableReason = "account-paused" | "token-paused" | "deposit-paused" | "card-paused" | "f24-sales-paused" | "f24-sales-empty" | "f24-inactive" | "mint-digits";
 
 // (No @packageDocumentation comment for this package)
 

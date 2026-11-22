@@ -4,6 +4,56 @@
 
 ```ts
 
+import { Address } from 'viem';
+import { Hex } from 'viem';
+
+// @public (undocumented)
+export const arbitrum: Deployment;
+
+// @public
+export function contractAddress(deployment: Deployment, name: ContractName): Address;
+
+// @public
+type ContractName = "account" | Currency | "deposit" | "card" | "priceList" | "f24Sales" | "f24";
+
+// @public
+export function contractOf(deployment: Deployment, address: Address): ContractName | undefined;
+
+// @public (undocumented)
+type Currency = "USD24" | "EUR24" | "CHF24" | "CNH24";
+
+// @public (undocumented)
+export type Deployment = {
+    readonly chainId: 42161;
+    readonly block: bigint;
+    readonly account: PinnedProxy;
+    readonly tokens: Readonly<Record<Currency, PinnedProxy>>;
+    readonly deposit: PinnedProxy;
+    readonly card: PinnedProxy;
+    readonly priceList: PinnedProxy;
+    readonly f24Sales: PinnedProxy;
+    readonly f24: {
+        readonly address: Address;
+        readonly codeHash: Hex;
+    };
+    readonly usdc: Address;
+    readonly proxyAdmin: {
+        readonly address: Address;
+        readonly owner: Address;
+    };
+};
+
+// @public
+export function getDeployment(chainId: number): Deployment | undefined;
+
+// @public
+export type PinnedProxy = {
+    readonly proxy: Address;
+    readonly implementation: Address;
+    readonly codeHash: Hex;
+    readonly admin: Address;
+};
+
 // (No @packageDocumentation comment for this package)
 
 ```

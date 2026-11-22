@@ -48,7 +48,7 @@ const config: UserConfig = defineConfig({
       provider: "v8",
       reporter: ["text", "text-summary"],
       include: ["src/**/*.ts"],
-      exclude: ["src/abi/**"],
+      exclude: ["src/abi/**", "src/deployments/data.ts"],
       thresholds: { lines: 95, branches: 90, functions: 95, statements: 95 },
     },
   },

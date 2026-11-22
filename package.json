@@ -13,6 +13,7 @@
   ],
   "type": "module",
   "scripts": {
+    "abi": "bun scripts/abi.ts",
     "gen": "bun scripts/gen.ts",
     "lint": "vp check && bun scripts/check-version.ts && bun scripts/gen.ts --check && bun run vectors --check",
     "typecheck": "vp run -r typecheck && tsc --noEmit",

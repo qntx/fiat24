@@ -1,0 +1,106 @@
+{
+  "schema": 1,
+  "capability": "core.iban",
+  "source": {
+    "kind": "recorded",
+    "url": "https://api.fiat24.com/iban/{id} (header network: 42161)",
+    "date": "2026-11-22",
+    "evidence": "packages/fiat24/scripts/vectors/raw/iban.json",
+    "generator": "packages/fiat24/scripts/vectors/iban.ts"
+  },
+  "cases": [
+    {
+      "op": "ibanOf",
+      "id": "1",
+      "output": "CH6483051000000000001"
+    },
+    {
+      "op": "ibanOf",
+      "id": "12345",
+      "output": "CH6883051000000012345"
+    },
+    {
+      "op": "ibanOf",
+      "id": "9102",
+      "output": "CH3883051000000009102"
+    },
+    {
+      "op": "ibanOf",
+      "id": "123456",
+      "output": "CH8783051000000123456"
+    },
+    {
+      "op": "ibanOf",
+      "id": "350000",
+      "output": "CH2583051000000350000"
+    },
+    {
+      "op": "ibanOf",
+      "id": "99999999999",
+      "output": "CH8083051099999999999"
+    },
+    {
+      "op": "ibanOf",
+      "id": "0",
+      "error": "invalid-account-id",
+      "recorded": "Unauthorized"
+    },
+    {
+      "op": "ibanOf",
+      "id": "100000000000",
+      "error": "invalid-account-id",
+      "recorded": "{\"iban\":\"CH5383051100000000000\"}"
+    },
+    {
+      "op": "ibanOf",
+      "id": "999999999999",
+      "error": "invalid-account-id",
+      "recorded": "{\"iban\":\"CH2983051999999999999\"}"
+    },
+    {
+      "op": "isValidIban",
+      "input": "CH6483051000000000001",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "input": "CH6883051000000012345",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "input": "CH3883051000000009102",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "input": "CH8783051000000123456",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "input": "CH2583051000000350000",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "input": "CH8083051099999999999",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "input": "CH6483051000000000002",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "input": "CH648305100000000000",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "input": "ch64 8305 1000 0000 0000 1",
+      "output": true
+    }
+  ]
+}

@@ -97,6 +97,7 @@
     "@arethetypeswrong/cli": "0.18.5",
     "@qntx/tsconfig": "1.0.1",
     "@types/node": "26.6.6",
+    "fast-check": "4.10.2",
     "publint": "0.3.25",
     "typescript": "7.0.2",
     "viem": "2.57.12",

@@ -28,12 +28,12 @@ const platformNeutralImports = {
 const LAYERS = {
   abi: [],
   core: ["abi"],
-  deployments: ["abi", "core"],
+  deployments: ["core"],
   calls: ["abi", "core", "deployments"],
   events: ["abi", "core", "deployments"],
   chain: ["abi", "core", "deployments", "calls", "events"],
   api: ["core"],
-  flows: ["abi", "core", "deployments", "calls", "events", "chain", "api"],
+  flows: ["core", "deployments", "calls", "events", "chain", "api"],
 } as const;
 
 const LAYER_NAMES = Object.keys(LAYERS).filter(

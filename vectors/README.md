@@ -6,10 +6,16 @@ hand against our own implementation: expected outputs come from a reference
 (`cast`, chain reads at a pinned block, recorded upstream responses) or a
 spec reading, never from the SDK itself.
 
-There are no vectors yet — a generator is added together with the code
-whose constants it pins down. Each generator lives in
-`packages/fiat24/scripts/vectors/`, writes `vectors/<area>/<name>.json`, and
-is run in check mode by `bun run lint` (`bun run vectors --check`).
+Each generator lives in `packages/fiat24/scripts/vectors/`, writes
+`vectors/<area>/<name>.json`, and is run in check mode by `bun run lint`
+(`bun run vectors --check`).
+
+## Files
+
+```text
+vectors/core/amount.json    parseAmount/formatAmount (core.amount)
+vectors/core/iban.json      ibanOf/isValidIban (core.iban)
+```
 
 ## Layout
 

@@ -1,0 +1,55 @@
+{
+  "endpoint": "GET https://api.fiat24.com/iban/{id} (header network: 42161)",
+  "responses": [
+    {
+      "id": "0",
+      "source": "recorded 2026-11-21T23:59:13Z GET https://api.fiat24.com/iban/0 (network: 42161)",
+      "body": "Unauthorized"
+    },
+    {
+      "id": "1",
+      "source": "recorded 2026-11-21T23:59:13Z GET https://api.fiat24.com/iban/1 (network: 42161)",
+      "body": "{\"iban\":\"CH6483051000000000001\"}"
+    },
+    {
+      "id": "12345",
+      "source": "recorded 2026-11-21T23:59:13Z GET https://api.fiat24.com/iban/12345 (network: 42161)",
+      "body": "{\"iban\":\"CH6883051000000012345\"}"
+    },
+    {
+      "id": "9102",
+      "source": "recorded 2026-11-21T23:59:13Z GET https://api.fiat24.com/iban/9102 (network: 42161)",
+      "body": "{\"iban\":\"CH3883051000000009102\"}"
+    },
+    {
+      "id": "123456",
+      "source": "recorded 2026-11-21T23:59:13Z GET https://api.fiat24.com/iban/123456 (network: 42161)",
+      "body": "{\"iban\":\"CH8783051000000123456\"}"
+    },
+    {
+      "id": "350000",
+      "source": "recorded 2026-11-21T23:59:13Z GET https://api.fiat24.com/iban/350000 (network: 42161)",
+      "body": "{\"iban\":\"CH2583051000000350000\"}"
+    },
+    {
+      "id": "999999999999",
+      "source": "recorded 2026-11-21T23:59:13Z GET https://api.fiat24.com/iban/999999999999 (network: 42161)",
+      "body": "{\"iban\":\"CH2983051999999999999\"}"
+    },
+    {
+      "id": "1000000000000",
+      "source": "recorded 2026-11-21T23:59:13Z GET https://api.fiat24.com/iban/1000000000000 (network: 42161)",
+      "body": "Unauthorized"
+    },
+    {
+      "id": "99999999999",
+      "source": "recorded 2026-11-22T01:30:12Z GET https://api.fiat24.com/iban/99999999999 (network: 42161)",
+      "body": "{\"iban\":\"CH8083051099999999999\"}"
+    },
+    {
+      "id": "100000000000",
+      "source": "recorded 2026-11-22T01:30:12Z GET https://api.fiat24.com/iban/100000000000 (network: 42161)",
+      "body": "{\"iban\":\"CH5383051100000000000\"}"
+    }
+  ]
+}

@@ -4,7 +4,7 @@
 
 An unofficial, wallet-independent TypeScript SDK for the Fiat24 protocol on Arbitrum One: [`@qntx/fiat24`](packages/fiat24) on npm.
 
-> **Status: pre-release.** The repository is scaffolded; the API is not yet implemented. There is nothing to install yet.
+> **Status: pre-release.** Nothing is published yet. The `abi`, `core`, `deployments`, `calls` and `events` layers are implemented (plus `api`'s session label helpers); the `chain` layer, the `api` HTTP client and `flows` are still pending.
 
 This project is not affiliated with or endorsed by SR Saphirstein AG. "Fiat24" is used only to identify the protocol the SDK talks to; no partnership is claimed.
 
@@ -14,8 +14,9 @@ This project is not affiliated with or endorsed by SR Saphirstein AG. "Fiat24" i
 packages/fiat24/  @qntx/fiat24 — platform-neutral TypeScript SDK, layered
                   (abi, core, deployments, calls, events, chain, api,
                   flows), one subpath export per layer
-data/             source data (verified ABIs, deployments) — does not
-                  exist yet
+data/             verified protocol ABIs (data/abis), the on-chain-verified
+                  deployment table (data/deployments.json) and per-contract
+                  provenance (data/SOURCE.md)
 vectors/          shared test vectors produced by independent oracles
 scripts/          repository tooling: gen.ts, version checks, API reports
 .github/          workflows, rulesets (protection as code), CODEOWNERS

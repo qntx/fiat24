@@ -4,7 +4,7 @@
 
 An unofficial TypeScript SDK for the Fiat24 protocol on Arbitrum One. Not affiliated with or endorsed by SR Saphirstein AG; "Fiat24" is used only to identify the protocol.
 
-> **Status: pre-release.** The API is not yet implemented. The package currently publishes only its layered structure and the `Fiat24Error` type.
+> **Status: pre-release.** Nothing is published yet. Implemented so far: the `abi`, `core`, `deployments`, `calls` and `events` layers and `api`'s session label helpers (`sessionLabel`/`sessionMessage`); the `chain` layer, the `api` HTTP client and `flows` are pending.
 
 Platform-neutral (Node, browsers, Hermes): one subpath export per layer — `@qntx/fiat24` plus `/abi`, `/core`, `/deployments`, `/calls`, `/events`, `/chain`, `/api`, `/flows`. `viem` is a peer dependency.
 

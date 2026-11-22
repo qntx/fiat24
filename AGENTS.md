@@ -52,10 +52,14 @@ bun run check:pkg                       # pack + dist-deps + API report + publin
 More:
 
 ```bash
-bun run --cwd packages/fiat24 test:fork                    # anvil fork suite (needs FIAT24_FORK_URL)
+bun run --cwd packages/fiat24 test:fork                    # runs only tests/fork (FIAT24_FORK=1 include
+                                                           # switch; needs FIAT24_FORK_URL)
 bun run --cwd packages/fiat24 smoke:hermes                 # needs HERMES=/path/to/hermes
 bun scripts/check-api.ts packages/fiat24 --update          # re-baseline packages/fiat24/api/
+bun scripts/deployments/verify.ts [--block N]              # re-read every deployments.json pin from
+                                                           # chain (FIAT24_RPC or Tenderly archive)
 bun run abi                                                # fetch data/abis + data/SOURCE.md from Sourcify
+bun run abi --check                                        # re-fetch and fail on any difference
 bun run gen                                                # regenerate src/abi + src/deployments/data.ts from data/
 bun run vectors                                            # regenerate vectors/
 ```

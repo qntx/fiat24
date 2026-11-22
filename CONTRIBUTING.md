@@ -11,9 +11,9 @@
 packages/fiat24/  @qntx/fiat24 — platform-neutral TypeScript SDK (layered:
                   abi, core, deployments, calls, events, chain, api,
                   flows); builds with vp pack
-data/             source data: verified ABIs (data/abis) and the on-chain-
-                  verified deployment table (data/deployments.json); does
-                  not exist yet
+data/             source data: verified ABIs (data/abis), the on-chain-
+                  verified deployment table (data/deployments.json) and
+                  per-contract provenance (data/SOURCE.md)
 vectors/          shared test vectors (see vectors/README.md)
 scripts/          repository tooling: gen.ts regenerates src/abi from
                   data/abis (`bun run gen`, checked in lint via --check),

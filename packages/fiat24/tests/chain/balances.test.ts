@@ -42,7 +42,7 @@ describe("getBalances", () => {
         }),
       "invalid-address",
     );
-    expect(stub.calls).toStrictEqual([]);
+    expect(stub.requests).toStrictEqual([]);
   });
 });
 
@@ -152,7 +152,7 @@ describe("getAllowance", () => {
         ),
       ),
     );
-    expect(stub.calls).toStrictEqual([]);
+    expect(stub.requests).toStrictEqual([]);
   });
 
   test("unknown asset is unsupported-currency; unknown spender is invalid-argument", async () => {
@@ -178,6 +178,7 @@ describe("getAllowance", () => {
         }),
       "invalid-argument",
     );
+    expect(stub.requests).toStrictEqual([]);
   });
 });
 

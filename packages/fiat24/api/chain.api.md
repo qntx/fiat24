@@ -23,40 +23,10 @@ export type Allowances = {
 };
 
 // @public (undocumented)
-type AnyClient$1 = Client;
-
-// @public (undocumented)
-type AnyClient$2 = Client;
-
-// @public (undocumented)
-type AnyClient$3 = Client;
-
-// @public (undocumented)
-type AnyClient$4 = Client;
-
-// @public (undocumented)
-type AnyClient$5 = Client;
-
-// @public (undocumented)
-type AnyClient$6 = Client;
-
-// @public (undocumented)
-type AnyClient$7 = Client;
-
-// @public (undocumented)
-type AnyClient$8 = Client;
-
-// @public (undocumented)
-type AnyClient$9 = Client;
-
-// @public (undocumented)
-type AnyClient = Client;
-
-// @public (undocumented)
 type ApprovalSpender = "card" | "deposit" | "account";
 
 // @public
-export function assertDeployment(client: AnyClient$7, args: ChainArgs & {
+export function assertDeployment(client: Client, args: ChainArgs & {
     contracts: ReadonlyArray<ContractName>;
 }): Promise<bigint>;
 
@@ -101,7 +71,7 @@ export type ChainArgs = {
 };
 
 // @public
-export function checkTransfer(client: AnyClient$4, args: ChainArgs & {
+export function checkTransfer(client: Client, args: ChainArgs & {
     from: Address;
     to: Recipient;
     currency: Currency;
@@ -338,29 +308,29 @@ type Fiat24Intent = {
 };
 
 // @public
-export function getAccount(client: AnyClient$9, args: ChainArgs & ({
+export function getAccount(client: Client, args: ChainArgs & ({
     owner: Address;
 } | {
     tokenId: bigint;
 })): Promise<Fiat24Account | undefined>;
 
 // @public
-export function getAllowance(client: AnyClient$8, args: ChainArgs & {
+export function getAllowance(client: Client, args: ChainArgs & {
     owner: Address;
     asset: Asset;
     spender: ApprovalSpender;
 }): Promise<bigint>;
 
 // @public
-export function getAllowances(client: AnyClient$8, args: ChainArgs & {
+export function getAllowances(client: Client, args: ChainArgs & {
     owner: Address;
 }): Promise<Allowances>;
 
 // @public
-export function getAvailability(client: AnyClient$6, args?: ChainArgs): Promise<Availability>;
+export function getAvailability(client: Client, args?: ChainArgs): Promise<Availability>;
 
 // @public
-export function getBalances(client: AnyClient$8, args: ChainArgs & {
+export function getBalances(client: Client, args: ChainArgs & {
     owner: Address;
 }): Promise<{
     readonly balances: Readonly<Record<Currency, bigint>>;
@@ -368,7 +338,7 @@ export function getBalances(client: AnyClient$8, args: ChainArgs & {
 }>;
 
 // @public
-export function getExchangeQuote(client: AnyClient$5, args: ChainArgs & {
+export function getExchangeQuote(client: Client, args: ChainArgs & {
     side: "exact-in" | "exact-out";
     from: Currency;
     to: Currency;
@@ -376,7 +346,7 @@ export function getExchangeQuote(client: AnyClient$5, args: ChainArgs & {
 }): Promise<ExchangeQuote>;
 
 // @public
-export function getHistory(client: AnyClient$1, args: ChainArgs & {
+export function getHistory(client: Client, args: ChainArgs & {
     owner: Address;
     tokenId?: bigint;
     fromBlock: bigint;
@@ -385,17 +355,17 @@ export function getHistory(client: AnyClient$1, args: ChainArgs & {
 }): Promise<ReadonlyArray<Fiat24Event>>;
 
 // @public
-export function getMintQuote(client: AnyClient$2, args: ChainArgs & {
+export function getMintQuote(client: Client, args: ChainArgs & {
     tokenId: bigint;
 }): Promise<MintQuote>;
 
 // @public
-export function getPayoutMinimum(client: AnyClient$3, args: ChainArgs & {
+export function getPayoutMinimum(client: Client, args: ChainArgs & {
     currency: PayoutCurrency;
 }): Promise<bigint>;
 
 // @public
-export function getPayoutSettlement(client: AnyClient$3, args: ChainArgs & {
+export function getPayoutSettlement(client: Client, args: ChainArgs & {
     currency: PayoutCurrency;
     tokenId: bigint;
     contactId: string;
@@ -405,7 +375,7 @@ export function getPayoutSettlement(client: AnyClient$3, args: ChainArgs & {
 }): Promise<PayoutSettlement>;
 
 // @public
-export function getTopUpQuote(client: AnyClient$5, args: ChainArgs & {
+export function getTopUpQuote(client: Client, args: ChainArgs & {
     owner: Address;
     output: Currency;
     usdcAmount: bigint;
@@ -469,7 +439,7 @@ type Recipient = {
 };
 
 // @public
-export function simulateCall(client: AnyClient, args: {
+export function simulateCall(client: Client, args: {
     call: Fiat24Call;
     from: Address;
     blockNumber: bigint;
@@ -495,7 +465,7 @@ export type TransferCheck = {
 };
 
 // @public
-export function verifyDeployment(client: AnyClient$7, args?: ChainArgs & {
+export function verifyDeployment(client: Client, args?: ChainArgs & {
     contracts?: ReadonlyArray<ContractName>;
 }): Promise<DeploymentCheck>;
 

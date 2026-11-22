@@ -316,6 +316,7 @@ describe("getHistory", () => {
         }),
       "invalid-argument",
     );
+    expect(stub.requests).toStrictEqual([]);
   });
 
   test("a non-bigint tokenId is invalid-account-id", async () => {
@@ -332,6 +333,7 @@ describe("getHistory", () => {
         }),
       "invalid-account-id",
     );
+    expect(stub.requests).toStrictEqual([]);
   });
 });
 

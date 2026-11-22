@@ -39,7 +39,7 @@ export type { Deployment, PinnedProxy } from "./deployments/deployment.ts";
 export type { Fiat24Call } from "./calls/types.ts";
 export type { Fiat24Event, RawLog } from "./events/types.ts";
 export { fiat24PublicActions } from "./actions.ts";
-export type { Fiat24ActionsOptions, Fiat24PublicActionSet } from "./actions.ts";
+export type { Fiat24PublicActionSet } from "./actions.ts";
 export type { Fiat24Account } from "./chain/account.ts";
 export type { Allowances } from "./chain/balances.ts";
 export type { DeploymentCheck, Drift } from "./chain/deployment.ts";

@@ -5,28 +5,16 @@ import { mintAccountWithEthCall } from "../calls/account.ts";
 import { isStandardMintId } from "../core/account-id.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import type { ChainArgs } from "./context.ts";
-import { readAt, snapshot } from "./context.ts";
+import {
+  asBigint,
+  asBoolean,
+  asUint8,
+  invalidResponse,
+  readAt,
+  resolveDeployment,
+  snapshot,
+} from "./context.ts";
 import { assertDeployment } from "./deployment.ts";
-
-type AnyClient = Client;
-
-const invalidResponse = (): never => {
-  throw new Fiat24Error("invalid-rpc-response", "invalid rpc response");
-};
-
-function asBigint(value: unknown): bigint {
-  return typeof value === "bigint" ? value : invalidResponse();
-}
-
-function asBoolean(value: unknown): boolean {
-  return typeof value === "boolean" ? value : invalidResponse();
-}
-
-function asUint8(value: unknown): number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value <= 255
-    ? value
-    : invalidResponse();
-}
 
 const WEI_PER_ETHER = 10n ** 18n;
 
@@ -66,15 +54,16 @@ export type MintQuote = {
  * Fiat24PriceList.sol:20-41).
  */
 export async function getMintQuote(
-  client: AnyClient,
+  client: Client,
   args: ChainArgs & { tokenId: bigint },
 ): Promise<MintQuote> {
-  const { deployment, blockNumber: B } = await snapshot(client, args);
+  const deployment = resolveDeployment(client, args.deployment);
   const { tokenId } = args;
   if (typeof tokenId !== "bigint" || !isStandardMintId(tokenId)) {
     throw new Fiat24Error("invalid-account-id", "invalid account id");
   }
   const call = mintAccountWithEthCall({ tokenId, value: 1n, deployment });
+  const { blockNumber: B } = await snapshot(client, args);
   await assertDeployment(client, {
     contracts: call.contracts,
     deployment,

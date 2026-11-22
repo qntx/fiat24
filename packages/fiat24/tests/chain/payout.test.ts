@@ -109,7 +109,7 @@ describe("getPayoutMinimum", () => {
         }),
       "unsupported-currency",
     );
-    expect(stub.calls).toStrictEqual([]);
+    expect(stub.requests).toStrictEqual([]);
   });
 });
 
@@ -260,5 +260,14 @@ describe("getPayoutSettlement", () => {
       async () => getPayoutSettlement(stub.client, { ...SETTLE_ARGS, tokenId: "350273" as never }),
       "invalid-account-id",
     );
+    await expectErrorAsync(
+      async () => getPayoutSettlement(stub.client, { ...SETTLE_ARGS, chunkSize: 0n }),
+      "invalid-argument",
+    );
+    await expectErrorAsync(
+      async () => getPayoutSettlement(stub.client, { ...SETTLE_ARGS, chunkSize: 10_000_001n }),
+      "invalid-argument",
+    );
+    expect(stub.requests).toStrictEqual([]);
   });
 });

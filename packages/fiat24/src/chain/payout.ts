@@ -9,9 +9,16 @@ import type { PayoutCurrency } from "../core/types.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
 import type { Fiat24Event, RawLog } from "../events/types.ts";
 import type { ChainArgs } from "./context.ts";
-import { getLogsChunked, readAt, snapshot } from "./context.ts";
-
-type AnyClient = Client;
+import {
+  asBigint,
+  checkedChunkSize,
+  checkedPayoutCurrency,
+  getLogsChunked,
+  invalidResponse,
+  readAt,
+  resolveDeployment,
+  snapshot,
+} from "./context.ts";
 
 /** SPEC §3.6. */
 export type PayoutSettlement = {
@@ -19,17 +26,6 @@ export type PayoutSettlement = {
   readonly event?: Fiat24Event;
   readonly blockNumber: bigint;
 };
-
-const invalidResponse = (): never => {
-  throw new Fiat24Error("invalid-rpc-response", "invalid rpc response");
-};
-
-function checkedPayoutCurrency(currency: unknown): PayoutCurrency {
-  if (currency !== "EUR24" && currency !== "CHF24") {
-    throw new Fiat24Error("unsupported-currency", "unsupported currency");
-  }
-  return currency;
-}
 
 // Topic0 is derived from the ABI at call time (never hand-typed, §4.4).
 function cashPayoutTopic0(): `0x${string}` {
@@ -45,17 +41,18 @@ function cashPayoutTopic0(): `0x${string}` {
 
 /** `minimalPayoutAmount()` on the payout token, at B (SPEC §8.2). */
 export async function getPayoutMinimum(
-  client: AnyClient,
+  client: Client,
   args: ChainArgs & { currency: PayoutCurrency },
 ): Promise<bigint> {
-  const { deployment, blockNumber: B } = await snapshot(client, args);
+  resolveDeployment(client, args.deployment);
   const currency = checkedPayoutCurrency(args.currency);
+  const { deployment, blockNumber: B } = await snapshot(client, args);
   const value = await readAt(client, B, {
     address: deployment.tokens[currency].proxy,
     abi: tokenAbi,
     functionName: "minimalPayoutAmount",
   });
-  return typeof value === "bigint" ? value : invalidResponse();
+  return asBigint(value);
 }
 
 /**
@@ -65,7 +62,7 @@ export async function getPayoutMinimum(
  * `unknown` payoutAccount is an RPC/decoder anomaly), more ⇒ the RPC lied.
  */
 export async function getPayoutSettlement(
-  client: AnyClient,
+  client: Client,
   args: ChainArgs & {
     currency: PayoutCurrency;
     tokenId: bigint;
@@ -75,7 +72,7 @@ export async function getPayoutSettlement(
     chunkSize?: bigint;
   },
 ): Promise<PayoutSettlement> {
-  const { deployment, blockNumber: B } = await snapshot(client, args);
+  resolveDeployment(client, args.deployment);
   const currency = checkedPayoutCurrency(args.currency);
   if (typeof args.tokenId !== "bigint") {
     throw new Fiat24Error("invalid-account-id", "invalid account id");
@@ -87,7 +84,14 @@ export async function getPayoutSettlement(
   if (typeof args.txid !== "string" || args.txid.length === 0 || args.txid.length > 1024) {
     throw new Fiat24Error("invalid-argument", "invalid argument");
   }
-  if (typeof args.fromBlock !== "bigint" || args.fromBlock < 0n || args.fromBlock > B) {
+  if (typeof args.fromBlock !== "bigint" || args.fromBlock < 0n) {
+    throw new Fiat24Error("invalid-argument", "invalid argument");
+  }
+  if (args.chunkSize !== undefined) {
+    checkedChunkSize(args.chunkSize);
+  }
+  const { deployment, blockNumber: B } = await snapshot(client, args);
+  if (args.fromBlock > B) {
     throw new Fiat24Error("invalid-argument", "invalid argument");
   }
   const chunkSize = args.chunkSize ?? 1_000_000n;
@@ -114,7 +118,7 @@ export async function getPayoutSettlement(
       event.trxId === args.txid &&
       event.bankId === args.contactId
     ) {
-      matches.set(`${event.transactionHash}:${event.logIndex}`, event);
+      matches.set(`${event.transactionHash.toLowerCase()}:${event.logIndex}`, event);
     }
   }
   const found = [...matches.values()];

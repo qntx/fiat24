@@ -12,9 +12,6 @@ import { simulateCall } from "./chain/simulate.ts";
 import { checkTransfer } from "./chain/transfer.ts";
 import type { Deployment } from "./deployments/index.ts";
 
-/** Bound deployment for every action bound by {@link fiat24PublicActions}. */
-export type Fiat24ActionsOptions = { deployment?: Deployment | undefined };
-
 type Bound<F> = F extends (client: Client, args: infer A) => infer R ? (args: A) => R : never;
 
 /** The methods {@link fiat24PublicActions} binds to a client (SPEC §3.10). */
@@ -42,7 +39,7 @@ export type Fiat24PublicActionSet = {
  * (§8.1); `simulateCall` takes no deployment and passes args through. Prefixed names never collide
  * with viem actions on `client.extend`.
  */
-export function fiat24PublicActions(options: Fiat24ActionsOptions = {}) {
+export function fiat24PublicActions(options: { deployment?: Deployment } = {}) {
   return (client: Client): Fiat24PublicActionSet => ({
     fiat24GetAccount: async (args: Parameters<typeof getAccount>[1]) =>
       getAccount(client, { ...args, deployment: args.deployment ?? options.deployment }),

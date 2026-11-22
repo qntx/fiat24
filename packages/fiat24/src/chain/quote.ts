@@ -1,5 +1,4 @@
 import type { Address, Client } from "viem";
-import { getAddress, isAddress } from "viem";
 
 import { accountAbi, depositAbi } from "../abi/index.ts";
 import { topUpCall } from "../calls/topup.ts";
@@ -7,22 +6,16 @@ import { checkedAmount, checkedCurrency } from "../calls/types.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import type { Currency } from "../core/types.ts";
 import type { ChainArgs } from "./context.ts";
-import { readAt, snapshot } from "./context.ts";
+import {
+  asBigint,
+  asBoolean,
+  checkedAddress,
+  invalidResponse,
+  readAt,
+  resolveDeployment,
+  snapshot,
+} from "./context.ts";
 import { assertDeployment } from "./deployment.ts";
-
-type AnyClient = Client;
-
-const invalidResponse = (): never => {
-  throw new Fiat24Error("invalid-rpc-response", "invalid rpc response");
-};
-
-function asBigint(value: unknown): bigint {
-  return typeof value === "bigint" ? value : invalidResponse();
-}
-
-function asBoolean(value: unknown): boolean {
-  return typeof value === "boolean" ? value : invalidResponse();
-}
 
 const SIDES: ReadonlySet<string> = new Set(["exact-in", "exact-out"]);
 
@@ -77,7 +70,7 @@ export type ExchangeQuote = {
  * `below-minimum`.
  */
 export async function getExchangeQuote(
-  client: AnyClient,
+  client: Client,
   args: ChainArgs & {
     side: "exact-in" | "exact-out";
     from: Currency;
@@ -85,7 +78,7 @@ export async function getExchangeQuote(
     amount: bigint;
   },
 ): Promise<ExchangeQuote> {
-  const { deployment, blockNumber: B } = await snapshot(client, args);
+  resolveDeployment(client, args.deployment);
   const { side } = args;
   if (typeof side !== "string" || !SIDES.has(side)) {
     throw new Fiat24Error("invalid-argument", "invalid argument");
@@ -97,6 +90,7 @@ export async function getExchangeQuote(
   }
   checkedAmount(args.amount);
   const { amount } = args;
+  const { deployment, blockNumber: B } = await snapshot(client, args);
 
   const deposit = deployment.deposit.proxy;
   const fromToken = deployment.tokens[from].proxy;
@@ -191,21 +185,18 @@ export type TopUpQuote = {
  * input is an RPC lie. `paused` is returned as data, never thrown.
  */
 export async function getTopUpQuote(
-  client: AnyClient,
+  client: Client,
   args: ChainArgs & { owner: Address; output: Currency; usdcAmount: bigint },
 ): Promise<TopUpQuote> {
-  const { deployment, blockNumber: B } = await snapshot(client, args);
-  const ownerRaw = args.owner;
-  if (typeof ownerRaw !== "string" || !isAddress(ownerRaw, { strict: false })) {
-    throw new Fiat24Error("invalid-address", "invalid address");
-  }
-  const owner = getAddress(ownerRaw);
+  const deployment = resolveDeployment(client, args.deployment);
+  const owner = checkedAddress(args.owner);
   const output = checkedCurrency(args.output);
   const call = topUpCall({
     output,
     usdcAmount: args.usdcAmount,
     deployment,
   });
+  const { blockNumber: B } = await snapshot(client, args);
   await assertDeployment(client, {
     contracts: call.contracts,
     deployment,

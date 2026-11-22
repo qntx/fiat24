@@ -1,5 +1,5 @@
 import type { Address, Client } from "viem";
-import { getAddress, isAddress } from "viem";
+import { getAddress } from "viem";
 
 import { accountAbi, tokenAbi } from "../abi/index.ts";
 import { transferCall, transferToAccountCall } from "../calls/transfer.ts";
@@ -8,9 +8,16 @@ import { Fiat24Error } from "../core/errors.ts";
 import type { Currency, Recipient } from "../core/types.ts";
 import { resolveAccount } from "./account.ts";
 import type { ChainArgs } from "./context.ts";
-import { readAt, revertError, snapshot } from "./context.ts";
-
-type AnyClient = Client;
+import {
+  asAddress,
+  asBigint,
+  asBoolean,
+  checkedAddress,
+  readAt,
+  resolveDeployment,
+  revertError,
+  snapshot,
+} from "./context.ts";
 
 /** SPEC §3.6. */
 export type TransferCheck = {
@@ -18,24 +25,6 @@ export type TransferCheck = {
   readonly recipientTokenId: bigint | undefined;
   readonly blockNumber: bigint;
 };
-
-const invalidResponse = (): never => {
-  throw new Fiat24Error("invalid-rpc-response", "invalid rpc response");
-};
-
-function asBigint(value: unknown): bigint {
-  return typeof value === "bigint" ? value : invalidResponse();
-}
-
-function asBoolean(value: unknown): boolean {
-  return typeof value === "boolean" ? value : invalidResponse();
-}
-
-function asAddress(value: unknown): Address {
-  return typeof value === "string" && isAddress(value, { strict: false })
-    ? getAddress(value)
-    : invalidResponse();
-}
 
 // checkTransfer's later steps map contract reverts through the §6.3 table, not
 // the plain contract-revert bucket (§8.4 step 5).
@@ -59,10 +48,23 @@ function remapRevert(error: unknown): never {
  * from transfer-not-allowed.
  */
 export async function checkTransfer(
-  client: AnyClient,
+  client: Client,
   args: ChainArgs & { from: Address; to: Recipient; currency: Currency; amount: bigint },
 ): Promise<TransferCheck> {
-  const { deployment, blockNumber: B } = await snapshot(client, args);
+  const deployment = resolveDeployment(client, args.deployment);
+
+  // `args.to` is a non-null object carrying exactly one of address/tokenId — a
+  // primitive, an empty/both object or a non-bigint tokenId fails closed (§8.4),
+  // never a TypeError or a slip through assertTokenId's bigint comparisons.
+  const to: unknown = args.to;
+  if (
+    typeof to !== "object" ||
+    to === null ||
+    "address" in to === "tokenId" in to ||
+    ("tokenId" in to && typeof to["tokenId"] !== "bigint")
+  ) {
+    throw new Fiat24Error("invalid-argument", "invalid argument");
+  }
 
   // Step 0 — local refusals ride on the builders (invalid-address, internal-account,
   // currency and amount checks), never re-implemented here.
@@ -82,10 +84,8 @@ export async function checkTransfer(
     });
   }
   const { currency, amount } = args;
-  if (typeof args.from !== "string" || !isAddress(args.from, { strict: false })) {
-    throw new Fiat24Error("invalid-address", "invalid address");
-  }
-  const from = getAddress(args.from);
+  const from = checkedAddress(args.from);
+  const { blockNumber: B } = await snapshot(client, args);
   const token = deployment.tokens[currency].proxy;
   const account = deployment.account.proxy;
 

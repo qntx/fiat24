@@ -1,5 +1,5 @@
 import type { Address, Client } from "viem";
-import { getAddress, isAddress, zeroAddress } from "viem";
+import { zeroAddress } from "viem";
 import { getBlock } from "viem/actions";
 
 import { accountAbi } from "../abi/index.ts";
@@ -10,9 +10,18 @@ import { accountStatusFromIndex } from "../core/status.ts";
 import type { AccountStatus } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import type { ChainArgs } from "./context.ts";
-import { mapViemError, readAt, snapshot } from "./context.ts";
-
-type AnyClient = Client;
+import {
+  asAddress,
+  asBigint,
+  asBoolean,
+  asNumber,
+  checkedAddress,
+  invalidResponse,
+  mapViemError,
+  readAt,
+  resolveDeployment,
+  snapshot,
+} from "./context.ts";
 
 /** SPEC §3.6. */
 export type Fiat24Account = {
@@ -48,10 +57,6 @@ function sameAddress(a: string, b: string): boolean {
 
 type StoredLimit = readonly [bigint, bigint, bigint];
 
-const invalidResponse = (): never => {
-  throw new Fiat24Error("invalid-rpc-response", "invalid rpc response");
-};
-
 function asStoredLimit(value: unknown): StoredLimit {
   if (!Array.isArray(value) || value.length !== 3) {
     return invalidResponse();
@@ -62,32 +67,6 @@ function asStoredLimit(value: unknown): StoredLimit {
     return invalidResponse();
   }
   return [used, max, start];
-}
-
-function asBigint(value: unknown): bigint {
-  return typeof value === "bigint" ? value : invalidResponse();
-}
-
-function asBoolean(value: unknown): boolean {
-  return typeof value === "boolean" ? value : invalidResponse();
-}
-
-function asNumber(value: unknown): number {
-  return typeof value === "number" && Number.isSafeInteger(value) ? value : invalidResponse();
-}
-
-function asAddress(value: unknown): Address {
-  return typeof value === "string" && isAddress(value, { strict: false })
-    ? getAddress(value)
-    : invalidResponse();
-}
-
-function checkedAddress(value: unknown): Address {
-  return typeof value === "string" && isAddress(value, { strict: false })
-    ? getAddress(value)
-    : (() => {
-        throw new Fiat24Error("invalid-address", "invalid address");
-      })();
 }
 
 type Round = {
@@ -102,7 +81,7 @@ type Round = {
 };
 
 async function readRound(
-  client: AnyClient,
+  client: Client,
   B: bigint,
   account: Address,
   tokenId: bigint,
@@ -206,7 +185,7 @@ function buildAccount(
 }
 
 async function accountByTokenId(
-  client: AnyClient,
+  client: Client,
   B: bigint,
   account: Address,
   tokenId: bigint,
@@ -232,7 +211,7 @@ async function accountByTokenId(
  * Fiat24Token.sol:172-180).
  */
 export async function resolveAccount(
-  client: AnyClient,
+  client: Client,
   deployment: Deployment,
   B: bigint,
   ownerRaw: unknown,
@@ -303,15 +282,22 @@ export async function resolveAccount(
  * "tourist"). `{tokenId}` goes straight at the id. Every read at one snapshot B.
  */
 export async function getAccount(
-  client: AnyClient,
+  client: Client,
   args: ChainArgs & ({ owner: Address } | { tokenId: bigint }),
 ): Promise<Fiat24Account | undefined> {
-  const { deployment, blockNumber: B } = await snapshot(client, args);
+  // resolveDeployment does no I/O; every caller input is validated before the
+  // snapshot's possible eth_blockNumber (§8.1).
+  resolveDeployment(client, args.deployment);
   if ("tokenId" in args) {
     if (typeof args.tokenId !== "bigint") {
       throw new Fiat24Error("invalid-account-id", "invalid account id");
     }
     assertTokenId(args.tokenId);
+  } else {
+    checkedAddress(args.owner);
+  }
+  const { deployment, blockNumber: B } = await snapshot(client, args);
+  if ("tokenId" in args) {
     return accountByTokenId(client, B, deployment.account.proxy, args.tokenId);
   }
   const resolved = await resolveAccount(client, deployment, B, args.owner);

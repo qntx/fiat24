@@ -284,6 +284,7 @@ describe("getAccount hostile input", () => {
       async () => getAccount(stub.client, { owner: "0x1234", blockNumber: B }),
       "invalid-address",
     );
+    expect(stub.requests).toStrictEqual([]);
   });
 
   test("a non-bigint tokenId is invalid-account-id", async () => {
@@ -293,6 +294,7 @@ describe("getAccount hostile input", () => {
       async () => getAccount(stub.client, { tokenId: "402001" as never, blockNumber: B }),
       "invalid-account-id",
     );
+    expect(stub.requests).toStrictEqual([]);
   });
 
   test("a null eth_getBlockByNumber result maps through viem to rpc-error", async () => {

@@ -1,5 +1,4 @@
 import type { Address, Client, Hex } from "viem";
-import { isAddress } from "viem";
 
 import { accountAbi, depositAbi, proxyAdminAbi } from "../abi/index.ts";
 import { Fiat24Error } from "../core/errors.ts";
@@ -10,16 +9,16 @@ import type { ChainArgs } from "./context.ts";
 import {
   ADMIN_SLOT,
   addressSlot,
+  asAddress,
   F24_SLOT,
   IMPL_SLOT,
   packedAddress,
   PRICELIST_SLOT,
   readAt,
+  resolveDeployment,
   snapshot,
   storageAt,
 } from "./context.ts";
-
-type AnyClient = Client;
 
 /** SPEC §3.6. */
 export type Drift = {
@@ -76,16 +75,6 @@ function proxyOf(deployment: Deployment, name: ContractName): PinnedProxy | unde
   }
 }
 
-const invalidResponse = (): never => {
-  throw new Fiat24Error("invalid-rpc-response", "invalid rpc response");
-};
-
-function asAddressWord(value: unknown): Address {
-  return typeof value === "string" && isAddress(value, { strict: false })
-    ? value
-    : invalidResponse();
-}
-
 /**
  * SPEC §8.2: per proxy `getStorageAt` on the EIP-1967 impl and admin slots; `account` also reads
  * the wiring pointers (slot 359 priceList, slot 358 f24) plus `F24SalesAddress()`; `deposit` reads
@@ -93,11 +82,10 @@ function asAddressWord(value: unknown): Address {
  * concurrently at B. Owner drift is reported, never counted.
  */
 export async function verifyDeployment(
-  client: AnyClient,
+  client: Client,
   args: ChainArgs & { contracts?: ReadonlyArray<ContractName> } = {},
 ): Promise<DeploymentCheck> {
-  const { deployment, blockNumber: B } = await snapshot(client, args);
-
+  resolveDeployment(client, args.deployment);
   const requested = args.contracts ?? ALL_CONTRACTS;
   if (!Array.isArray(requested) || requested.length === 0) {
     throw new Fiat24Error("invalid-argument", "invalid argument");
@@ -111,6 +99,7 @@ export async function verifyDeployment(
       names.push(name);
     }
   }
+  const { deployment, blockNumber: B } = await snapshot(client, args);
 
   type Job = {
     contract: ContractName;
@@ -163,7 +152,7 @@ export async function verifyDeployment(
           field: "f24Sales",
           expected: deployment.f24Sales.proxy,
           run: async () =>
-            asAddressWord(
+            asAddress(
               await readAt(client, B, {
                 address: pin.proxy,
                 abi: accountAbi,
@@ -179,7 +168,7 @@ export async function verifyDeployment(
         field: "usdc",
         expected: deployment.usdc,
         run: async () =>
-          asAddressWord(
+          asAddress(
             await readAt(client, B, {
               address: pin.proxy,
               abi: depositAbi,
@@ -193,7 +182,7 @@ export async function verifyDeployment(
   const [readings, proxyAdminOwner] = await Promise.all([
     Promise.all(jobs.map(async (job) => ({ job, actual: await job.run() }))),
     (async () =>
-      asAddressWord(
+      asAddress(
         await readAt(client, B, {
           address: deployment.proxyAdmin.address,
           abi: proxyAdminAbi,
@@ -230,7 +219,7 @@ export async function verifyDeployment(
  * `{contract, field}`. Returns B on success.
  */
 export async function assertDeployment(
-  client: AnyClient,
+  client: Client,
   args: ChainArgs & { contracts: ReadonlyArray<ContractName> },
 ): Promise<bigint> {
   const check = await verifyDeployment(client, args);

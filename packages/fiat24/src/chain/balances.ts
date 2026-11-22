@@ -1,4 +1,4 @@
-import { erc20Abi, getAddress, isAddress } from "viem";
+import { erc20Abi } from "viem";
 import type { Abi, Address, Client } from "viem";
 
 import { f24Abi, tokenAbi } from "../abi/index.ts";
@@ -8,24 +8,7 @@ import type { ApprovalSpender, Asset, Currency } from "../core/types.ts";
 import { CURRENCIES } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import type { ChainArgs } from "./context.ts";
-import { readAt, snapshot } from "./context.ts";
-
-type AnyClient = Client;
-
-const invalidResponse = (): never => {
-  throw new Fiat24Error("invalid-rpc-response", "invalid rpc response");
-};
-
-function asBigint(value: unknown): bigint {
-  return typeof value === "bigint" ? value : invalidResponse();
-}
-
-function checkedOwner(value: unknown): Address {
-  if (typeof value !== "string" || !isAddress(value, { strict: false })) {
-    throw new Fiat24Error("invalid-address", "invalid address");
-  }
-  return getAddress(value);
-}
+import { asBigint, checkedAddress, readAt, resolveDeployment, snapshot } from "./context.ts";
 
 const SPENDERS: ReadonlySet<string> = new Set(["card", "deposit", "account"]);
 const CASH: ReadonlySet<string> = new Set(CURRENCIES);
@@ -64,14 +47,15 @@ function allowanceTarget(
 
 /** `balanceOf(O)` on the four cash tokens, one round at B (SPEC §8.2). */
 export async function getBalances(
-  client: AnyClient,
+  client: Client,
   args: ChainArgs & { owner: Address },
 ): Promise<{
   readonly balances: Readonly<Record<Currency, bigint>>;
   readonly blockNumber: bigint;
 }> {
+  resolveDeployment(client, args.deployment);
+  const owner = checkedAddress(args.owner);
   const { deployment, blockNumber: B } = await snapshot(client, args);
-  const owner = checkedOwner(args.owner);
   const [usd24, eur24, chf24, cnh24] = await Promise.all(
     CURRENCIES.map(async (currency) =>
       readAt(client, B, {
@@ -93,16 +77,17 @@ export async function getBalances(
 
 /** `allowance(O, spender)` on the asset contract for one allowed pair (SPEC §8.2). */
 export async function getAllowance(
-  client: AnyClient,
+  client: Client,
   args: ChainArgs & { owner: Address; asset: Asset; spender: ApprovalSpender },
 ): Promise<bigint> {
-  const { deployment, blockNumber: B } = await snapshot(client, args);
-  const owner = checkedOwner(args.owner);
+  resolveDeployment(client, args.deployment);
+  const owner = checkedAddress(args.owner);
   const asset = checkedAsset(args.asset);
   const { spender } = args;
   if (typeof spender !== "string" || !SPENDERS.has(spender)) {
     throw new Fiat24Error("invalid-argument", "invalid argument");
   }
+  const { deployment, blockNumber: B } = await snapshot(client, args);
   const target = allowanceTarget(deployment, asset, spender);
   return asBigint(
     await readAt(client, B, {
@@ -124,11 +109,12 @@ export type Allowances = {
 
 /** All ten allowance pairs in one round (SPEC §8.2). */
 export async function getAllowances(
-  client: AnyClient,
+  client: Client,
   args: ChainArgs & { owner: Address },
 ): Promise<Allowances> {
+  resolveDeployment(client, args.deployment);
+  const owner = checkedAddress(args.owner);
   const { deployment, blockNumber: B } = await snapshot(client, args);
-  const owner = checkedOwner(args.owner);
 
   type Job = { address: Address; abi: Abi; spender: Address };
   const cardJobs = CURRENCIES.map((currency): Job => ({

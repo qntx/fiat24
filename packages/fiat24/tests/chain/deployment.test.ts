@@ -181,6 +181,7 @@ describe("verifyDeployment", () => {
         }),
       "invalid-argument",
     );
+    expect(stub.requests).toStrictEqual([]);
   });
 
   test("duplicates in the contracts list are deduplicated", async () => {

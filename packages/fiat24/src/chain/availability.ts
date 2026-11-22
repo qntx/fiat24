@@ -1,12 +1,18 @@
 import type { Abi, Address, Client } from "viem";
 
 import { accountAbi, cardAbi, depositAbi, f24SalesAbi, tokenAbi } from "../abi/index.ts";
-import { Fiat24Error } from "../core/errors.ts";
 import type { Currency } from "../core/types.ts";
 import type { ChainArgs } from "./context.ts";
-import { PRICELIST_SLOT, readAt, slotByte, snapshot, storageAt } from "./context.ts";
-
-type AnyClient = Client;
+import {
+  asBoolean,
+  asUint8,
+  invalidResponse,
+  PRICELIST_SLOT,
+  readAt,
+  slotByte,
+  snapshot,
+  storageAt,
+} from "./context.ts";
 
 /** SPEC §3.6. */
 export type Availability = {
@@ -22,29 +28,12 @@ export type Availability = {
   readonly blockNumber: bigint;
 };
 
-const invalidResponse = (): never => {
-  throw new Fiat24Error("invalid-rpc-response", "invalid rpc response");
-};
-
-function asBoolean(value: unknown): boolean {
-  return typeof value === "boolean" ? value : invalidResponse();
-}
-
-function asUint8(value: unknown): number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value <= 255
-    ? value
-    : invalidResponse();
-}
-
 /**
  * SPEC §8.2: one round at B — `paused()` on account, the 4 tokens, deposit, card and f24Sales;
  * `deposit.marketClosed()`; `account.maxDigitForSale()`; and `f24IsActive` from slot 359 byte 20
  * (verified storageLayout; the byte must be 0 or 1).
  */
-export async function getAvailability(
-  client: AnyClient,
-  args: ChainArgs = {},
-): Promise<Availability> {
+export async function getAvailability(client: Client, args: ChainArgs = {}): Promise<Availability> {
   const { deployment, blockNumber: B } = await snapshot(client, args);
 
   const pausedOf = async (address: Address, abi: Abi) =>

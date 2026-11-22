@@ -1,5 +1,5 @@
 import type { Abi, Address, Client, Hex } from "viem";
-import { getAddress, numberToHex } from "viem";
+import { getAddress, isAddress, numberToHex } from "viem";
 import { getBlockNumber, getStorageAt, readContract } from "viem/actions";
 
 import { Fiat24Error } from "../core/errors.ts";
@@ -7,6 +7,7 @@ import type { UnavailableReason } from "../core/errors.ts";
 import { decodeFiat24Revert, revertCode } from "../core/revert.ts";
 import type { RevertReason } from "../core/revert.ts";
 import { CHAIN_ID } from "../core/types.ts";
+import type { PayoutCurrency } from "../core/types.ts";
 import { getDeployment } from "../deployments/deployment.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import type { RawLog } from "../events/types.ts";
@@ -37,7 +38,8 @@ export const F24_SLOT = "0x166" as Hex;
 const WORD_RE = /^0x[0-9a-fA-F]{64}$/;
 const HEX_RE = /^0x[0-9a-fA-F]*$/;
 
-const invalidResponse = (message = "invalid rpc response"): never => {
+/** Malformed/out-of-domain RPC data — the node lied (SPEC §8.1). */
+export const invalidResponse = (message = "invalid rpc response"): never => {
   throw new Fiat24Error("invalid-rpc-response", message);
 };
 
@@ -45,14 +47,64 @@ const rpcError = (message = "rpc request failed"): never => {
   throw new Fiat24Error("rpc-error", message);
 };
 
-type AnyClient = Client;
+// Result guards: viem's decoder yields correctly-typed values for well-formed
+// bytes; these catch the malformed cases (SPEC §8.1 ⇒ invalid-rpc-response).
+export function asBigint(value: unknown): bigint {
+  return typeof value === "bigint" ? value : invalidResponse();
+}
+
+export function asBoolean(value: unknown): boolean {
+  return typeof value === "boolean" ? value : invalidResponse();
+}
+
+export function asNumber(value: unknown): number {
+  return typeof value === "number" && Number.isSafeInteger(value) ? value : invalidResponse();
+}
+
+export function asUint8(value: unknown): number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value <= 255
+    ? value
+    : invalidResponse();
+}
+
+export function asAddress(value: unknown): Address {
+  return typeof value === "string" && isAddress(value, { strict: false })
+    ? getAddress(value)
+    : invalidResponse();
+}
+
+/** Caller-side address check: `invalid-address`, before any I/O (SPEC §8.1). */
+export function checkedAddress(value: unknown): Address {
+  if (typeof value !== "string" || !isAddress(value, { strict: false })) {
+    throw new Fiat24Error("invalid-address", "invalid address");
+  }
+  return getAddress(value);
+}
+
+/** Caller-side payout currency check (SPEC §8.2: CashPayout exists on EUR24/CHF24 only). */
+export function checkedPayoutCurrency(currency: unknown): PayoutCurrency {
+  if (currency !== "EUR24" && currency !== "CHF24") {
+    throw new Fiat24Error("unsupported-currency", "unsupported currency");
+  }
+  return currency;
+}
+
+const MAX_CHUNK = 10_000_000n;
+
+/** `chunkSize` must be a bigint in [1, 10_000_000] (SPEC §7.2). */
+export function checkedChunkSize(value: unknown): bigint {
+  if (typeof value !== "bigint" || value < 1n || value > MAX_CHUNK) {
+    throw new Fiat24Error("invalid-argument", "invalid argument");
+  }
+  return value;
+}
 
 /**
  * §8.1: the only deployment resolution. `client.chain?.id !== 42161` ⇒ `unsupported-chain` (also
  * when `client.chain` is undefined — I21, even if a deployment was passed). The decorator's option
  * already arrived via `args.deployment`, so nothing else is consulted.
  */
-export function resolveDeployment(client: AnyClient, deployment?: Deployment): Deployment {
+export function resolveDeployment(client: Client, deployment?: Deployment): Deployment {
   if (client.chain?.id !== CHAIN_ID) {
     throw new Fiat24Error("unsupported-chain", "unsupported chain");
   }
@@ -68,7 +120,7 @@ export function resolveDeployment(client: AnyClient, deployment?: Deployment): D
  * `eth_blockNumber` (cacheTime 0 — never viem's cached value). Every read of the action is issued
  * at this B (C2 asserts the block tag of every request).
  */
-export async function snapshot(client: AnyClient, args: ChainArgs): Promise<Snapshot> {
+export async function snapshot(client: Client, args: ChainArgs): Promise<Snapshot> {
   const deployment = resolveDeployment(client, args.deployment);
   const { blockNumber: provided } = args;
   let blockNumber: bigint;
@@ -87,11 +139,11 @@ export async function snapshot(client: AnyClient, args: ChainArgs): Promise<Snap
   return { deployment, blockNumber };
 }
 
-function isHexData(value: unknown): value is Hex {
+export function isHexData(value: unknown): value is Hex {
   return typeof value === "string" && /^0x[0-9a-fA-F]*$/.test(value);
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
+export function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
@@ -144,7 +196,7 @@ function looksLikeRevert(error: unknown): boolean {
     }
     const text =
       `${typeof node["details"] === "string" ? node["details"] : ""} ${typeof node["shortMessage"] === "string" ? node["shortMessage"] : ""}`.toLowerCase();
-    if (text.includes("execution reverted") || text.includes("reverted")) {
+    if (text.includes("execution reverted")) {
       return true;
     }
   }
@@ -271,7 +323,7 @@ function unavailableReason(revert: RevertReason): UnavailableReason | undefined 
  * contract-revert, decode failure ⇒ invalid-rpc-response, else rpc-error).
  */
 export async function readAt(
-  client: AnyClient,
+  client: Client,
   blockNumber: bigint,
   parameters: {
     address: Address;
@@ -295,7 +347,7 @@ export async function readAt(
 
 /** Viem `eth_getStorageAt` at `blockNumber`; result must be a 32-byte word (SPEC §8.1). */
 export async function storageAt(
-  client: AnyClient,
+  client: Client,
   blockNumber: bigint,
   address: Address,
   slot: Hex,
@@ -426,7 +478,7 @@ function toRawLog(value: unknown): RawLog {
  * `invalid-rpc-response`; any request failure ⇒ `rpc-error` naming the window's decimal bounds.
  */
 export async function getLogsChunked(
-  client: AnyClient,
+  client: Client,
   args: {
     filters: ReadonlyArray<LogFilter>;
     fromBlock: bigint;
@@ -434,10 +486,8 @@ export async function getLogsChunked(
     chunkSize: bigint;
   },
 ): Promise<RawLog[]> {
-  const { filters, fromBlock, toBlock, chunkSize } = args;
-  if (typeof chunkSize !== "bigint" || chunkSize < 1n || chunkSize > 10_000_000n) {
-    throw new Fiat24Error("invalid-argument", "invalid argument");
-  }
+  const { filters, fromBlock, toBlock } = args;
+  const chunkSize = checkedChunkSize(args.chunkSize);
   const out: RawLog[] = [];
   for (let start = fromBlock; start <= toBlock; start += chunkSize) {
     const end = start + chunkSize - 1n > toBlock ? toBlock : start + chunkSize - 1n;
@@ -468,8 +518,12 @@ export async function getLogsChunked(
     });
     // oxlint-disable-next-line eslint/no-await-in-loop -- windows run sequentially (SPEC §7.2)
     const batches = await Promise.all(windows);
+    // No `out.push(...batch)`: a huge RPC array would overflow the call stack
+    // when spread — a RangeError, not a Fiat24Error.
     for (const batch of batches) {
-      out.push(...batch);
+      for (const log of batch) {
+        out.push(log);
+      }
     }
   }
   return out;

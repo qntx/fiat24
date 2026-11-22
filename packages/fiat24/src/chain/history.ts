@@ -1,4 +1,4 @@
-import { numberToHex, pad, toEventSelector, isAddress } from "viem";
+import { numberToHex, pad, toEventSelector } from "viem";
 import type { Abi, AbiEvent, Address, Client, Hex } from "viem";
 
 import { accountAbi, cardAbi, depositAbi, tokenAbi } from "../abi/index.ts";
@@ -8,9 +8,13 @@ import { CURRENCIES } from "../core/types.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
 import type { Fiat24Event } from "../events/types.ts";
 import type { ChainArgs } from "./context.ts";
-import { getLogsChunked, snapshot } from "./context.ts";
-
-type AnyClient = Client;
+import {
+  checkedAddress,
+  checkedChunkSize,
+  getLogsChunked,
+  resolveDeployment,
+  snapshot,
+} from "./context.ts";
 
 const invalidArgument = (): never => {
   throw new Fiat24Error("invalid-argument", "invalid argument");
@@ -36,7 +40,7 @@ const DEFAULT_CHUNK = 100_000n;
  * `malformed-log`.
  */
 export async function getHistory(
-  client: AnyClient,
+  client: Client,
   args: ChainArgs & {
     owner: Address;
     tokenId?: bigint;
@@ -45,17 +49,17 @@ export async function getHistory(
     chunkSize?: bigint;
   },
 ): Promise<ReadonlyArray<Fiat24Event>> {
-  const { deployment, blockNumber: B } = await snapshot(client, args);
-  const ownerRaw = args.owner;
-  if (typeof ownerRaw !== "string" || !isAddress(ownerRaw, { strict: false })) {
-    throw new Fiat24Error("invalid-address", "invalid address");
-  }
-  const owner: Hex = `0x${pad(ownerRaw, { size: 32 }).slice(2).toLowerCase()}`;
+  resolveDeployment(client, args.deployment);
+  const owner = checkedAddress(args.owner);
+  const ownerTopic: Hex = `0x${pad(owner, { size: 32 }).slice(2).toLowerCase()}`;
   if (typeof args.fromBlock !== "bigint" || args.fromBlock < 0n) {
     invalidArgument();
   }
-  if (typeof args.toBlock !== "bigint" || args.toBlock < args.fromBlock || args.toBlock > B) {
+  if (typeof args.toBlock !== "bigint" || args.toBlock < args.fromBlock) {
     invalidArgument();
+  }
+  if (args.chunkSize !== undefined) {
+    checkedChunkSize(args.chunkSize);
   }
   let idTopic: Hex | undefined;
   if (args.tokenId !== undefined) {
@@ -64,6 +68,11 @@ export async function getHistory(
     }
     assertTokenId(args.tokenId);
     idTopic = numberToHex(args.tokenId, { size: 32 });
+  }
+  const { deployment, blockNumber: B } = await snapshot(client, args);
+  // The B-dependent bound is the only check that must wait for the snapshot.
+  if (args.toBlock > B) {
+    invalidArgument();
   }
   const chunkSize = args.chunkSize ?? DEFAULT_CHUNK;
 
@@ -87,20 +96,23 @@ export async function getHistory(
 
   const filters = [
     // H1: cash tokens sent by O.
-    { address: tokenAddresses, topics: [tokenTransfer, owner] },
+    { address: tokenAddresses, topics: [tokenTransfer, ownerTopic] },
     // H2: cash tokens received by O.
-    { address: tokenAddresses, topics: [tokenTransfer, null, owner] },
+    { address: tokenAddresses, topics: [tokenTransfer, null, ownerTopic] },
     // H3: payouts (all three payout events) where O is the sender (topic2).
     {
       address: tokenAddresses,
-      topics: [[clientPayout, clientPayoutRef, cashPayout], null, owner],
+      topics: [[clientPayout, clientPayoutRef, cashPayout], null, ownerTopic],
     },
     // H4: inbound cash deposits to O (recipientAddress is topic2).
-    { address: tokenAddresses, topics: [cashDeposit, null, owner] },
+    { address: tokenAddresses, topics: [cashDeposit, null, ownerTopic] },
     // H5: deposit-contract exchanges and top-ups where O is the sender (topic1).
     {
       address: deployment.deposit.proxy,
-      topics: [[exchangedIn, exchangedOut, depositedUsd, depositedEth, depositedViaEth], owner],
+      topics: [
+        [exchangedIn, exchangedOut, depositedUsd, depositedEth, depositedViaEth],
+        ownerTopic,
+      ],
     },
     ...(idTopic === undefined
       ? []
@@ -130,7 +142,7 @@ export async function getHistory(
   for (const log of logs) {
     const event = decodeFiat24Log(log, deployment);
     if (event !== undefined) {
-      events.set(`${event.transactionHash}:${event.logIndex}`, event);
+      events.set(`${event.transactionHash.toLowerCase()}:${event.logIndex}`, event);
     }
   }
   return [...events.values()].sort(

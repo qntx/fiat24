@@ -439,6 +439,44 @@ describe("pure quote functions under hostile args", () => {
     ).resolves.toBeUndefined();
   });
 
+  test("checkTransfer absorbs any `to` shape into a value or Fiat24Error", async () => {
+    await expect(
+      fc.assert(
+        fc.asyncProperty(fc.anything(), async (to) => {
+          const client = zeroClient();
+          await settle(async () =>
+            checkTransfer(client, {
+              from: OWNER,
+              to: to as { address: `0x${string}` },
+              currency: "EUR24",
+              amount: 1n,
+              blockNumber: B,
+            }),
+          );
+        }),
+        { numRuns: 40 },
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  test("simulateCall absorbs any `call` shape into a value or Fiat24Error", async () => {
+    await expect(
+      fc.assert(
+        fc.asyncProperty(fc.anything(), async (built) => {
+          const client = zeroClient();
+          await settle(async () =>
+            simulateCall(client, {
+              call: built as typeof BUILT,
+              from: OWNER,
+              blockNumber: B,
+            }),
+          );
+        }),
+        { numRuns: 40 },
+      ),
+    ).resolves.toBeUndefined();
+  });
+
   test("quoteExchange never returns a negative or NaN-ish result", () => {
     expect(() =>
       fc.assert(

@@ -207,7 +207,7 @@ describe("checkTransfer", () => {
       async () => checkTransfer(stub.client, { ...ARGS, to: { address: C.account.proxy } }),
       "invalid-address",
     );
-    expect(stub.calls).toStrictEqual([]);
+    expect(stub.requests).toStrictEqual([]);
   });
 
   test("an internal-account tokenId is refused by the builder", async () => {
@@ -216,7 +216,7 @@ describe("checkTransfer", () => {
       async () => checkTransfer(stub.client, { ...ARGS, to: { tokenId: 9103n } }),
       "internal-account",
     );
-    expect(stub.calls).toStrictEqual([]);
+    expect(stub.requests).toStrictEqual([]);
   });
 
   test("a malformed sender address is invalid-address", async () => {
@@ -226,6 +226,29 @@ describe("checkTransfer", () => {
       async () => checkTransfer(stub.client, { ...ARGS, from: "0x1234" }),
       "invalid-address",
     );
+    expect(stub.requests).toStrictEqual([]);
+  });
+
+  test("a malformed to shape is invalid-argument, never a TypeError", async () => {
+    expect.hasAssertions();
+    const stub = transferStub({});
+    const bad = [
+      5,
+      null,
+      "0x1234",
+      {},
+      { address: RECIPIENT, tokenId: RECEIVER_ID },
+      { tokenId: "402001" },
+    ];
+    await Promise.all(
+      bad.map(async (to) =>
+        expectErrorAsync(
+          async () => checkTransfer(stub.client, { ...ARGS, to: to as never }),
+          "invalid-argument",
+        ),
+      ),
+    );
+    expect(stub.requests).toStrictEqual([]);
   });
 
   // steps 2+3

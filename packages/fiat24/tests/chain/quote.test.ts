@@ -178,7 +178,7 @@ describe("getExchangeQuote", () => {
         }),
       "invalid-amount",
     );
-    expect(stub.calls).toStrictEqual([]);
+    expect(stub.requests).toStrictEqual([]);
   });
 });
 
@@ -415,6 +415,7 @@ describe("quote argument validation", () => {
         }),
       "invalid-argument",
     );
+    expect(stub.requests).toStrictEqual([]);
   });
 
   test("a non-address top-up owner is invalid-address", async () => {
@@ -430,5 +431,6 @@ describe("quote argument validation", () => {
         }),
       "invalid-address",
     );
+    expect(stub.requests).toStrictEqual([]);
   });
 });

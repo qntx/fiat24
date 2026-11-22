@@ -198,6 +198,35 @@ describe("simulateCall", () => {
         }),
       "unsupported-chain",
     );
-    expect(stub.calls).toStrictEqual([]);
+    expect(stub.requests).toStrictEqual([]);
+  });
+
+  test("a malformed call shape is invalid-argument before I/O", async () => {
+    expect.hasAssertions();
+    const stub = makeStub({ blockNumber: B });
+    const bad = [
+      5,
+      null,
+      {},
+      { ...BUILT, to: "0x1234" },
+      { ...BUILT, data: "zz" },
+      { ...BUILT, data: 7 },
+      { ...BUILT, value: "1" },
+      { ...BUILT, value: -1n },
+    ];
+    await Promise.all(
+      bad.map(async (call) =>
+        expectErrorAsync(
+          async () =>
+            simulateCall(stub.client, {
+              call: call as never,
+              from: OWNER,
+              blockNumber: B,
+            }),
+          "invalid-argument",
+        ),
+      ),
+    );
+    expect(stub.requests).toStrictEqual([]);
   });
 });

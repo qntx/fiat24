@@ -4,9 +4,7 @@ import { call } from "viem/actions";
 
 import type { Fiat24Call } from "../calls/types.ts";
 import { Fiat24Error } from "../core/errors.ts";
-import { throwMapped, resolveDeployment } from "./context.ts";
-
-type AnyClient = Client;
+import { isHexData, isObject, resolveDeployment, throwMapped } from "./context.ts";
 
 /**
  * SPEC §8.2: `eth_call({from, to, data, value}, B)` — a dry run of a built call. Reverts go through
@@ -14,7 +12,7 @@ type AnyClient = Client;
  * everything else maps to rpc-error/invalid-rpc-response.
  */
 export async function simulateCall(
-  client: AnyClient,
+  client: Client,
   args: { call: Fiat24Call; from: Address; blockNumber: bigint },
 ): Promise<Hex> {
   resolveDeployment(client, undefined);
@@ -24,13 +22,25 @@ export async function simulateCall(
   if (typeof args.blockNumber !== "bigint" || args.blockNumber < 0n) {
     throw new Fiat24Error("invalid-argument", "invalid argument");
   }
-  const built = args.call;
+  // `args.call` must be an object with `to` an address, `data` hex and `value`
+  // a bigint >= 0 — a hostile value fails closed as invalid-argument (§8.2).
+  const built: unknown = args.call;
+  if (
+    !isObject(built) ||
+    typeof built["to"] !== "string" ||
+    !isAddress(built["to"], { strict: false }) ||
+    !isHexData(built["data"]) ||
+    typeof built["value"] !== "bigint" ||
+    built["value"] < 0n
+  ) {
+    throw new Fiat24Error("invalid-argument", "invalid argument");
+  }
   try {
     const result = await call(client, {
       account: args.from,
-      to: built.to,
-      data: built.data,
-      value: built.value,
+      to: built["to"],
+      data: built["data"],
+      value: built["value"],
       blockNumber: args.blockNumber,
     });
     return result.data ?? "0x";

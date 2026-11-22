@@ -475,13 +475,17 @@ async function byNonce<S extends FlowState, R>(
         return commitRecord(deps, args, next, undefined);
       }
     }
-    if (record.phase === "sending") {
+    // `confirmed` degrades like `sending` here: its receipt is gone, so keeping the
+    // record unchanged would leave the flow `confirmed` without the receipt that
+    // earned it — the hash stays on the record for the next reconciliation.
+    if (record.phase === "sending" || record.phase === "confirmed") {
       const next: TxRecord = {
         purpose: args.purpose,
         phase: "unknown",
         fromBlock,
         nonce,
         error: "unknown-outcome",
+        ...(record.hash === undefined ? {} : { hash: record.hash }),
       };
       return commitRecord(deps, args, next, undefined);
     }

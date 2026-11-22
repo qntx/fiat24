@@ -520,6 +520,30 @@ describe("advanceTransfer send path", () => {
     expect(persisted).toStrictEqual([next]);
   });
 
+  test("confirmed re-check: receipt and tx gone, nonce proof undecided ⇒ back to tx{unknown}", async () => {
+    // B2 == B1 (the stub's block never moves): the nonce cannot be proven, and a
+    // `confirmed` record whose receipt vanished must not stay `confirmed` — it goes
+    // back to reconciliation as `unknown{hash}` like `sending` does.
+    const confirmed: TransferState = {
+      ...DRAFT,
+      step: "confirmed",
+      txs: [{ purpose: "main", phase: "confirmed", fromBlock: B, nonce: 5, hash: TXID_1 }],
+    };
+    const stub = makeFlowStub({ count: { latest: 5 }, logs: () => [] });
+    const { deps, persisted } = flowDeps(stub.client);
+    const next = await advanceTransfer(deps, confirmed);
+    expect(next.step).toBe("tx");
+    expect(next.txs[0]).toStrictEqual({
+      purpose: "main",
+      phase: "unknown",
+      fromBlock: B,
+      nonce: 5,
+      hash: TXID_1,
+      error: "unknown-outcome",
+    });
+    expect(persisted).toStrictEqual([next]);
+  });
+
   test("confirmed re-check: receipt gone but the tx is pending ⇒ tx{submitted}", async () => {
     const confirmed: TransferState = {
       ...DRAFT,

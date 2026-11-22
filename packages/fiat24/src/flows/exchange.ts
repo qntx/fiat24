@@ -1,12 +1,12 @@
 import { isAddressEqual } from "viem";
-import type { Address, Client, Hex, TransactionReceipt } from "viem";
+import type { Address, Client, TransactionReceipt } from "viem";
 
-import { freeze } from "../api/schemas.ts";
 import { approveCall } from "../calls/approve.ts";
 import { exchangeCall } from "../calls/exchange.ts";
 import { getAvailability } from "../chain/availability.ts";
 import { getAllowance } from "../chain/balances.ts";
 import {
+  addressTopic,
   asBigint,
   checkedAddress,
   contractTarget,
@@ -17,6 +17,7 @@ import {
 import { getExchangeQuote } from "../chain/quote.ts";
 import type { ExchangeQuote } from "../chain/quote.ts";
 import { Fiat24Error } from "../core/errors.ts";
+import { freeze } from "../core/freeze.ts";
 import type { Currency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
@@ -32,7 +33,7 @@ import {
 } from "./guards.ts";
 import type { VerifiedBlock } from "./guards.ts";
 import { checkedState, invalidState } from "./state.ts";
-import { advanceTx, recheckTx } from "./tx.ts";
+import { advanceTx, recheckTx, stepFor } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
 import type { ExchangeState, FlowDeps, TxRecord } from "./types.ts";
 
@@ -205,10 +206,6 @@ async function mainGuard(
   }
 }
 
-function ownerTopic(owner: Address): Hex {
-  return `0x${owner.slice(2).toLowerCase().padStart(64, "0")}`;
-}
-
 // §4 evidence rows — cash-token `Approval(owner, deposit)` for the approve, the
 // side's `MoneyExchanged*(owner)` on the deposit proxy for the main.
 function approveEvidence(deployment: Deployment, state: ExchangeState): TxEvidence {
@@ -218,8 +215,8 @@ function approveEvidence(deployment: Deployment, state: ExchangeState): TxEviden
         address: deployment.tokens[state.from].proxy,
         topics: [
           topic0Of(contractTarget(deployment, state.from).abi, "Approval"),
-          ownerTopic(state.owner),
-          ownerTopic(deployment.deposit.proxy),
+          addressTopic(state.owner),
+          addressTopic(deployment.deposit.proxy),
         ],
       },
     ],
@@ -234,7 +231,7 @@ function mainEvidence(deployment: Deployment, state: ExchangeState): TxEvidence 
         address: deployment.deposit.proxy,
         topics: [
           topic0Of(contractTarget(deployment, "deposit").abi, event),
-          ownerTopic(state.owner),
+          addressTopic(state.owner),
         ],
       },
     ],
@@ -413,15 +410,7 @@ export async function advanceExchange(
       // A confirmed approve only unlocks the main record — the main is sent
       // on the next advance, never in the same one (§10.5).
       const step: ExchangeState["step"] =
-        record.phase === "confirmed"
-          ? isApprove
-            ? "tx"
-            : "confirmed"
-          : record.phase === "failed"
-            ? "failed"
-            : record.phase === "not-sent"
-              ? "not-sent"
-              : "tx";
+        record.phase === "confirmed" ? (isApprove ? "tx" : "confirmed") : stepFor(record);
       if (isApprove && record.phase === "confirmed") {
         txs.push({ purpose: "main", phase: "ready" });
       }

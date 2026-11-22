@@ -1,7 +1,6 @@
 import { erc20Abi, isAddressEqual } from "viem";
 import type { Address, Client, Hex, TransactionReceipt } from "viem";
 
-import { freeze } from "../api/schemas.ts";
 import { approveCall } from "../calls/approve.ts";
 import { topUpCall } from "../calls/topup.ts";
 import { getAvailability } from "../chain/availability.ts";
@@ -19,6 +18,7 @@ import { getTopUpQuote } from "../chain/quote.ts";
 import type { TopUpQuote } from "../chain/quote.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import type { UnavailableReason } from "../core/errors.ts";
+import { freeze } from "../core/freeze.ts";
 import type { ContractName, Currency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
@@ -32,7 +32,7 @@ import {
 } from "./guards.ts";
 import type { VerifiedBlock } from "./guards.ts";
 import { checkedState, invalidState } from "./state.ts";
-import { advanceTx, recheckTx } from "./tx.ts";
+import { advanceTx, recheckTx, stepFor } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
 import type { FlowDeps, TopUpState, TxRecord } from "./types.ts";
 
@@ -408,15 +408,7 @@ export async function advanceTopUp(deps: FlowDeps, state: TopUpState): Promise<T
       const { actual: persisted, ...rest } = checked;
       const txs = [...checked.txs.slice(0, index), record];
       const step: TopUpState["step"] =
-        record.phase === "confirmed"
-          ? isApprove
-            ? "tx"
-            : "confirmed"
-          : record.phase === "failed"
-            ? "failed"
-            : record.phase === "not-sent"
-              ? "not-sent"
-              : "tx";
+        record.phase === "confirmed" ? (isApprove ? "tx" : "confirmed") : stepFor(record);
       // Same rule as exchange: the confirmed approve unlocks `main{ready}`;
       // the main is sent on the next advance (§10.8).
       if (isApprove && record.phase === "confirmed") {

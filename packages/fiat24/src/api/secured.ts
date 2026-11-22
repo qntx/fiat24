@@ -1,10 +1,10 @@
 import { Fiat24Error } from "../core/errors.ts";
+import { freeze } from "../core/freeze.ts";
 import { isValidIban } from "../core/iban.ts";
 import { isValidContactId, isValidPayoutRef } from "../core/payout-grammar.ts";
 import { apiError, request } from "./http.ts";
 import type { ApiCard, VerifiedQrResponse } from "./schemas.ts";
 import {
-  freeze,
   parseCards,
   parseProfile,
   parseTransactions,

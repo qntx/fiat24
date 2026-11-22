@@ -1,6 +1,6 @@
 import { Fiat24Error } from "../core/errors.ts";
+import { freeze } from "../core/freeze.ts";
 import { isValidIban } from "../core/iban.ts";
-import { freeze } from "./schemas.ts";
 import type { SwissQr } from "./types.ts";
 
 // SIX IG QR-bill v2.3 (en) / v2.4 (de) §4.2.2: the Swiss QR payload is at most 997 chars, lines

@@ -2,7 +2,6 @@ import { getAddress, isAddress, isAddressEqual } from "viem";
 import type { Hash } from "viem";
 import * as z from "zod/mini";
 
-import { freeze } from "../api/schemas.ts";
 import { mintAccountCall, mintAccountWithEthCall } from "../calls/account.ts";
 import { approveCall } from "../calls/approve.ts";
 import { exchangeCall } from "../calls/exchange.ts";
@@ -12,6 +11,7 @@ import { transferCall, transferToAccountCall } from "../calls/transfer.ts";
 import { assertTokenId } from "../core/account-id.ts";
 import { Fiat24Error, fiat24ErrorCodes } from "../core/errors.ts";
 import type { Fiat24ErrorCode } from "../core/errors.ts";
+import { freeze } from "../core/freeze.ts";
 import type {
   TxPhase,
   CardState,

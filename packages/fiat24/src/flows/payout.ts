@@ -1,18 +1,23 @@
 import { isAddressEqual } from "viem";
-import type { Address, Client, Hex, TransactionReceipt } from "viem";
+import type { Address, Client, TransactionReceipt } from "viem";
 
 import { apiError } from "../api/http.ts";
-import { freeze } from "../api/schemas.ts";
 import { parseSwissQr } from "../api/swiss-qr.ts";
 import type { Fiat24Session, VerifiedPayout } from "../api/types.ts";
-import { isValidContactId, isValidPayoutRef, payoutCall, payoutRefCall } from "../calls/payout.ts";
+import {
+  checkedPayoutCurrency,
+  isValidContactId,
+  isValidPayoutRef,
+  payoutCall,
+  payoutRefCall,
+} from "../calls/payout.ts";
 import type { Fiat24Call } from "../calls/types.ts";
 import { checkedAmount } from "../calls/types.ts";
 import { getAvailability } from "../chain/availability.ts";
 import {
+  addressTopic,
   asBigint,
   checkedAddress,
-  checkedPayoutCurrency,
   contractTarget,
   readAt,
   resolveDeployment,
@@ -22,10 +27,12 @@ import { getPayoutMinimum, getPayoutSettlement } from "../chain/payout.ts";
 import type { PayoutSettlement } from "../chain/payout.ts";
 import { assertTokenId } from "../core/account-id.ts";
 import { Fiat24Error } from "../core/errors.ts";
+import { freeze } from "../core/freeze.ts";
 import type { PayoutCurrency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
 import {
+  checkedSession,
   assertUnpaused,
   checkedSigner,
   deskOwner,
@@ -35,7 +42,7 @@ import {
 } from "./guards.ts";
 import type { VerifiedBlock } from "./guards.ts";
 import { checkedState, invalidState, invalidArgument } from "./state.ts";
-import { advanceTx, fetchTx, getReceipt, mismatchOf, recheckTx } from "./tx.ts";
+import { advanceTx, fetchTx, getReceipt, mismatchOf, recheckTx, stepFor } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
 import type { FlowDeps, PayoutDraft, PayoutState, PayoutTarget, TxRecord } from "./types.ts";
 
@@ -105,18 +112,6 @@ export function startPayout(input: {
 }): PayoutDraft {
   const owner = checkedDraft(input);
   return freeze({ ...input, flow: "payout", step: "draft", owner });
-}
-
-/** §10.6: `deps.session` for the draft's tokenId, else the flow cannot verify. */
-function checkedSession(deps: FlowDeps, tokenId: bigint): Fiat24Session {
-  const { session } = deps;
-  if (session === undefined) {
-    throw new Fiat24Error("session-required", "session required");
-  }
-  if (session.tokenId !== tokenId) {
-    invalidArgument();
-  }
-  return session;
 }
 
 // I3: the flow re-binds what /verify returned — the api checks too, but a hostile
@@ -232,10 +227,6 @@ async function mainGuard(
   });
 }
 
-function ownerTopic(owner: Address): Hex {
-  return `0x${owner.slice(2).toLowerCase().padStart(64, "0")}`;
-}
-
 // §4 payout row: `[ClientPayout | ClientPayoutRef (by ref presence), null, owner]` on the token.
 function payoutEvidence(deployment: Deployment, state: PayoutState): TxEvidence {
   return {
@@ -248,7 +239,7 @@ function payoutEvidence(deployment: Deployment, state: PayoutState): TxEvidence 
             state.ref === undefined ? "ClientPayout" : "ClientPayoutRef",
           ),
           null,
-          ownerTopic(state.owner),
+          addressTopic(state.owner),
         ],
       },
     ],
@@ -278,15 +269,6 @@ function extractTxid(
   }
   throw new Fiat24Error("invalid-rpc-response", "invalid rpc response");
 }
-
-const stepFor = (record: TxRecord): PayoutState["step"] =>
-  record.phase === "confirmed"
-    ? "confirmed"
-    : record.phase === "failed"
-      ? "failed"
-      : record.phase === "not-sent"
-        ? "not-sent"
-        : "tx";
 
 /** The payout call the state describes — rebuilt from its intent fields (I20). */
 function payoutCallOf(state: PayoutState, deployment: Deployment): Fiat24Call {

@@ -1,6 +1,7 @@
 import { erc20Abi, isAddressEqual } from "viem";
 import type { Address, Client } from "viem";
 
+import type { Fiat24Session } from "../api/types.ts";
 import type { Fiat24Call } from "../calls/types.ts";
 import { getAccount } from "../chain/account.ts";
 import type { Fiat24Account } from "../chain/account.ts";
@@ -11,7 +12,7 @@ import {
   asBoolean,
   contractTarget,
   readAt,
-  revertError,
+  remapRevert,
   snapshot,
 } from "../chain/context.ts";
 import { assertDeployment } from "../chain/deployment.ts";
@@ -20,6 +21,8 @@ import { isFiat24Signer } from "../core/signer.ts";
 import type { Fiat24Signer } from "../core/signer.ts";
 import type { Asset, ContractName, Currency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
+import { invalidArgument } from "./state.ts";
+import type { FlowDeps } from "./types.ts";
 
 /**
  * §3.1: `deps.signer` must be an object whose `address` is a valid address equal to the flow
@@ -123,19 +126,6 @@ export async function senderLive(
   return account;
 }
 
-// checkTransfer's later steps map contract reverts through the §6.3 table; the
-// leg pre-checks need the same mapping (a pause revert is `unavailable`, not `contract-revert`).
-function remapRevert(error: unknown): never {
-  if (
-    error instanceof Fiat24Error &&
-    error.code === "contract-revert" &&
-    error.detail.revert !== undefined
-  ) {
-    throw revertError(error.detail.revert);
-  }
-  throw error;
-}
-
 /**
  * §5: `tokenTransferAllowed(from, to, amount)` at B (a revert maps via §6.3, as `checkTransfer`
  * does). `false` ⇒ `checkLimit(limitOf, convertToChf(amount))` splits `limit-exceeded` from
@@ -232,4 +222,16 @@ export async function supplyBound(
   if (args.amount > supply) {
     throw new Fiat24Error("unlimited-approval", "unlimited approval");
   }
+}
+
+/** §10.6/§10.7: `deps.session` for the state's tokenId, else the flow cannot verify. */
+export function checkedSession(deps: FlowDeps, tokenId: bigint): Fiat24Session {
+  const { session } = deps;
+  if (session === undefined) {
+    throw new Fiat24Error("session-required", "session required");
+  }
+  if (session.tokenId !== tokenId) {
+    invalidArgument();
+  }
+  return session;
 }

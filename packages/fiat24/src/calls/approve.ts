@@ -11,6 +11,15 @@ import type { Fiat24Call } from "./types.ts";
 
 const SPENDERS: ReadonlySet<string> = new Set(["card", "deposit", "account"]);
 
+/** §6.1 approve pairs: cash→`card`/`deposit`, USDC→`deposit`, F24→`account` — nothing else. */
+export function approvePairAllowed(asset: Asset, spender: ApprovalSpender): boolean {
+  return (
+    (asset !== "USDC" && asset !== "F24" && (spender === "card" || spender === "deposit")) ||
+    (asset === "USDC" && spender === "deposit") ||
+    (asset === "F24" && spender === "account")
+  );
+}
+
 function spenderAddress(deployment: Deployment, spender: ApprovalSpender): Address {
   const proxies: Record<ApprovalSpender, Address> = {
     card: deployment.card.proxy,
@@ -43,11 +52,7 @@ export function approveCall(args: {
   if (args.amount >= MAX_UNITS) {
     throw new Fiat24Error("unlimited-approval", "unlimited approval");
   }
-  const allowed =
-    (asset !== "USDC" && asset !== "F24" && (spender === "card" || spender === "deposit")) ||
-    (asset === "USDC" && spender === "deposit") ||
-    (asset === "F24" && spender === "account");
-  if (!allowed) {
+  if (!approvePairAllowed(asset, spender)) {
     throw new Fiat24Error("invalid-argument", "invalid argument");
   }
 

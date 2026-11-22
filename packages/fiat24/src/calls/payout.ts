@@ -20,7 +20,7 @@ export const PAYOUT_CURRENCIES: ReadonlyArray<PayoutCurrency> = /* @__PURE__ */ 
 // `core -> calls` or `api -> calls` edge; the calls public surface re-exports them unchanged.
 export { isValidContactId, isValidPayoutRef } from "../core/payout-grammar.ts";
 
-function checkedPayoutCurrency(currency: unknown): PayoutCurrency {
+export function checkedPayoutCurrency(currency: unknown): PayoutCurrency {
   if (currency !== "EUR24" && currency !== "CHF24") {
     throw new Fiat24Error("unsupported-currency", "unsupported currency");
   }

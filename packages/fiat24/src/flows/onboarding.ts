@@ -1,7 +1,6 @@
 import { erc20Abi, isAddressEqual, zeroAddress } from "viem";
-import type { Address, Client, Hex, TransactionReceipt } from "viem";
+import type { Address, Client, TransactionReceipt } from "viem";
 
-import { freeze } from "../api/schemas.ts";
 import { mintAccountCall, mintAccountWithEthCall } from "../calls/account.ts";
 import { approveCall } from "../calls/approve.ts";
 import type { Fiat24Call } from "../calls/types.ts";
@@ -9,6 +8,7 @@ import { getAccount } from "../chain/account.ts";
 import { getAvailability } from "../chain/availability.ts";
 import { getAllowance } from "../chain/balances.ts";
 import {
+  addressTopic,
   asBigint,
   checkedAddress,
   contractTarget,
@@ -19,6 +19,7 @@ import {
 import { getMintQuote } from "../chain/mint.ts";
 import type { MintQuote } from "../chain/mint.ts";
 import { Fiat24Error } from "../core/errors.ts";
+import { freeze } from "../core/freeze.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
 import { checkedSigner, contractsOf, supplyBound, verifiedBlock } from "./guards.ts";
@@ -205,10 +206,6 @@ async function mainGuard(
   }
 }
 
-function ownerTopic(owner: Address): Hex {
-  return `0x${owner.slice(2).toLowerCase().padStart(64, "0")}`;
-}
-
 const ZERO_TOPIC = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 // §4 evidence rows — erc20 `Approval(owner, account)` on the F24 token for the
@@ -220,8 +217,8 @@ function approveEvidence(deployment: Deployment, state: OnboardingState): TxEvid
         address: deployment.f24.address,
         topics: [
           topic0Of(erc20Abi, "Approval"),
-          ownerTopic(state.owner),
-          ownerTopic(deployment.account.proxy),
+          addressTopic(state.owner),
+          addressTopic(deployment.account.proxy),
         ],
       },
     ],
@@ -237,7 +234,7 @@ function mintEvidence(deployment: Deployment, state: OnboardingState): TxEvidenc
         topics: [
           topic0Of(contractTarget(deployment, "account").abi, "Transfer"),
           ZERO_TOPIC,
-          ownerTopic(state.owner),
+          addressTopic(state.owner),
         ],
       },
     ],

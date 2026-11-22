@@ -68,7 +68,6 @@ import {
 const deps = {
   client,
   signer,
-  now: Date.now,
   persist: async (state) => store.set(id, encodeFlowState(state)),
 };
 

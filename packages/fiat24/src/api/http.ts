@@ -30,7 +30,7 @@ export function apiError(code: Fiat24ErrorCode, endpoint: string, status?: numbe
   return new Fiat24Error(code, `${endpoint} failed`, detail);
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 

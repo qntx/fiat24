@@ -9,15 +9,13 @@ import type { Fiat24Signer } from "../core/signer.ts";
 import type { AccountStatus, Currency, PayoutCurrency, Recipient } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 
-// SPEC §3.9/§10.2 — every injectable dependency of a flow. `now` is ms for
-// ordering/display only; it never feeds a chain decision.
+// SPEC §3.9/§10.2 — every injectable dependency of a flow.
 export type FlowDeps = {
   readonly client: Client;
   readonly signer: Fiat24Signer;
   readonly persist: (state: FlowState) => Promise<void>;
   readonly session?: Fiat24Session;
   readonly api?: Fiat24Api;
-  readonly now: () => number;
   readonly deployment?: Deployment;
 };
 

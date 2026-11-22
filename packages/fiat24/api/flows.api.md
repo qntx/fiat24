@@ -500,7 +500,6 @@ export type FlowDeps = {
     readonly persist: (state: FlowState) => Promise<void>;
     readonly session?: Fiat24Session;
     readonly api?: Fiat24Api;
-    readonly now: () => number;
     readonly deployment?: Deployment;
 };
 

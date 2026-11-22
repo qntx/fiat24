@@ -1,8 +1,9 @@
 import type { Hash } from "viem";
 import * as z from "zod/mini";
 
+import { freeze } from "../core/freeze.ts";
 import type { Currency } from "../core/types.ts";
-import { apiError } from "./http.ts";
+import { apiError, isRecord } from "./http.ts";
 import type {
   Bank,
   Banks,
@@ -87,25 +88,6 @@ export function decimalText(value: number | string, endpoint: string): string {
 }
 
 const list = <T extends z.ZodMiniType>(element: T) => z.array(element).check(z.maxLength(10_000));
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isCollection(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-/** Deep-freeze a result (arrays and nested objects included), like the calls results. */
-export function freeze<T>(value: T): T {
-  if (isCollection(value)) {
-    for (const item of Object.values(value)) {
-      freeze(item);
-    }
-    Object.freeze(value);
-  }
-  return value;
-}
 
 /** `z.safeParse` wrapper: a schema failure is `invalid-response` with the endpoint template (§9.5). */
 function checked<T>(schema: z.ZodMiniType<T>, json: unknown, endpoint: string): T {

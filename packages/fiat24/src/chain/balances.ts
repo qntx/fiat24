@@ -2,6 +2,7 @@ import { erc20Abi } from "viem";
 import type { Abi, Address, Client } from "viem";
 
 import { f24Abi, tokenAbi } from "../abi/index.ts";
+import { approvePairAllowed } from "../calls/approve.ts";
 import { checkedAsset } from "../calls/types.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import type { ApprovalSpender, Asset, Currency } from "../core/types.ts";
@@ -11,7 +12,6 @@ import type { ChainArgs } from "./context.ts";
 import { asBigint, checkedAddress, readAt, resolveDeployment, snapshot } from "./context.ts";
 
 const SPENDERS: ReadonlySet<string> = new Set(["card", "deposit", "account"]);
-const CASH: ReadonlySet<string> = new Set(CURRENCIES);
 
 function spenderProxy(deployment: Deployment, spender: ApprovalSpender): Address {
   return spender === "card"
@@ -28,12 +28,7 @@ function allowanceTarget(
   asset: Asset,
   spender: ApprovalSpender,
 ): { address: Address; abi: Abi } {
-  const isCash = CASH.has(asset);
-  const allowed =
-    (isCash && (spender === "card" || spender === "deposit")) ||
-    (asset === "USDC" && spender === "deposit") ||
-    (asset === "F24" && spender === "account");
-  if (!allowed) {
+  if (!approvePairAllowed(asset, spender)) {
     throw new Fiat24Error("invalid-argument", "invalid argument");
   }
   if (asset === "USDC") {

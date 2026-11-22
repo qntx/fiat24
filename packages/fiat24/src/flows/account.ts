@@ -1,10 +1,10 @@
 import type { Address } from "viem";
 
-import { freeze } from "../api/schemas.ts";
 import { getAccount } from "../chain/account.ts";
 import { getAvailability } from "../chain/availability.ts";
 import { getBalances, getAllowances } from "../chain/balances.ts";
 import { checkedAddress, resolveDeployment } from "../chain/context.ts";
+import { freeze } from "../core/freeze.ts";
 import { verifiedBlock } from "./guards.ts";
 import type { AccountView, FlowDeps } from "./types.ts";
 

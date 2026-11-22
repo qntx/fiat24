@@ -2,7 +2,7 @@ import { numberToHex } from "viem";
 import type { Client } from "viem";
 
 import { tokenAbi } from "../abi/index.ts";
-import { isValidContactId } from "../calls/payout.ts";
+import { checkedPayoutCurrency, isValidContactId } from "../calls/payout.ts";
 import { assertTokenId } from "../core/account-id.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import type { PayoutCurrency } from "../core/types.ts";
@@ -12,7 +12,6 @@ import type { ChainArgs } from "./context.ts";
 import {
   asBigint,
   checkedChunkSize,
-  checkedPayoutCurrency,
   getLogsChunked,
   invalidResponse,
   readAt,

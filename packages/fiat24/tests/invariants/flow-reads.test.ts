@@ -35,17 +35,18 @@ function fileName(path: string): string {
 
 /** I/O-free or log-only helpers; `snapshot`/`assertDeployment` are pinned by rule 1. */
 const PURE = new Set([
+  "addressTopic",
   "asAddress",
   "asBigint",
   "asBoolean",
   "assertDeployment",
   "checkedAddress",
-  "checkedPayoutCurrency",
   "contractTarget",
   "errorChain",
   "getLogsChunked",
   "invalidResponse",
   "mapViemError",
+  "remapRevert",
   "resolveDeployment",
   "revertError",
   "snapshot",

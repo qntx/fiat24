@@ -1,18 +1,25 @@
-import type { Address, Client, Hex } from "viem";
+import type { Address, Client } from "viem";
 
 import { apiError } from "../api/http.ts";
-import { freeze } from "../api/schemas.ts";
 import type { Card as ApiCard, Fiat24Session } from "../api/types.ts";
 import { approveCall } from "../calls/approve.ts";
 import { getAvailability } from "../chain/availability.ts";
 import { getAllowance } from "../chain/balances.ts";
-import { checkedAddress, contractTarget, resolveDeployment, topic0Of } from "../chain/context.ts";
+import {
+  addressTopic,
+  checkedAddress,
+  contractTarget,
+  resolveDeployment,
+  topic0Of,
+} from "../chain/context.ts";
 import { assertTokenId } from "../core/account-id.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import type { Fiat24ErrorCode } from "../core/errors.ts";
+import { freeze } from "../core/freeze.ts";
 import type { Currency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import {
+  checkedSession,
   assertUnpaused,
   checkedSigner,
   contractsOf,
@@ -21,7 +28,7 @@ import {
 } from "./guards.ts";
 import type { VerifiedBlock } from "./guards.ts";
 import { API_READY_ERRORS, checkedState, invalidState, invalidArgument } from "./state.ts";
-import { advanceTx, persistSwallow, recheckTx } from "./tx.ts";
+import { advanceTx, persistSwallow, recheckTx, stepFor } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
 import type { CardOperation, CardState, FlowDeps, TxRecord } from "./types.ts";
 
@@ -231,17 +238,6 @@ function classifyWriteError(error: unknown, endpoint: string): WriteVerdict {
   return API_READY_ERRORS.includes(error.code) ? error.code : "ambiguous";
 }
 
-function checkedSession(deps: FlowDeps, tokenId: bigint): Fiat24Session {
-  const { session } = deps;
-  if (session === undefined) {
-    throw new Fiat24Error("session-required", "session required");
-  }
-  if (session.tokenId !== tokenId) {
-    invalidArgument();
-  }
-  return session;
-}
-
 /**
  * §10.7 API write record (a `main` with no chain fields): `ready` runs the session checks and the
  * `GET /cards` pre-read — target already observed ⇒ `confirmed` with no write; a non-create op
@@ -326,10 +322,6 @@ async function observeOnce(session: Fiat24Session, write: CardWrite): Promise<Tx
     : { purpose: "main", phase: "unknown", error: "unknown-outcome" };
 }
 
-function ownerTopic(owner: Address): Hex {
-  return `0x${owner.slice(2).toLowerCase().padStart(64, "0")}`;
-}
-
 // §4 approve row: `Approval(owner, card)` on the cap's token.
 function approveEvidence(deployment: Deployment, currency: Currency, owner: Address): TxEvidence {
   return {
@@ -338,8 +330,8 @@ function approveEvidence(deployment: Deployment, currency: Currency, owner: Addr
         address: deployment.tokens[currency].proxy,
         topics: [
           topic0Of(contractTarget(deployment, currency).abi, "Approval"),
-          ownerTopic(owner),
-          ownerTopic(deployment.card.proxy),
+          addressTopic(owner),
+          addressTopic(deployment.card.proxy),
         ],
       },
     ],
@@ -480,8 +472,7 @@ export async function advanceCard(deps: FlowDeps, state: CardState): Promise<Car
             txs.push({ purpose: "main", phase: "ready" });
           }
         } else {
-          step =
-            record.phase === "failed" ? "failed" : record.phase === "not-sent" ? "not-sent" : "tx";
+          step = stepFor(record);
         }
         return freeze({ ...checked, step, txs });
       },

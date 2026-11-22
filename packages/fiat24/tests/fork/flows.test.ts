@@ -101,7 +101,6 @@ function makeDeps(
     deps: {
       client: fork.publicClient,
       signer,
-      now: Date.now,
       persist: async (state) => {
         decodeFlowState(encodeFlowState(state));
         persisted.push(state);

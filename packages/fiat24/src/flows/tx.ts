@@ -576,3 +576,13 @@ export async function advanceTx<S extends FlowState, R>(
       return invalidState();
   }
 }
+
+/** §10.3: the step a record's phase implies (sub-machine phases map to flow steps). */
+export const stepFor = (record: TxRecord): "confirmed" | "failed" | "not-sent" | "tx" =>
+  record.phase === "confirmed"
+    ? "confirmed"
+    : record.phase === "failed"
+      ? "failed"
+      : record.phase === "not-sent"
+        ? "not-sent"
+        : "tx";

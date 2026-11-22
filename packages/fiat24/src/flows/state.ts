@@ -416,6 +416,15 @@ function requireTerminalMain(
   }
 }
 
+// failed / not-sent can end on an `approve` too — the approve is itself a sendable tx
+// (exchange, top-up, onboarding, card set-cap).
+function requireTerminalLast(txs: ReadonlyArray<ParsedRecord>, phase: "failed" | "not-sent"): void {
+  const last = lastOf(txs);
+  if (last === undefined || last.phase !== phase) {
+    invalidState();
+  }
+}
+
 function forbidApprove(txs: ReadonlyArray<ParsedRecord>): void {
   if (txs.some((record) => record.purpose === "approve")) {
     invalidState();
@@ -474,8 +483,11 @@ function transferSemantics(state: ParsedTransfer): TransferState {
     case "tx":
       requireActiveLast(state.txs);
       break;
+    case "confirmed":
+      requireTerminalMain(state.txs, "confirmed");
+      break;
     default:
-      requireTerminalMain(state.txs, state.step);
+      requireTerminalLast(state.txs, state.step);
   }
   return {
     flow: "transfer",
@@ -519,8 +531,11 @@ function exchangeSemantics(state: ParsedExchange): ExchangeState {
     case "tx":
       requireActiveLast(state.txs);
       break;
+    case "confirmed":
+      requireTerminalMain(state.txs, "confirmed");
+      break;
     default:
-      requireTerminalMain(state.txs, state.step);
+      requireTerminalLast(state.txs, state.step);
   }
   return {
     flow: "exchange",
@@ -570,8 +585,11 @@ function payoutSemantics(state: ParsedPayout): PayoutState {
     case "tx":
       requireActiveLast(state.txs);
       break;
+    case "confirmed":
+      requireTerminalMain(state.txs, "confirmed");
+      break;
     default:
-      requireTerminalMain(state.txs, state.step);
+      requireTerminalLast(state.txs, state.step);
   }
   return {
     flow: "payout",
@@ -612,6 +630,10 @@ function cardSemantics(state: ParsedCard): CardState {
   ) {
     invalidState();
   }
+  // A `set-cap` is the approve itself — it can never carry an API-write record.
+  if (operation.kind === "set-cap" && state.txs.some((record) => record.purpose === "main")) {
+    invalidState();
+  }
   switch (state.step) {
     case "ready":
       requireEmptyTxs(state.txs);
@@ -620,20 +642,23 @@ function cardSemantics(state: ParsedCard): CardState {
       requireActiveLast(state.txs);
       break;
     case "confirmed": {
-      // A `set-cap` whose allowance already matched sends nothing (§10.7);
-      // otherwise the last record — the cap approve or the API write — is confirmed.
+      // `set-cap`: a confirmed approve, or no tx at all when the allowance already
+      // matched (§10.7); every other op ends on the confirmed API write.
       const last = lastOf(state.txs);
       if (last === undefined) {
         if (operation.kind !== "set-cap") {
           invalidState();
         }
-      } else if (last.phase !== "confirmed") {
-        invalidState();
+      } else {
+        const expected = operation.kind === "set-cap" ? "approve" : "main";
+        if (last.phase !== "confirmed" || last.purpose !== expected) {
+          invalidState();
+        }
       }
       break;
     }
     default:
-      requireTerminalMain(state.txs, state.step);
+      requireTerminalLast(state.txs, state.step);
   }
   return {
     flow: "card",
@@ -676,7 +701,7 @@ function onboardingSemantics(state: ParsedOnboarding): OnboardingState {
       break;
     case "failed":
     case "not-sent":
-      requireTerminalMain(state.txs, state.step);
+      requireTerminalLast(state.txs, state.step);
       break;
     default:
       // tourist / kyc / live / rejected all follow a confirmed mint.
@@ -719,8 +744,11 @@ function topupSemantics(state: ParsedTopUp): TopUpState {
     case "tx":
       requireActiveLast(state.txs);
       break;
+    case "confirmed":
+      requireTerminalMain(state.txs, "confirmed");
+      break;
     default:
-      requireTerminalMain(state.txs, state.step);
+      requireTerminalLast(state.txs, state.step);
   }
   return {
     flow: "top-up",

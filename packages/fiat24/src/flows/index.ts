@@ -1,5 +1,8 @@
 export { loadAccount } from "./account.ts";
+export { advanceExchange, startExchange } from "./exchange.ts";
+export { advanceOnboarding, kycUrl, startOnboarding } from "./onboarding.ts";
 export { decodeFlowState, encodeFlowState } from "./state.ts";
+export { advanceTopUp, startTopUp } from "./topup.ts";
 export { advanceTransfer, startTransfer } from "./transfer.ts";
 export type {
   AccountView,

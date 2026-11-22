@@ -1,5 +1,5 @@
 import { getAddress, isAddress, isAddressEqual } from "viem";
-import type { Address, Client, TransactionReceipt } from "viem";
+import type { Address, Client } from "viem";
 
 import { freeze } from "../api/schemas.ts";
 import { transferCall, transferToAccountCall } from "../calls/transfer.ts";
@@ -15,7 +15,6 @@ import { checkTransfer } from "../chain/transfer.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import type { Currency, Recipient } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
-import { decodeFiat24Log } from "../events/decode.ts";
 import { assertUnpaused, checkedSigner } from "./guards.ts";
 import { checkedState } from "./state.ts";
 import { advanceTx } from "./tx.ts";
@@ -122,8 +121,8 @@ async function transferGuards(
   }
 }
 
-// Matches the §10.4 transfer row — `Transfer(owner, …)` on the token proxy —
-// restricted by args so a wallet's other transfers at nonce N don't collide.
+// The §10.4 transfer row — `Transfer(owner, …)` on the token proxy. No args-level
+// check: the five-field transaction binding, not the log fields, decides evidence (§4).
 function transferEvidence(deployment: Deployment, state: TransferState): TxEvidence {
   return {
     filters: [
@@ -135,33 +134,7 @@ function transferEvidence(deployment: Deployment, state: TransferState): TxEvide
         ],
       },
     ],
-    check: (candidate) =>
-      candidate.kind === "fiat24" &&
-      candidate.event.kind === "transfer" &&
-      candidate.event.currency === state.currency &&
-      isAddressEqual(candidate.event.from, state.owner) &&
-      candidate.event.amount === state.amount &&
-      (!("address" in state.to) || isAddressEqual(candidate.event.to, state.to.address)),
   };
-}
-
-// A confirmed transfer must carry its Transfer event in the receipt (§10.4);
-// absence means the receipt is not ours ⇒ invalid-rpc-response, no transition.
-function assertTransferLog(receipt: TransactionReceipt, state: TransferState): void {
-  const found = receipt.logs.some((log) => {
-    const event = decodeFiat24Log(log);
-    return (
-      event !== undefined &&
-      event.kind === "transfer" &&
-      event.currency === state.currency &&
-      isAddressEqual(event.from, state.owner) &&
-      event.amount === state.amount &&
-      (!("address" in state.to) || isAddressEqual(event.to, state.to.address))
-    );
-  });
-  if (!found) {
-    throw new Fiat24Error("invalid-rpc-response", "invalid rpc response");
-  }
 }
 
 const stepFor = (record: TxRecord): TransferState["step"] =>
@@ -209,9 +182,6 @@ export async function advanceTransfer(
         deployment,
         guard: async (blockNumber) => transferGuards(deps.client, deployment, checked, blockNumber),
         evidence: transferEvidence(deployment, checked),
-        onConfirmed: (receipt) => {
-          assertTransferLog(receipt, checked);
-        },
         commit: (record) =>
           freeze({
             ...checked,

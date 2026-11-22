@@ -7,7 +7,7 @@ import { transferCall } from "../../src/calls/transfer.ts";
 import { topic0Of } from "../../src/chain/context.ts";
 import { arbitrum as C } from "../../src/deployments/index.ts";
 import { advanceTx } from "../../src/flows/tx.ts";
-import type { EvidenceEvent, TxEvidence } from "../../src/flows/tx.ts";
+import type { TxEvidence } from "../../src/flows/tx.ts";
 import type { TransferState, TxRecord } from "../../src/flows/types.ts";
 import { expectErrorAsync } from "../chain/stub.ts";
 import type { CallEntry } from "../chain/stub.ts";
@@ -52,13 +52,14 @@ function base(record: TxRecord | undefined, extra: Partial<TxArgs> = {}) {
     call: CALL,
     owner: OWNER,
     deployment: C,
+    evidence: TOKEN_EVIDENCE,
     commit: commitTx,
     ...extra,
   };
 }
 
 type TxArgs = {
-  readonly evidence?: TxEvidence;
+  readonly evidence: TxEvidence;
 };
 
 const TRANSFER_TOPIC = topic0Of(tokenAbi, "Transfer");
@@ -97,8 +98,6 @@ const atLatestTag = (reply: () => unknown) => (params: unknown) =>
 /** `sending` at nonce 1 — the reconcile input for every ledger-driven test. */
 const SENDING: TxRecord = { purpose: "main", phase: "sending", fromBlock: B, nonce: 1 };
 
-const isLargerTransfer = (event: EvidenceEvent): boolean =>
-  event.kind === "fiat24" && event.event.kind === "transfer" && event.event.amount === AMOUNT + 1n;
 const SUBMITTED: TxRecord = {
   purpose: "main",
   phase: "submitted",
@@ -340,29 +339,30 @@ describe("advanceTx", () => {
     expect(outcome.record.phase).toBe("not-sent");
   });
 
-  test("evidence check and txid de-duplication filter candidates", async () => {
-    const matching = txPayload({
-      hash: TXID_2,
-      from: OWNER,
-      to: CALL.to,
-      input: CALL.data,
-      value: CALL.value,
-      nonce: 1,
-    });
+  test("duplicate transactionHash candidates are inspected once", async () => {
     const stub = makeFlowStub({
       count: { latest: 3 },
-      logs: () => [
-        // Fails the args check ⇒ skipped.
-        transferEntry(TXID_1, AMOUNT),
-        // Same txid twice ⇒ the duplicate is skipped.
-        transferEntry(TXID_2),
-        transferEntry(TXID_2),
-      ],
-      transactions: { [TXID_2.toLowerCase()]: matching },
+      logs: () => [transferEntry(TXID_2), transferEntry(TXID_2)],
+      transactions: { [TXID_2.toLowerCase()]: bindingTx(TXID_2) },
     });
     const { deps } = flowDeps(stub.client);
-    const evidence: TxEvidence = { ...TOKEN_EVIDENCE, check: isLargerTransfer };
-    const outcome = await advanceTx(deps, base(SENDING, { evidence }));
+    const outcome = await advanceTx(deps, base(SENDING));
+    expect(outcome.record.phase).toBe("submitted");
+    expect(outcome.record.hash).toBe(TXID_2);
+    const lookups = stub.requests.filter((r) => r.method === "eth_getTransactionByHash");
+    expect(lookups).toHaveLength(1);
+  });
+
+  test("log fields never filter a candidate — the tx binding decides", async () => {
+    // A same-owner Transfer log with a different amount/recipient is still a
+    // candidate: the five-field binding on the transaction is what decides.
+    const stub = makeFlowStub({
+      count: { latest: 3 },
+      logs: () => [transferEntry(TXID_2, AMOUNT)],
+      transactions: { [TXID_2.toLowerCase()]: bindingTx(TXID_2) },
+    });
+    const { deps } = flowDeps(stub.client);
+    const outcome = await advanceTx(deps, base(SENDING));
     expect(outcome.record.phase).toBe("submitted");
     expect(outcome.record.hash).toBe(TXID_2);
   });

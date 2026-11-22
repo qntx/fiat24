@@ -25,6 +25,15 @@ export type AccountView = {
 };
 
 // @public
+export function advanceExchange(deps: FlowDeps, state: ExchangeState): Promise<ExchangeState>;
+
+// @public
+export function advanceOnboarding(deps: FlowDeps, state: OnboardingState): Promise<OnboardingState>;
+
+// @public
+export function advanceTopUp(deps: FlowDeps, state: TopUpState): Promise<TopUpState>;
+
+// @public
 export function advanceTransfer(deps: FlowDeps, state: TransferState): Promise<TransferState>;
 
 // @public
@@ -378,6 +387,9 @@ export type FlowState = TransferState | ExchangeState | PayoutState | CardState 
 type KycStatus = "not-started" | "pending-scan" | "processing" | "action-required" | "manual-review" | "completed" | "rejected" | "error" | "unknown";
 
 // @public
+export function kycUrl(walletProviderId?: bigint): string;
+
+// @public
 export function loadAccount(deps: Pick<FlowDeps, "client" | "deployment">, args: {
     readonly owner: Address;
 }): Promise<AccountView>;
@@ -491,6 +503,29 @@ type Recipient = {
 } | {
     readonly tokenId: bigint;
 };
+
+// @public
+export function startExchange(input: {
+    readonly owner: Address;
+    readonly side: "exact-in" | "exact-out";
+    readonly from: Currency;
+    readonly to: Currency;
+    readonly amount: bigint;
+}): ExchangeState;
+
+// @public
+export function startOnboarding(input: {
+    readonly owner: Address;
+    readonly tokenId: bigint;
+    readonly payment: "f24" | "eth";
+}): OnboardingState;
+
+// @public
+export function startTopUp(input: {
+    readonly owner: Address;
+    readonly output: Currency;
+    readonly usdcAmount: bigint;
+}): TopUpState;
 
 // @public
 export function startTransfer(input: {

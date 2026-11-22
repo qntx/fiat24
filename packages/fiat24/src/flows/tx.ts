@@ -14,8 +14,8 @@ import { decodeFiat24Log } from "../events/decode.ts";
 import type { Fiat24Event, RawLog } from "../events/types.ts";
 import type { FlowDeps, FlowState, TxRecord } from "./types.ts";
 
-// SPEC §10.1 reconcile: the evidence search runs over [fromBlock, latest] in
-// 100k-block windows (I14 caps getLogs ranges).
+// SPEC §7.2: arb1's eth_getLogs window limit for an address/topic-array filter is
+// 100,000 blocks; the evidence search walks [fromBlock, latest] in those windows.
 const EVIDENCE_CHUNK = 100_000n;
 
 /**
@@ -32,14 +32,15 @@ export type EvidenceEvent =
     };
 
 /**
- * The flow-supplied half of the evidence search (§4): which logs to scan, how to decode them
- * (`erc20: true` for USDC/F24 `Approval`), and — optional — an args-level filter. The transaction
- * binding, not the log fields, decides.
+ * The flow-supplied half of the evidence search (§4): which logs to scan and how to decode them
+ * (`erc20: true` for USDC/F24 `Approval`). Decoding runs only to surface `malformed-log`; it is the
+ * five-field transaction binding, never the log fields, that decides evidence — filtering
+ * candidates on decoded args could turn a real send into `not-sent` (the host would wrongly believe
+ * it is safe to start again).
  */
 export type TxEvidence = {
   readonly filters: ReadonlyArray<LogFilter>;
   readonly erc20?: boolean;
-  readonly check?: (event: EvidenceEvent) => boolean;
 };
 
 export type TxArgs<S extends FlowState, R> = {
@@ -52,7 +53,8 @@ export type TxArgs<S extends FlowState, R> = {
   readonly deployment: Deployment;
   /** The flow's guards, re-run at the ready-phase block before every send. */
   readonly guard?: (blockNumber: bigint) => Promise<void>;
-  readonly evidence?: TxEvidence;
+  /** The §4 evidence spec; required — an absent spec would make every `L > N` reconcile `not-sent`. */
+  readonly evidence: TxEvidence;
   /**
    * Runs on a successful, binding-verified receipt before `confirmed` is produced (§6 per-flow
    * result extraction); a throw means no transition.
@@ -138,7 +140,11 @@ async function persistSwallow(deps: FlowDeps, state: FlowState): Promise<void> {
   // persisted `sending` record covers it and throwing would leave the host
   // holding the pre-send state, from which a retry would send a second
   // transaction.
-  await deps.persist(state).catch(() => undefined);
+  try {
+    await deps.persist(state);
+  } catch {
+    // swallowed — see above
+  }
 }
 
 /** §4 `ready`: assert → guard → simulate → persist `sending` → signer → record the outcome. */
@@ -361,8 +367,12 @@ function isApprovalArgs(
   };
 }
 
-function decodeEvidence(raw: RawLog, evidence: TxEvidence | undefined): EvidenceEvent | undefined {
-  if (evidence?.erc20 === true) {
+function decodeEvidence(
+  raw: RawLog,
+  evidence: TxEvidence,
+  deployment: Deployment,
+): EvidenceEvent | undefined {
+  if (evidence.erc20 === true) {
     const [topic0, ...rest] = raw.topics;
     if (topic0 === undefined) {
       throw new Fiat24Error("malformed-log", "malformed log");
@@ -384,7 +394,7 @@ function decodeEvidence(raw: RawLog, evidence: TxEvidence | undefined): Evidence
     }
     return { kind: "erc20-approval", ...approvalArgs };
   }
-  const event = decodeFiat24Log(raw);
+  const event = decodeFiat24Log(raw, deployment);
   if (event === undefined) {
     return undefined;
   }
@@ -441,7 +451,7 @@ async function reconcile<S extends FlowState, R>(
     return { record, state, result: undefined };
   }
   const logs = await getLogsChunked(deps.client, {
-    filters: args.evidence === undefined ? [] : args.evidence.filters,
+    filters: args.evidence.filters,
     fromBlock,
     toBlock: blockNumber,
     chunkSize: EVIDENCE_CHUNK,
@@ -449,11 +459,9 @@ async function reconcile<S extends FlowState, R>(
   const seen = new Set<Hash>();
   const candidates: Hash[] = [];
   for (const raw of logs) {
-    const decoded = decodeEvidence(raw, args.evidence);
-    if (decoded === undefined) {
-      continue;
-    }
-    if (args.evidence?.check !== undefined && !args.evidence.check(decoded)) {
+    // Decoded only for its `malformed-log` contract — args never filter (§4: the
+    // transaction binding decides).
+    if (decodeEvidence(raw, args.evidence, args.deployment) === undefined) {
       continue;
     }
     const txid = raw.transactionHash;

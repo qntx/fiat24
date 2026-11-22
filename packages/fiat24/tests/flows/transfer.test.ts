@@ -72,14 +72,6 @@ function transferData(to: Address, amount: bigint): Hex {
   return encodeFunctionData({ abi: tokenAbi, functionName: "transfer", args: [to, amount] });
 }
 
-function transferToAccountData(tokenId: bigint, amount: bigint): Hex {
-  return encodeFunctionData({
-    abi: tokenAbi,
-    functionName: "transferByAccountId",
-    args: [tokenId, amount],
-  });
-}
-
 describe("startTransfer", () => {
   test("validates inputs and returns a draft with no transactions", () => {
     const draft = startTransfer({
@@ -435,82 +427,6 @@ describe("advanceTransfer send path", () => {
     });
     expect(persisted).toHaveLength(1);
     expect(persisted[0]).toStrictEqual(next);
-  });
-
-  test("receipt without the matching Transfer event ⇒ invalid-rpc-response, no transition", async () => {
-    const stub = makeFlowStub({
-      receipts: {
-        [TXID_1]: receiptPayload({
-          transactionHash: TXID_1,
-          blockNumber: B + 1n,
-          status: "success",
-          // A different token's event: decodes, but is not this transfer.
-          logs: [
-            transferLog({
-              token: TOKEN,
-              from: OWNER,
-              to: RECIPIENT,
-              amount: AMOUNT + 1n,
-              blockNumber: B + 1n,
-              transactionHash: TXID_1,
-            }),
-          ],
-        }),
-      },
-      transactions: {
-        [TXID_1]: txPayload({
-          hash: TXID_1,
-          from: OWNER,
-          to: TOKEN,
-          input: transferData(RECIPIENT, AMOUNT),
-          value: 0n,
-          nonce: 5,
-          blockNumber: B + 1n,
-        }),
-      },
-    });
-    const { deps, persisted } = flowDeps(stub.client);
-    await expectErrorAsync(async () => advanceTransfer(deps, SUBMITTED), "invalid-rpc-response");
-    expect(persisted).toHaveLength(0);
-  });
-
-  test("tokenId recipient: the to-address check is skipped in the receipt scan", async () => {
-    const stub = makeFlowStub({
-      receipts: {
-        [TXID_1]: receiptPayload({
-          transactionHash: TXID_1,
-          blockNumber: B + 1n,
-          status: "success",
-          logs: [
-            transferLog({
-              token: TOKEN,
-              from: OWNER,
-              to: RECIPIENT,
-              amount: AMOUNT,
-              blockNumber: B + 1n,
-              transactionHash: TXID_1,
-            }),
-          ],
-        }),
-      },
-      transactions: {
-        [TXID_1]: txPayload({
-          hash: TXID_1,
-          from: OWNER,
-          to: TOKEN,
-          input: transferToAccountData(RECEIVER_ID, AMOUNT),
-          value: 0n,
-          nonce: 5,
-          blockNumber: B + 1n,
-        }),
-      },
-    });
-    const { deps } = flowDeps(stub.client);
-    const next = await advanceTransfer(deps, {
-      ...SUBMITTED,
-      to: { tokenId: RECEIVER_ID },
-    });
-    expect(next.step).toBe("confirmed");
   });
 
   test("reverted receipt ⇒ failed{tx-reverted}", async () => {

@@ -228,6 +228,7 @@ const PAUSED_TARGETS: ReadonlyArray<Address> = [
 export function availabilityEntries(
   opts: {
     readonly paused?: Readonly<Record<string, boolean>> | boolean;
+    readonly maxDigitForSale?: number | undefined;
   } = {},
 ): Map<string, CallEntry[]> {
   const entries = new Map<string, CallEntry[]>();
@@ -239,7 +240,9 @@ export function availabilityEntries(
     push(entries, `${target.toLowerCase()}:paused`, { answer: { result: paused } });
   }
   push(entries, `${C.deposit.proxy.toLowerCase()}:marketClosed`, { answer: { result: false } });
-  push(entries, `${ACCOUNT.toLowerCase()}:maxDigitForSale`, { answer: { result: 6 } });
+  push(entries, `${ACCOUNT.toLowerCase()}:maxDigitForSale`, {
+    answer: { result: opts.maxDigitForSale ?? 6 },
+  });
   return entries;
 }
 

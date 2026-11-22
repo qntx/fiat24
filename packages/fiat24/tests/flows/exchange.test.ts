@@ -588,6 +588,20 @@ describe("advanceExchange tx records", () => {
     expect(requests).toHaveLength(0);
   });
 
+  test("quote-changed (exact-in): fresh output one below the stored quote (M48)", async () => {
+    const { signer, requests } = makeSigner(OWNER);
+    // rate 10850 → fresh output floor(floor(100*10850/1e4)*9950/1e4) = 107 = 108 − 1:
+    // any drop, even a single unit, is a changed quote.
+    const stub = makeFlowStub({
+      calls: exchangeTable({ allowance: 500n, rate: 10850n }),
+      storage: honestStorage(),
+      count: { pending: 7 },
+    });
+    const { deps } = flowDeps(stub.client, { signer });
+    await expectErrorAsync(async () => advanceExchange(deps, MAIN_READY), "quote-changed");
+    expect(requests).toHaveLength(0);
+  });
+
   test("quote-changed (exact-out): fresh input above the stored quote", async () => {
     const xoMainReady: ExchangeState = {
       ...XO_QUOTED,

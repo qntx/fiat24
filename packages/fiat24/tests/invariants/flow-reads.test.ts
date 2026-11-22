@@ -19,6 +19,8 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, test } from "vite-plus/test";
 
+import { codeOnly } from "../helpers.ts";
+
 const FLOWS = fileURLToPath(new URL("../../src/flows", import.meta.url));
 
 const FILES = readdirSync(FLOWS)
@@ -101,13 +103,6 @@ function chainImports(text: string): string[] {
   return names;
 }
 
-/** Source with comments blanked out (same length): doc mentions are not calls. */
-function withoutComments(text: string): string {
-  return text
-    .replaceAll(/\/\*[\s\S]*?\*\//g, (m) => " ".repeat(m.length))
-    .replaceAll(/\/\/[^\n]*/g, (m) => " ".repeat(m.length));
-}
-
 /** The balanced-paren argument text following the `(` at `openParen`, or undefined. */
 function callArgs(text: string, openParen: number): string | undefined {
   let depth = 0;
@@ -130,7 +125,7 @@ function callArgs(text: string, openParen: number): string | undefined {
  * (member access).
  */
 function callSites(source: string, name: string): number[] {
-  const text = withoutComments(source);
+  const text = codeOnly(source);
   const sites: number[] = [];
   const pattern = new RegExp(`\\b${name}\\s*\\(`, "g");
   for (const match of text.matchAll(pattern)) {
@@ -187,7 +182,7 @@ function unclassifiedImports(): string[] {
 function unverifiedReads(): string[] {
   const offenders: string[] = [];
   for (const [path, text] of TEXTS) {
-    const stripped = withoutComments(text);
+    const stripped = codeOnly(text);
     for (const name of [...READS, ...GUARD_HELPERS]) {
       for (const openParen of callSites(text, name)) {
         const args = callArgs(stripped, openParen) ?? "";

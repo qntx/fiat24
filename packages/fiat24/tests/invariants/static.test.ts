@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, test } from "vite-plus/test";
 
-import { sendTransactionAllowed } from "../helpers.ts";
+import { codeOnly, sendTransactionAllowed } from "../helpers.ts";
 
 // I1/I14: the SDK never holds keys, never signs, never broadcasts. Scan the
 // published surface for the viem signing/broadcast surface it must not touch.
@@ -26,6 +26,15 @@ function srcFiles(dir: string): string[] {
 const FILES = srcFiles(SRC);
 const TEXTS = new Map(FILES.map((path) => [path, readFileSync(path, "utf8")]));
 
+const CODE = new Map(FILES.map((path) => [path, codeOnly(TEXTS.get(path) ?? "")]));
+
+/** Files whose code (comments stripped) matches any pattern, as offender lines. */
+function patternOffenders(patterns: RegExp[]): string[] {
+  return FILES.flatMap((path) =>
+    patterns.filter((re) => re.test(CODE.get(path) ?? "")).map((re) => `${path}: ${re.source}`),
+  );
+}
+
 const SIGNING_IDENTIFIERS = [
   "signMessage",
   "signTypedData",
@@ -38,6 +47,22 @@ const SIGNING_IDENTIFIERS = [
 
 const BROADCAST_IDENTIFIERS = ["sendRawTransaction", "writeContract", "deployContract"];
 
+// RPC method strings, not only viem action names: a `client.request({method})` bypass must
+// trip the same scans. Word-bounded so `eth_sign` never matches inside `eth_signTypedData*`
+// or `eth_sendTransaction` inside `eth_sendRawTransaction`.
+const SIGNING_PATTERNS = [
+  ...SIGNING_IDENTIFIERS.map((id) => new RegExp(`\\b${id}\\b`)),
+  /\bpersonal_sign\b/,
+  /\beth_sign\b/,
+  /\beth_signTypedData\w*/,
+];
+
+const BROADCAST_PATTERNS = [
+  ...BROADCAST_IDENTIFIERS.map((id) => new RegExp(`\\b${id}\\b`)),
+  /\beth_sendRawTransaction\b/,
+  /\beth_sendTransaction\b/,
+];
+
 describe("src static invariants", () => {
   test("scan found source files", () => {
     expect(FILES.length).toBeGreaterThan(10);
@@ -49,20 +74,12 @@ describe("src static invariants", () => {
     }
   });
 
-  test.each(SIGNING_IDENTIFIERS)("no signing identifier %s", (identifier) => {
-    for (const [path, text] of TEXTS) {
-      // word-boundary match so `Fiat24SessionSigner.signMessage`-shaped member
-      // declarations are still caught unless they match the explicit allow-list.
-      const re = new RegExp(`\\b${identifier}\\b`);
-      expect(re.test(text), `${path} mentions ${identifier}`).toBe(false);
-    }
+  test("no signing imports", () => {
+    expect(patternOffenders(SIGNING_PATTERNS)).toStrictEqual([]);
   });
 
-  test.each(BROADCAST_IDENTIFIERS)("no broadcast identifier %s", (identifier) => {
-    for (const [path, text] of TEXTS) {
-      const re = new RegExp(`\\b${identifier}\\b`);
-      expect(re.test(text), `${path} mentions ${identifier}`).toBe(false);
-    }
+  test("no broadcast", () => {
+    expect(patternOffenders(BROADCAST_PATTERNS)).toStrictEqual([]);
   });
 
   test("sendTransaction appears only in core/signer.ts or as an access on a `signer` value", () => {

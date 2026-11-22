@@ -11,6 +11,8 @@ import { join } from "node:path";
 
 import { keccak256, stringToHex } from "viem";
 
+import { format } from "./gen.ts";
+
 const ROOT = join(import.meta.dirname, "..");
 const CHECK = process.argv.includes("--check");
 const SOURCIFY = "https://sourcify.dev/server/v2/contract/42161";
@@ -160,16 +162,18 @@ async function main(): Promise<number> {
     "",
     ...sections,
   ].join("\n");
+  // Formatted exactly as `vp check` (pre-commit) leaves it, so `--check` compares like with like.
+  const formatted = format(join("data", "SOURCE.md"), source);
   const sourcePath = join(ROOT, "data", "SOURCE.md");
   if (CHECK) {
-    if (stripRetrieved(readFileSync(sourcePath, "utf8")) === stripRetrieved(source)) {
+    if (stripRetrieved(readFileSync(sourcePath, "utf8")) === stripRetrieved(formatted)) {
       console.log("abi: data/SOURCE.md == Sourcify");
     } else {
       console.error("abi: data/SOURCE.md differs from Sourcify");
       drift = true;
     }
   } else {
-    writeFileSync(sourcePath, source);
+    writeFileSync(sourcePath, formatted);
     console.log("abi: wrote data/SOURCE.md");
   }
   return drift ? 1 : 0;

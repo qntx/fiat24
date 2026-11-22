@@ -244,7 +244,7 @@ function deploymentsModule(): GeneratedFile {
 
 // Generated TypeScript goes through `vp fmt`, so generated output is already
 // formatted and `bun run gen --check` agrees with `vp check`.
-function format(path: string, content: string): string {
+export function format(path: string, content: string): string {
   const env = {
     ...process.env,
     PATH: `${join(ROOT, "node_modules/.bin")}:${process.env["PATH"] ?? ""}`,

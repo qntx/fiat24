@@ -531,6 +531,18 @@ describe("advanceOnboarding tx records", () => {
     expect(requests).toHaveLength(0);
   });
 
+  test("f24 quote-changed: allowance above the quoted input", async () => {
+    const { signer, requests } = makeSigner(OWNER);
+    const stub = makeFlowStub({
+      calls: onboardingTable({ f24Allowance: PRICE_F24 + 1n }),
+      storage: honestStorage(),
+      count: { pending: 7 },
+    });
+    const { deps } = flowDeps(stub.client, { signer });
+    await expectErrorAsync(async () => advanceOnboarding(deps, MAIN_READY_F24), "quote-changed");
+    expect(requests).toHaveLength(0);
+  });
+
   test("eth quote-changed: fresh priceWei above the stored input", async () => {
     const { signer, requests } = makeSigner(OWNER);
     const stub = makeFlowStub({

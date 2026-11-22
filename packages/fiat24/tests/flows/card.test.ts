@@ -452,6 +452,16 @@ describe("advanceCard API write", () => {
     expect(writes).toStrictEqual([]);
   });
 
+  test("set-currency: card already on the target currency ⇒ confirmed, no write", async () => {
+    const { session, writes } = cardSession({ cards: [apiCard({ currency: "USD24" })] });
+    const stub = makeFlowStub({ storage: honestStorage() });
+    const { deps } = flowDeps(stub.client);
+    const next = await advanceCard({ ...deps, session }, SET_CURRENCY);
+    expect(next.step).toBe("confirmed");
+    expect(next.txs).toStrictEqual([{ purpose: "main", phase: "confirmed" }]);
+    expect(writes).toStrictEqual([]);
+  });
+
   test("non-create op on a missing card ⇒ api-rejected on GET /cards", async () => {
     const { session, writes } = cardSession({ cards: [] });
     const stub = makeFlowStub({ storage: honestStorage() });

@@ -454,6 +454,20 @@ describe("advanceExchange quoted → tx planning", () => {
     expect(requests[0]?.data).toBe(exchangeData());
   });
 
+  test("exact-in allowance exactly amount sends the main, not a redundant approve", async () => {
+    const { signer, requests } = makeSigner(OWNER);
+    const stub = makeFlowStub({
+      calls: exchangeTable({ allowance: INPUT }),
+      storage: honestStorage(),
+      count: { pending: 7 },
+    });
+    const { deps } = flowDeps(stub.client, { signer });
+    const next = await advanceExchange(deps, QUOTED);
+    expect(next.txs[0]?.purpose).toBe("main");
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.data).toBe(exchangeData());
+  });
+
   test("exact-out re-approves down", async () => {
     const { signer, requests } = makeSigner(OWNER);
     const stub = makeFlowStub({
@@ -596,6 +610,33 @@ describe("advanceExchange tx records", () => {
     // rate 10968 → fresh input floor(105*10968/1e4*9950/1e4)=114 > 94.
     const stub = makeFlowStub({
       calls: exchangeTable({ side: "exact-out", allowance: XO_INPUT, rate: 10968n }),
+      storage: honestStorage(),
+      count: { pending: 7 },
+    });
+    const { deps } = flowDeps(stub.client, { signer });
+    await expectErrorAsync(async () => advanceExchange(deps, xoMainReady), "quote-changed");
+    expect(requests).toHaveLength(0);
+  });
+
+  test("quote-changed (exact-out): allowance above the quoted input", async () => {
+    const xoMainReady: ExchangeState = {
+      ...XO_QUOTED,
+      step: "tx",
+      txs: [
+        {
+          purpose: "approve",
+          phase: "confirmed",
+          fromBlock: B,
+          nonce: 5,
+          hash: TXID_1,
+          blockNumber: B + 1n,
+        },
+        { purpose: "main", phase: "ready" },
+      ],
+    };
+    const { signer, requests } = makeSigner(OWNER);
+    const stub = makeFlowStub({
+      calls: exchangeTable({ side: "exact-out", allowance: XO_INPUT + 1n }),
       storage: honestStorage(),
       count: { pending: 7 },
     });

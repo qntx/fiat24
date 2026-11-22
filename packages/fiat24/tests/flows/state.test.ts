@@ -62,6 +62,11 @@ describe("flow state codec", () => {
     expect(Object.isFrozen(decoded)).toBe(true);
   });
 
+  test("decode refuses input above the size cap", () => {
+    const padded = `{${" ".repeat(70_000)}${JSON.stringify(DRAFT_JSON).slice(1)}`;
+    expect(() => decodeFlowState(padded)).toThrow(expect.objectContaining({ code: INVALID_STATE }));
+  });
+
   test("tampered state", () => {
     const cases: ReadonlyArray<unknown> = [
       // amount edited to zero — the rebuilt builder refuses.
@@ -947,6 +952,17 @@ describe("per-flow semantics", () => {
     transferTx([confirmed("approve"), submitted("main"), confirmed("main", 3, HASH)]),
     transferTx([confirmed("main"), submitted("approve")]),
     transferTx([submitted("approve"), { purpose: "main", phase: "ready" }]),
+    // same non-confirmed first record where the flow legitimately holds [approve, main].
+    {
+      ...BASE,
+      flow: "top-up",
+      step: "confirmed",
+      output: "EUR24",
+      usdcAmount: "100",
+      quote: TOPUP_QUOTE,
+      actual: { input: "100", output: "99" },
+      txs: [submitted("approve"), confirmed("main", 2, HASH2)],
+    },
     // API records: chain fields, meaningless phases, bad errors.
     cardTx({ kind: "block", externalId: "c1" }, [{ purpose: "main", phase: "sending", nonce: 1 }]),
     cardTx({ kind: "block", externalId: "c1" }, [{ purpose: "main", phase: "submitted" }]),

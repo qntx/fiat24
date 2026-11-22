@@ -4,7 +4,7 @@
 
 An unofficial, wallet-independent TypeScript SDK for the Fiat24 protocol on Arbitrum One: [`@qntx/fiat24`](packages/fiat24) on npm.
 
-> **Status: pre-release (0.1.0, unreleased).** Nothing is published yet. All layers are implemented: `abi`, `core`, `deployments`, `calls`, `events`, `chain` (including the `fiat24PublicActions` viem decorator), `api` (the REST client with session grants) and `flows` (resumable transfer, exchange, payout, card, onboarding and top-up flows). See the [package README](packages/fiat24/README.md) for usage, host obligations and residual risks.
+> **0.1.0 is the first release.** All layers are implemented: `abi`, `core`, `deployments`, `calls`, `events`, `chain` (including the `fiat24PublicActions` viem decorator), `api` (the REST client with session grants) and `flows` (resumable transfer, exchange, payout, card, onboarding and top-up flows). See the [package README](packages/fiat24/README.md) for usage, host obligations and residual risks.
 
 This project is not affiliated with or endorsed by SR Saphirstein AG. "Fiat24" is used only to identify the protocol the SDK talks to; no partnership is claimed.
 

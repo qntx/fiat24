@@ -4,9 +4,17 @@
 
 An unofficial TypeScript SDK for the Fiat24 protocol on Arbitrum One. Not affiliated with or endorsed by SR Saphirstein AG; "Fiat24" is used only to identify the protocol.
 
-> **Status: pre-release (0.1.0, unreleased).** Nothing is published yet. All layers are implemented: `abi`, `core`, `deployments`, `calls`, `events`, `chain` (read actions and the `fiat24PublicActions` viem decorator), `api` (REST client with session grants) and `flows` (resumable user flows).
+> **0.1.0 is the first release.** All layers are implemented: `abi`, `core`, `deployments`, `calls`, `events`, `chain` (read actions and the `fiat24PublicActions` viem decorator), `api` (REST client with session grants) and `flows` (resumable user flows).
 
 Platform-neutral (Node, browsers, Hermes): one subpath export per layer — `@qntx/fiat24` plus `/abi`, `/core`, `/deployments`, `/calls`, `/events`, `/chain`, `/api`, `/flows`. `viem` is a peer dependency. Only Arbitrum One (chain id 42161) is supported; Mantle and GBP24 are not.
+
+## Install
+
+```bash
+npm install @qntx/fiat24 viem
+```
+
+ESM-only; `viem` is a peer dependency (`^2.57.12`) and Node `>=20.19` is required.
 
 ## Usage
 

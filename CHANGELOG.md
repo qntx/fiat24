@@ -32,17 +32,20 @@ Saphirstein AG.
 - `chain`: viem-style read actions (account, balances, allowances,
   availability, deployment verification, FX and top-up quotes, transfer
   checks, payout minimum and settlement, mint quote, history,
-  simulation) and the `fiat24PublicActions` client decorator.
+  simulation) and the `fiat24PublicActions` client decorator. Paused or
+  maintenance-mode features report a typed `unavailable` reason read
+  from the chain at run time.
 - `api`: the REST client for public endpoints (redirects refused, the
   response body capped while streaming, display and id JSON numbers
   required safe), session grants (label
   `fiat24-session-v1:<chainId>:<tokenId>:<deadline>;`) with local
-  lifetime bounds and the exported `SessionArgs`, secured reads,
-  `/verify` bindings and card writes (card `create` counts as done only
-  on an `Active` card).
+  lifetime bounds and the exported `SessionArgs`, `sessionLabel` and
+  `sessionMessage`, secured reads, `/verify` bindings and card writes
+  (card `create` counts as done only on an `Active` card).
 - `flows`: resumable state machines for the account view, P2P transfer,
   FX exchange, payout, card management, onboarding and USDC top-up.
-  `FlowDeps` injects `client`, `signer` and `persist` (no clock).
+  `FlowDeps` injects `client`, `signer` and `persist` (no clock), and
+  states serialise with `encodeFlowState`/`decodeFlowState`.
   Every chain read happens at a `verifiedBlock` that asserts the pinned
   deployment of the contracts it touches first. Persist-before-send with
   SDK-chosen nonces; a hash-carrying record reconciles by its own

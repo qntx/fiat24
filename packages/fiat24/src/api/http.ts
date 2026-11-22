@@ -59,9 +59,13 @@ function utf8Length(text: string): number {
 /**
  * §9.1/§9.5 transport: returns the parsed JSON of a 2xx. `fetch` resolves as `fetchOption ??
  * globalThis.fetch` at call time (missing => network-error). Headers are `network: 42161`,
- * `cache-control: no-store`, then session headers, then `content-type` on writes. No
+ * `cache-control: no-store`, then session headers, then `content-type` on writes. Init keys are
+ * `method`, `headers`, `body` on writes and `redirect: "error"` — a spec fetch rejects on any
+ * redirect (network-error) so the bearer grant can never be forwarded to another origin. No
  * `cache`/`signal`/`credentials`/`mode` init keys — whatwg-fetch rewrites GET URLs when `cache:
- * "no-store"` is set (R/f10), and hosts own timeouts. The body is never read on non-2xx.
+ * "no-store"` is set (R/f10), and hosts own timeouts. A redirect-shaped response is refused
+ * `invalid-response` before the status checks because an injected fetch may ignore the option and
+ * React Native's XHR fetch follows redirects regardless. The body is never read on non-2xx.
  */
 export async function request(
   fetchOption: typeof fetch | undefined,
@@ -82,7 +86,7 @@ export async function request(
   if (spec.body !== undefined) {
     headers["content-type"] = "application/json";
   }
-  const init: RequestInit = { method: spec.method, headers };
+  const init: RequestInit = { method: spec.method, headers, redirect: "error" };
   if (spec.body !== undefined) {
     init.body = JSON.stringify(spec.body);
   }
@@ -93,6 +97,18 @@ export async function request(
     throw apiError("network-error", endpoint);
   }
   const { status } = response;
+  // A fetch that ignored `redirect: "error"` surfaced a redirect: refuse it before any status or
+  // body handling — the request may have carried the bearer grant to another origin's answer.
+  if (
+    response.type === "opaqueredirect" ||
+    (status >= 300 && status < 400) ||
+    response.redirected ||
+    (typeof response.url === "string" &&
+      response.url !== "" &&
+      response.url !== API_BASE_URL + spec.path)
+  ) {
+    throw apiError("invalid-response", endpoint);
+  }
   if (status === 401) {
     throw apiError("unauthorized", endpoint, status);
   }

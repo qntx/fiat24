@@ -1,3 +1,6 @@
+import { createServer } from "node:http";
+import type { Server } from "node:http";
+
 import { describe, expect, test } from "vite-plus/test";
 
 import { API_BASE_URL, createFiat24Api, sessionLabel } from "../../src/api/index.ts";
@@ -5,6 +8,7 @@ import type { Fiat24Error } from "../../src/core/index.ts";
 import { isFiat24Error } from "../../src/core/index.ts";
 import {
   caught,
+  caughtCode,
   expectApiError,
   clock,
   fixtureBody,
@@ -324,6 +328,71 @@ describe("api transport", () => {
     await expectApiError(async () => api.timestamp(), "invalid-response", "GET /timestamp");
   });
 
+  test("every request is sent with redirect: error", async () => {
+    const { session, calls } = sessionApi({
+      "/br": json(fixtureBody("secured/br.json")),
+      "/card": json(fixtureBody("secured/write-ok.json")),
+      "/card-currency": json(fixtureBody("secured/write-ok.json")),
+    });
+    await session.profile();
+    await session.createCard();
+    await session.setCardCurrency({ externalId: "123456", currency: "EUR" });
+    const pub = publicApi({ "/countries": json(fixtureBody("public/countries.json")) });
+    await pub.api.countries();
+    for (const call of [...calls, ...pub.calls]) {
+      expect(call.init.redirect).toBe("error");
+    }
+  });
+
+  // A spec fetch rejects on redirect (network-error); these cases cover an injected fetch that
+  // ignores `redirect: "error"` — a 3xx status, a followed redirect (`redirected`), or a
+  // resolved `url` other than the request's.
+  test.each([
+    {
+      name: "302 status",
+      make: () =>
+        new Response("{}", { status: 302, headers: { location: "https://evil.example/" } }),
+    },
+    {
+      name: "redirected: true",
+      make: () => {
+        const response = new Response("{}", { status: 200 });
+        Object.defineProperty(response, "redirected", { value: true });
+        return response;
+      },
+    },
+    {
+      name: "url differs from the request",
+      make: () => {
+        const response = new Response("{}", { status: 200 });
+        Object.defineProperty(response, "url", { value: "https://evil.example/timestamp" });
+        return response;
+      },
+    },
+  ])(
+    "a redirect-shaped response ($name) is invalid-response and the body is never read",
+    async ({ make }) => {
+      let bodyRead = false;
+      const stub = stubFetch({
+        "/timestamp": () => {
+          const response = make();
+          // `body: null` routes the read through `text()` under either body strategy.
+          Object.defineProperty(response, "body", { value: null });
+          Object.defineProperty(response, "text", {
+            value: async () => {
+              bodyRead = true;
+              return Promise.resolve("{}");
+            },
+          });
+          return response;
+        },
+      });
+      const api = createFiat24Api({ fetch: stub.fetch, now: () => SERVER_MS });
+      await expectApiError(async () => api.timestamp(), "invalid-response", "GET /timestamp");
+      expect(bodyRead, "the body was read").toBe(false);
+    },
+  );
+
   test("error detail never carries the concrete path or query", async () => {
     const { api } = publicApi({ "/status-kyc?id=9102": json("{}", 500) });
     const error = await caught(async () => api.kycStatus(9102n));
@@ -333,4 +402,73 @@ describe("api transport", () => {
     expect(JSON.stringify(fiat24Error.detail)).not.toContain("9102");
     expect(JSON.stringify(fiat24Error.detail)).not.toContain("?id=");
   });
+});
+
+describe("redirected answers (R-02)", () => {
+  async function listen(server: Server): Promise<number> {
+    return new Promise((resolve) => {
+      server.listen(0, "127.0.0.1", () => {
+        const address = server.address();
+        resolve(typeof address === "object" && address !== null ? address.port : 0);
+      });
+    });
+  }
+
+  // Server A answers /timestamp then `code` for the write with Location at server B, which
+  // records every request that reaches it. A spec fetch rejects with `redirect: "error"` (an
+  // opaque TypeError the SDK cannot tell from any other rejection => network-error); a fetch
+  // that resolves the 3xx hits the response-side check (=> invalid-response).
+  async function redirectPair(code: number): Promise<{
+    portA: number;
+    receivedB: string[];
+    close: () => Promise<void>;
+  }> {
+    const receivedB: string[] = [];
+    const serverB = createServer((req, res) => {
+      receivedB.push(`${req.method} ${req.url}`);
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end("{}");
+    });
+    const portB = await listen(serverB);
+    const serverA = createServer((req, res) => {
+      if (req.url === "/timestamp") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ timestamp: SERVER_MS }));
+        return;
+      }
+      res.writeHead(code, { location: `http://127.0.0.1:${portB}/card` });
+      res.end();
+    });
+    const portA = await listen(serverA);
+    const close = async (): Promise<void> => {
+      await new Promise((resolve) => {
+        serverA.close(resolve);
+      });
+      await new Promise((resolve) => {
+        serverB.close(resolve);
+      });
+    };
+    return { portA, receivedB, close };
+  }
+
+  test.each([307, 308])(
+    "a POST answered %i forwards no grant headers to the redirect target",
+    async (code) => {
+      const pair = await redirectPair(code);
+      try {
+        // The real fetch with only the base URL rewritten; init is passed through unchanged.
+        const fetchFn = (async (input: unknown, init?: RequestInit): Promise<Response> => {
+          const url = String(input).replace(API_BASE_URL, `http://127.0.0.1:${pair.portA}`);
+          return globalThis.fetch(url, init);
+        }) as typeof fetch;
+        const api = createFiat24Api({ fetch: fetchFn, now: () => SERVER_MS });
+        const session = api.openSession({ tokenId: TOKEN_ID, signer: testSigner() });
+        const outcome = await caughtCode(async () => session.createCard());
+        expect(["network-error", "invalid-response"]).toContain(outcome);
+        expect(pair.receivedB).toStrictEqual([]);
+      } finally {
+        await pair.close();
+      }
+    },
+  );
 });

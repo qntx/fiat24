@@ -77,6 +77,12 @@ export async function caught(run: () => unknown): Promise<unknown> {
   throw new Error("expected a throw");
 }
 
+/** Awaits `run` and returns the thrown Fiat24Error's `code` ("non-fiat24-error" otherwise). */
+export async function caughtCode(run: () => unknown): Promise<string> {
+  const error = await caught(run);
+  return isFiat24Error(error) ? error.code : "non-fiat24-error";
+}
+
 /** Awaits `run`, expecting a `Fiat24Error` with `code` (no `cause`, never a foreign throw). */
 export async function expectCode(run: () => unknown, code: string): Promise<void> {
   let error: unknown;

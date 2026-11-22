@@ -161,7 +161,10 @@ function writeFor(operation: CardOperation): CardWrite {
       return {
         endpoint: "POST /card",
         call: async (session) => session.createCard(),
-        observed: (cards) => cards.length > 0,
+        // The observed condition is "a usable card exists": `active` counts; `blocked` does not
+        // (unusable until the user unblocks it with a block/unblock operation — the server decides
+        // whether a new card may be created); `expired` and `unknown` do not.
+        observed: (cards) => cards.some((card) => card.status === "active"),
       };
     case "block":
     case "unblock":

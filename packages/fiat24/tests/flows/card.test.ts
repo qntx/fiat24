@@ -699,6 +699,61 @@ describe("advanceCard API write", () => {
   });
 });
 
+describe("create observes an active card only", () => {
+  test("an existing active card ⇒ confirmed, no POST", async () => {
+    const { session, writes, cardReads } = cardSession({ cards: [apiCard()] });
+    const stub = makeFlowStub({ storage: honestStorage() });
+    const { deps } = flowDeps(stub.client);
+    const next = await advanceCard({ ...deps, session }, CREATE);
+    expect(next.step).toBe("confirmed");
+    expect(next.txs).toStrictEqual([{ purpose: "main", phase: "confirmed" }]);
+    expect(writes).toStrictEqual([]);
+    expect(cardReads.count).toBe(1);
+  });
+
+  test("only blocked / expired / unknown cards ⇒ exactly one POST", async () => {
+    const cases: ReadonlyArray<ApiCard["status"]> = ["blocked", "expired", "unknown"];
+    await Promise.all(
+      cases.map(async (status) => {
+        const { session, writes } = cardSession({ cards: [apiCard({ status })] });
+        const stub = makeFlowStub({ storage: honestStorage() });
+        const { deps } = flowDeps(stub.client);
+        const next = await advanceCard({ ...deps, session }, CREATE);
+        expect(next.step).toBe("confirmed");
+        expect(writes).toStrictEqual(["POST /card"]);
+      }),
+    );
+  });
+
+  test("ambiguous write + observe read of expired + active ⇒ confirmed", async () => {
+    const { session, writes } = cardSession({
+      cards: cardQueue([[], [apiCard({ status: "expired" }), apiCard()]]),
+      writeError: apiError("network-error", "POST /card"),
+    });
+    const stub = makeFlowStub({ storage: honestStorage() });
+    const { deps } = flowDeps(stub.client);
+    const next = await advanceCard({ ...deps, session }, CREATE);
+    expect(next.step).toBe("confirmed");
+    expect(writes).toStrictEqual(["POST /card"]);
+  });
+
+  test("ambiguous write + observe read of expired only ⇒ unknown", async () => {
+    const { session, writes } = cardSession({
+      cards: cardQueue([[], [apiCard({ status: "expired" })]]),
+      writeError: apiError("network-error", "POST /card"),
+    });
+    const stub = makeFlowStub({ storage: honestStorage() });
+    const { deps } = flowDeps(stub.client);
+    const next = await advanceCard({ ...deps, session }, CREATE);
+    expect(next.txs.at(-1)).toStrictEqual({
+      purpose: "main",
+      phase: "unknown",
+      error: "unknown-outcome",
+    });
+    expect(writes).toStrictEqual(["POST /card"]); // never a second POST
+  });
+});
+
 describe("advanceCard drift before guard reads", () => {
   test("chain leg ⇒ contract-changed before any guard read", async () => {
     const storage = honestStorage();

@@ -103,7 +103,7 @@ Rules for hosts:
 - Call `advance*` for one flow at a time, never concurrently, and always on the latest persisted state.
 - Before a transaction is handed to the signer the flow persists phase `sending` with the nonce it chose. A flow in `sending` or `unknown` is never sent again; it is only reconciled against the chain (the transaction itself is the evidence: sender, target, calldata, value and nonce must match). Do not start a replacement flow while one is `sending` or `unknown`. The wallet's own "cancel" (a self-transaction at the recorded nonce) makes reconciliation end in `not-sent`, after which it is safe to start again. A lying RPC can still defeat reconciliation.
 - Payout drafts hold payee data and are never persisted; only the verified state (contact id, purpose id and reference, which are public on chain once sent) is.
-- Card API writes are issued once. On a network error or 5xx the SDK reads `GET /cards` once; if the target state is not observed the record becomes `unknown` and is never re-posted.
+- Card API writes are issued once. On a network error or 5xx the SDK reads `GET /cards` once; if the target state is not observed the record becomes `unknown` and is never re-posted. `create` counts as already done only when an `Active` card exists — a `Blocked`, `Expired` or unrecognised card does not stop a `POST /card`.
 - Store flow state as pseudonymous account data: `owner`, `tokenId` and recipient ids are public on chain, and a `tokenId` is equivalent to an IBAN (`ibanOf` is a bijection on `1 … 10^11 − 1`). Persisted state contains no names, IBANs, emails, payee addresses, card display tokens, signatures or session labels.
 
 ### Behaviour callers must state

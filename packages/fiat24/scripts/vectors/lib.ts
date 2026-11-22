@@ -17,6 +17,7 @@ export type VectorSource = {
   readonly url?: string;
   readonly block?: string;
   readonly evidence?: string;
+  readonly skipped?: number;
   readonly generator: string;
 };
 

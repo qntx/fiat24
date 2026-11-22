@@ -8,7 +8,7 @@
  * every balance-holder below was found by chain reads there (comments record how).
  */
 import type { ChildProcess } from "node:child_process";
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { createServer } from "node:net";
 
 import type {
@@ -325,6 +325,27 @@ export async function setClientLimit(
   );
 }
 
+/**
+ * OPERATOR `changeClientStatus(tokenId, status)` — Fiat24AccountStatus ordinals (1 SoftBlocked, 3
+ * Blocked).
+ */
+export async function changeClientStatus(
+  fork: Fork,
+  tokenId: bigint,
+  status: number,
+): Promise<TransactionReceipt> {
+  return sendAs(
+    fork,
+    OPERATOR,
+    arbitrum.account.proxy,
+    encodeFunctionData({
+      abi: accountAbi,
+      functionName: "changeClientStatus",
+      args: [tokenId, status],
+    }),
+  );
+}
+
 /** Plain ERC-20 funding transfer impersonating `holder` (found by chain reads — see DESK). */
 export async function fund(
   fork: Fork,
@@ -413,4 +434,53 @@ export async function minimalPayout(fork: Fork, token: Address): Promise<bigint>
     abi: tokenAbi,
     functionName: "minimalPayoutAmount",
   });
+}
+
+/** A cast uintN reply → bigint; cast 1.10 decorates numbers as `98692 [9.869e4]`. */
+export function castUint(text: string): bigint {
+  return BigInt(text.replaceAll(/\[[^\]]*\]/g, "").trim());
+}
+
+/** `cast` as a promise — `util.promisify` trips `strict-void-return` on execFile's overloads. */
+export async function runCast(args: ReadonlyArray<string>): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile("cast", args, (error, stdout, stderr) => {
+      if (error === null) {
+        resolve(stdout.trim());
+      } else {
+        reject(new Error(`cast ${args.join(" ")} failed: ${stderr.trim() || error.message}`));
+      }
+    });
+  });
+}
+
+/**
+ * `cast call` against the fork — the independent oracle (SPEC §11.2) for every chain read: Foundry,
+ * not viem and not the SDK. `block` pins the read (`FORK_BLOCK` or a decimal string / `"latest"`);
+ * pass the current head once local transactions have mined.
+ */
+export async function castCall(
+  fork: Fork,
+  args: ReadonlyArray<string>,
+  block = "latest",
+  from?: Address,
+): Promise<string> {
+  const fromArgs = from === undefined ? [] : ["--from", from];
+  return runCast(["call", "--rpc-url", fork.url, "--block", block, ...fromArgs, ...args]);
+}
+
+/** `cast storage` against the fork at `block` — the oracle for every storage-level check. */
+export async function castStorage(
+  fork: Fork,
+  address: Address,
+  slot: string,
+  block = "latest",
+): Promise<string> {
+  return runCast(["storage", "--rpc-url", fork.url, "--block", block, address, slot]);
+}
+
+/** `cast block <block> --field timestamp` — the oracle for the snapshot block's timestamp. */
+export async function castTimestamp(fork: Fork, block = "latest"): Promise<bigint> {
+  const stdout = await runCast(["block", block, "--field", "timestamp", "--rpc-url", fork.url]);
+  return BigInt(stdout.trim());
 }

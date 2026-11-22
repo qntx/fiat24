@@ -1,0 +1,1778 @@
+{
+  "source": "recorded 2026-11-22T04:03:45Z eth_call on anvil 1.10.0 --fork-url https://arbitrum.gateway.tenderly.co --fork-block-number 526365924 (cast 1.10.0, packages/fiat24/scripts/vectors/record-quote.sh)",
+  "block": "526365924",
+  "exchange": {
+    "sender": "0x4a76894ca9518791c1241DFA84fcde6BF7Ff737B",
+    "senderTokenId": "350273",
+    "marketClosed": true,
+    "setup": {
+      "clientLimit": "1000000000000000",
+      "funding": [
+        {
+          "currency": "USD24",
+          "desk": "9101",
+          "holder": "0xE052a724f0C888623FFbc0cd79BB4bE0f475F167",
+          "amount": "10000000"
+        },
+        {
+          "currency": "EUR24",
+          "desk": "9104",
+          "holder": "0xADdFcB8c9a0A1D91c5A68963F2e75f5a31DCDc88",
+          "amount": "10000000"
+        },
+        {
+          "currency": "CHF24",
+          "desk": "9101",
+          "holder": "0xE052a724f0C888623FFbc0cd79BB4bE0f475F167",
+          "amount": "10000000"
+        },
+        {
+          "currency": "CNH24",
+          "desk": "9101",
+          "holder": "0xE052a724f0C888623FFbc0cd79BB4bE0f475F167",
+          "amount": "10000000"
+        }
+      ],
+      "depositAllowance": "999999999999999999"
+    },
+    "cases": [
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "USD24",
+        "amount": "1000",
+        "rate": "10968",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "1077"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "USD24",
+        "amount": "1",
+        "rate": "10968",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "0"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "USD24",
+        "amount": "12345",
+        "rate": "10968",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "13308"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "CHF24",
+        "amount": "999",
+        "rate": "9213",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "904"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "CNH24",
+        "amount": "5000",
+        "rate": "73233",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "35993"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CNH24",
+        "to": "EUR24",
+        "amount": "98692",
+        "rate": "1364",
+        "spread": "9830",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "13232"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CNH24",
+        "to": "USD24",
+        "amount": "7",
+        "rate": "1497",
+        "spread": "9830",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "0"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "USD24",
+        "amount": "1000",
+        "rate": "9117",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "926"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "USD24",
+        "amount": "1",
+        "rate": "9117",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "revert": "0x02aeee40"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "CHF24",
+        "amount": "12345",
+        "rate": "10852",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "13626"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CNH24",
+        "to": "USD24",
+        "amount": "777",
+        "rate": "66770",
+        "spread": "10172",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "5277"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "CNH24",
+        "amount": "50000",
+        "rate": "1364",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "6937"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "USD24",
+        "to": "EUR24",
+        "amount": "1",
+        "rate": "9117",
+        "spread": "9830",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "0"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "USD24",
+        "to": "EUR24",
+        "amount": "99",
+        "rate": "9117",
+        "spread": "9830",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "88"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "USD24",
+        "to": "EUR24",
+        "amount": "1000",
+        "rate": "9117",
+        "spread": "9830",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "895"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "USD24",
+        "to": "EUR24",
+        "amount": "123456",
+        "rate": "9117",
+        "spread": "9830",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "110640"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "USD24",
+        "to": "EUR24",
+        "amount": "10000002",
+        "rate": "9117",
+        "spread": "9830",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "8962011"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "USD24",
+        "to": "CHF24",
+        "amount": "1",
+        "rate": "8400",
+        "spread": "9830",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "0"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "USD24",
+        "to": "CHF24",
+        "amount": "99",
+        "rate": "8400",
+        "spread": "9830",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "81"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "USD24",
+        "to": "CHF24",
+        "amount": "1000",
+        "rate": "8400",
+        "spread": "9830",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "825"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "USD24",
+        "to": "CHF24",
+        "amount": "123456",
+        "rate": "8400",
+        "spread": "9830",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "101940"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "USD24",
+        "to": "CHF24",
+        "amount": "10000002",
+        "rate": "8400",
+        "spread": "9830",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "8257200"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "USD24",
+        "to": "CNH24",
+        "amount": "1",
+        "rate": "66770",
+        "spread": "9830",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "5"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "USD24",
+        "to": "CNH24",
+        "amount": "99",
+        "rate": "66770",
+        "spread": "9830",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "649"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "USD24",
+        "to": "CNH24",
+        "amount": "1000",
+        "rate": "66770",
+        "spread": "9830",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "6563"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "USD24",
+        "to": "CNH24",
+        "amount": "123456",
+        "rate": "66770",
+        "spread": "9830",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "810301"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "USD24",
+        "to": "CNH24",
+        "amount": "10000002",
+        "rate": "66770",
+        "spread": "9830",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "65634922"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "USD24",
+        "amount": "1",
+        "rate": "10968",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "0"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "USD24",
+        "amount": "99",
+        "rate": "10968",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "106"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "USD24",
+        "amount": "1000",
+        "rate": "10968",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "1077"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "USD24",
+        "amount": "123456",
+        "rate": "10968",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "133104"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "USD24",
+        "amount": "10088366",
+        "rate": "10968",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "10876815"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "CHF24",
+        "amount": "1",
+        "rate": "9213",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "0"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "CHF24",
+        "amount": "99",
+        "rate": "9213",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "89"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "CHF24",
+        "amount": "1000",
+        "rate": "9213",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "905"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "CHF24",
+        "amount": "123456",
+        "rate": "9213",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "111806"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "CHF24",
+        "amount": "10088366",
+        "rate": "9213",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "9136406"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "CNH24",
+        "amount": "1",
+        "rate": "73233",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "6"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "CNH24",
+        "amount": "99",
+        "rate": "73233",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "712"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "CNH24",
+        "amount": "1000",
+        "rate": "73233",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "7198"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "CNH24",
+        "amount": "123456",
+        "rate": "73233",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "888735"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "CNH24",
+        "amount": "10088366",
+        "rate": "73233",
+        "spread": "9830",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "72624167"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CHF24",
+        "to": "USD24",
+        "amount": "1",
+        "rate": "11904",
+        "spread": "9830",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "0"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CHF24",
+        "to": "USD24",
+        "amount": "99",
+        "rate": "11904",
+        "spread": "9830",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "115"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CHF24",
+        "to": "USD24",
+        "amount": "1000",
+        "rate": "11904",
+        "spread": "9830",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "1169"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CHF24",
+        "to": "USD24",
+        "amount": "123456",
+        "rate": "11904",
+        "spread": "9830",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "144463"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CHF24",
+        "to": "USD24",
+        "amount": "10000000",
+        "rate": "11904",
+        "spread": "9830",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "11701632"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CHF24",
+        "to": "EUR24",
+        "amount": "1",
+        "rate": "10852",
+        "spread": "9830",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "0"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CHF24",
+        "to": "EUR24",
+        "amount": "99",
+        "rate": "10852",
+        "spread": "9830",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "105"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CHF24",
+        "to": "EUR24",
+        "amount": "1000",
+        "rate": "10852",
+        "spread": "9830",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "1066"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CHF24",
+        "to": "EUR24",
+        "amount": "123456",
+        "rate": "10852",
+        "spread": "9830",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "131696"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CHF24",
+        "to": "EUR24",
+        "amount": "10000000",
+        "rate": "10852",
+        "spread": "9830",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "10667516"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CHF24",
+        "to": "CNH24",
+        "amount": "1",
+        "rate": "79483",
+        "spread": "9830",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "6"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CHF24",
+        "to": "CNH24",
+        "amount": "99",
+        "rate": "79483",
+        "spread": "9830",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "772"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CHF24",
+        "to": "CNH24",
+        "amount": "1000",
+        "rate": "79483",
+        "spread": "9830",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "7812"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CHF24",
+        "to": "CNH24",
+        "amount": "123456",
+        "rate": "79483",
+        "spread": "9830",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "964583"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CHF24",
+        "to": "CNH24",
+        "amount": "10000000",
+        "rate": "79483",
+        "spread": "9830",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "78131789"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CNH24",
+        "to": "USD24",
+        "amount": "1",
+        "rate": "1497",
+        "spread": "9830",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "0"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CNH24",
+        "to": "USD24",
+        "amount": "99",
+        "rate": "1497",
+        "spread": "9830",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "13"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CNH24",
+        "to": "USD24",
+        "amount": "1000",
+        "rate": "1497",
+        "spread": "9830",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "146"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CNH24",
+        "to": "USD24",
+        "amount": "123456",
+        "rate": "1497",
+        "spread": "9830",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "18166"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CNH24",
+        "to": "USD24",
+        "amount": "10098692",
+        "rate": "1497",
+        "spread": "9830",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "1486073"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CNH24",
+        "to": "EUR24",
+        "amount": "1",
+        "rate": "1364",
+        "spread": "9830",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "0"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CNH24",
+        "to": "EUR24",
+        "amount": "99",
+        "rate": "1364",
+        "spread": "9830",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "12"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CNH24",
+        "to": "EUR24",
+        "amount": "1000",
+        "rate": "1364",
+        "spread": "9830",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "133"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CNH24",
+        "to": "EUR24",
+        "amount": "123456",
+        "rate": "1364",
+        "spread": "9830",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "16552"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CNH24",
+        "to": "EUR24",
+        "amount": "10098692",
+        "rate": "1364",
+        "spread": "9830",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "1354044"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CNH24",
+        "to": "CHF24",
+        "amount": "1",
+        "rate": "1257",
+        "spread": "9830",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "0"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CNH24",
+        "to": "CHF24",
+        "amount": "99",
+        "rate": "1257",
+        "spread": "9830",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "11"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CNH24",
+        "to": "CHF24",
+        "amount": "1000",
+        "rate": "1257",
+        "spread": "9830",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "122"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CNH24",
+        "to": "CHF24",
+        "amount": "123456",
+        "rate": "1257",
+        "spread": "9830",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "15254"
+        }
+      },
+      {
+        "side": "exact-in",
+        "from": "CNH24",
+        "to": "CHF24",
+        "amount": "10098692",
+        "rate": "1257",
+        "spread": "9830",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "1247825"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "USD24",
+        "to": "EUR24",
+        "amount": "1",
+        "rate": "10968",
+        "spread": "10172",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "1"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "USD24",
+        "to": "EUR24",
+        "amount": "99",
+        "rate": "10968",
+        "spread": "10172",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "109"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "USD24",
+        "to": "EUR24",
+        "amount": "1000",
+        "rate": "10968",
+        "spread": "10172",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "1114"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "USD24",
+        "to": "EUR24",
+        "amount": "123456",
+        "rate": "10968",
+        "spread": "10172",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "137734"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "USD24",
+        "to": "EUR24",
+        "amount": "10000002",
+        "rate": "10968",
+        "spread": "10172",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "revert": "0x08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000035354460000000000000000000000000000000000000000000000000000000000"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "USD24",
+        "to": "CHF24",
+        "amount": "1",
+        "rate": "11904",
+        "spread": "10172",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "1"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "USD24",
+        "to": "CHF24",
+        "amount": "99",
+        "rate": "11904",
+        "spread": "10172",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "119"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "USD24",
+        "to": "CHF24",
+        "amount": "1000",
+        "rate": "11904",
+        "spread": "10172",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "1210"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "USD24",
+        "to": "CHF24",
+        "amount": "123456",
+        "rate": "11904",
+        "spread": "10172",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "149489"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "USD24",
+        "to": "CHF24",
+        "amount": "10000002",
+        "rate": "11904",
+        "spread": "10172",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "revert": "0x08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000035354460000000000000000000000000000000000000000000000000000000000"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "USD24",
+        "to": "CNH24",
+        "amount": "1",
+        "rate": "1497",
+        "spread": "10172",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "revert": "0x02aeee40"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "USD24",
+        "to": "CNH24",
+        "amount": "99",
+        "rate": "1497",
+        "spread": "10172",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "14"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "USD24",
+        "to": "CNH24",
+        "amount": "1000",
+        "rate": "1497",
+        "spread": "10172",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "151"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "USD24",
+        "to": "CNH24",
+        "amount": "123456",
+        "rate": "1497",
+        "spread": "10172",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "18798"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "USD24",
+        "to": "CNH24",
+        "amount": "10000002",
+        "rate": "1497",
+        "spread": "10172",
+        "fromBalance": "10000002",
+        "ethCall": {
+          "result": "1522748"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "USD24",
+        "amount": "1",
+        "rate": "9117",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "revert": "0x02aeee40"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "USD24",
+        "amount": "99",
+        "rate": "9117",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "91"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "USD24",
+        "amount": "1000",
+        "rate": "9117",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "926"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "USD24",
+        "amount": "123456",
+        "rate": "9117",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "114489"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "USD24",
+        "amount": "10088366",
+        "rate": "9117",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "9355761"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "CHF24",
+        "amount": "1",
+        "rate": "10852",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "1"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "CHF24",
+        "amount": "99",
+        "rate": "10852",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "108"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "CHF24",
+        "amount": "1000",
+        "rate": "10852",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "1103"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "CHF24",
+        "amount": "123456",
+        "rate": "10852",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "136278"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "CHF24",
+        "amount": "10088366",
+        "rate": "10852",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "revert": "0x08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000035354460000000000000000000000000000000000000000000000000000000000"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "CNH24",
+        "amount": "1",
+        "rate": "1364",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "revert": "0x02aeee40"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "CNH24",
+        "amount": "99",
+        "rate": "1364",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "13"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "CNH24",
+        "amount": "1000",
+        "rate": "1364",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "138"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "CNH24",
+        "amount": "123456",
+        "rate": "1364",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "17128"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "CNH24",
+        "amount": "10088366",
+        "rate": "1364",
+        "spread": "10172",
+        "fromBalance": "10088366",
+        "ethCall": {
+          "result": "1399721"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CHF24",
+        "to": "USD24",
+        "amount": "1",
+        "rate": "8400",
+        "spread": "10172",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "revert": "0x02aeee40"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CHF24",
+        "to": "USD24",
+        "amount": "99",
+        "rate": "8400",
+        "spread": "10172",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "84"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CHF24",
+        "to": "USD24",
+        "amount": "1000",
+        "rate": "8400",
+        "spread": "10172",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "854"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CHF24",
+        "to": "USD24",
+        "amount": "123456",
+        "rate": "8400",
+        "spread": "10172",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "105486"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CHF24",
+        "to": "USD24",
+        "amount": "10000000",
+        "rate": "8400",
+        "spread": "10172",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "8544480"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CHF24",
+        "to": "EUR24",
+        "amount": "1",
+        "rate": "9213",
+        "spread": "10172",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "revert": "0x02aeee40"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CHF24",
+        "to": "EUR24",
+        "amount": "99",
+        "rate": "9213",
+        "spread": "10172",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "92"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CHF24",
+        "to": "EUR24",
+        "amount": "1000",
+        "rate": "9213",
+        "spread": "10172",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "936"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CHF24",
+        "to": "EUR24",
+        "amount": "123456",
+        "rate": "9213",
+        "spread": "10172",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "115696"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CHF24",
+        "to": "EUR24",
+        "amount": "10000000",
+        "rate": "9213",
+        "spread": "10172",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "9371463"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CHF24",
+        "to": "CNH24",
+        "amount": "1",
+        "rate": "1257",
+        "spread": "10172",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "revert": "0x02aeee40"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CHF24",
+        "to": "CNH24",
+        "amount": "99",
+        "rate": "1257",
+        "spread": "10172",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "12"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CHF24",
+        "to": "CNH24",
+        "amount": "1000",
+        "rate": "1257",
+        "spread": "10172",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "127"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CHF24",
+        "to": "CNH24",
+        "amount": "123456",
+        "rate": "1257",
+        "spread": "10172",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "15784"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CHF24",
+        "to": "CNH24",
+        "amount": "10000000",
+        "rate": "1257",
+        "spread": "10172",
+        "fromBalance": "10000000",
+        "ethCall": {
+          "result": "1278620"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CNH24",
+        "to": "USD24",
+        "amount": "1",
+        "rate": "66770",
+        "spread": "10172",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "6"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CNH24",
+        "to": "USD24",
+        "amount": "99",
+        "rate": "66770",
+        "spread": "10172",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "672"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CNH24",
+        "to": "USD24",
+        "amount": "1000",
+        "rate": "66770",
+        "spread": "10172",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "6791"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CNH24",
+        "to": "USD24",
+        "amount": "123456",
+        "rate": "66770",
+        "spread": "10172",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "838493"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CNH24",
+        "to": "USD24",
+        "amount": "10098692",
+        "rate": "66770",
+        "spread": "10172",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "revert": "0x08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000035354460000000000000000000000000000000000000000000000000000000000"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CNH24",
+        "to": "EUR24",
+        "amount": "1",
+        "rate": "73233",
+        "spread": "10172",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "7"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CNH24",
+        "to": "EUR24",
+        "amount": "99",
+        "rate": "73233",
+        "spread": "10172",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "737"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CNH24",
+        "to": "EUR24",
+        "amount": "1000",
+        "rate": "73233",
+        "spread": "10172",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "7448"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CNH24",
+        "to": "EUR24",
+        "amount": "123456",
+        "rate": "73233",
+        "spread": "10172",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "919655"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CNH24",
+        "to": "EUR24",
+        "amount": "10098692",
+        "rate": "73233",
+        "spread": "10172",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "revert": "0x08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000035354460000000000000000000000000000000000000000000000000000000000"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CNH24",
+        "to": "CHF24",
+        "amount": "1",
+        "rate": "79483",
+        "spread": "10172",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "7"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CNH24",
+        "to": "CHF24",
+        "amount": "99",
+        "rate": "79483",
+        "spread": "10172",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "799"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CNH24",
+        "to": "CHF24",
+        "amount": "1000",
+        "rate": "79483",
+        "spread": "10172",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "8084"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CNH24",
+        "to": "CHF24",
+        "amount": "123456",
+        "rate": "79483",
+        "spread": "10172",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "result": "998142"
+        }
+      },
+      {
+        "side": "exact-out",
+        "from": "CNH24",
+        "to": "CHF24",
+        "amount": "10098692",
+        "rate": "79483",
+        "spread": "10172",
+        "fromBalance": "10098692",
+        "ethCall": {
+          "revert": "0x08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000035354460000000000000000000000000000000000000000000000000000000000"
+        }
+      }
+    ]
+  },
+  "topUp": {
+    "sender": "0x4a76894ca9518791c1241DFA84fcde6BF7Ff737B",
+    "tokenId": "350273",
+    "walletProvider": "8026",
+    "setup": "deposit unpaused by OPERATOR; USDC minted via masterMinter",
+    "cases": [
+      {
+        "output": "USD24",
+        "usdcAmount": "5000000",
+        "fee": "50000",
+        "usdcRate": "10000",
+        "rate": "10000",
+        "spread": "10000",
+        "ethCall": {
+          "result": "495"
+        }
+      },
+      {
+        "output": "EUR24",
+        "usdcAmount": "5000000",
+        "fee": "50000",
+        "usdcRate": "10000",
+        "rate": "9117",
+        "spread": "9830",
+        "ethCall": {
+          "result": "443"
+        }
+      },
+      {
+        "output": "CHF24",
+        "usdcAmount": "5000000",
+        "fee": "50000",
+        "usdcRate": "10000",
+        "rate": "8400",
+        "spread": "9830",
+        "ethCall": {
+          "result": "407"
+        }
+      },
+      {
+        "output": "CNH24",
+        "usdcAmount": "5000000",
+        "fee": "50000",
+        "usdcRate": "10000",
+        "rate": "66770",
+        "spread": "9830",
+        "ethCall": {
+          "result": "3248"
+        }
+      },
+      {
+        "output": "USD24",
+        "usdcAmount": "100000000",
+        "fee": "1000000",
+        "usdcRate": "10000",
+        "rate": "10000",
+        "spread": "10000",
+        "ethCall": {
+          "result": "9900"
+        }
+      },
+      {
+        "output": "EUR24",
+        "usdcAmount": "100000000",
+        "fee": "1000000",
+        "usdcRate": "10000",
+        "rate": "9117",
+        "spread": "9830",
+        "ethCall": {
+          "result": "8871"
+        }
+      },
+      {
+        "output": "CHF24",
+        "usdcAmount": "100000000",
+        "fee": "1000000",
+        "usdcRate": "10000",
+        "rate": "8400",
+        "spread": "9830",
+        "ethCall": {
+          "result": "8174"
+        }
+      },
+      {
+        "output": "CNH24",
+        "usdcAmount": "100000000",
+        "fee": "1000000",
+        "usdcRate": "10000",
+        "rate": "66770",
+        "spread": "9830",
+        "ethCall": {
+          "result": "64978"
+        }
+      },
+      {
+        "output": "USD24",
+        "usdcAmount": "123456789",
+        "fee": "1234567",
+        "usdcRate": "10000",
+        "rate": "10000",
+        "spread": "10000",
+        "ethCall": {
+          "result": "12222"
+        }
+      },
+      {
+        "output": "EUR24",
+        "usdcAmount": "123456789",
+        "fee": "1234567",
+        "usdcRate": "10000",
+        "rate": "9117",
+        "spread": "9830",
+        "ethCall": {
+          "result": "10952"
+        }
+      },
+      {
+        "output": "CHF24",
+        "usdcAmount": "123456789",
+        "fee": "1234567",
+        "usdcRate": "10000",
+        "rate": "8400",
+        "spread": "9830",
+        "ethCall": {
+          "result": "10091"
+        }
+      },
+      {
+        "output": "CNH24",
+        "usdcAmount": "123456789",
+        "fee": "1234567",
+        "usdcRate": "10000",
+        "rate": "66770",
+        "spread": "9830",
+        "ethCall": {
+          "result": "80218"
+        }
+      }
+    ]
+  },
+  "mint": {
+    "sender": "0x10000000000000000000000000000000000000E7",
+    "tokenId": "734519",
+    "priceF24": "100",
+    "quotePerEther": "10000",
+    "value": "10000000000000000",
+    "atValue": {
+      "result": "0x"
+    },
+    "atValueMinusOne": {
+      "revert": "0x08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000294e6f742073756666696369656e74206d73672e76616c756520666f72204632342070757263686173650000000000000000000000000000000000000000000000"
+    }
+  }
+}

@@ -38,3 +38,14 @@ export { contractAddress, contractOf, getDeployment } from "./deployments/deploy
 export type { Deployment, PinnedProxy } from "./deployments/deployment.ts";
 export type { Fiat24Call } from "./calls/types.ts";
 export type { Fiat24Event, RawLog } from "./events/types.ts";
+export { fiat24PublicActions } from "./actions.ts";
+export type { Fiat24PublicActionSet } from "./actions.ts";
+export type { Fiat24Account } from "./chain/account.ts";
+export type { Allowances } from "./chain/balances.ts";
+export type { DeploymentCheck, Drift } from "./chain/deployment.ts";
+export type { Availability } from "./chain/availability.ts";
+export type { ExchangeQuote, TopUpQuote } from "./chain/quote.ts";
+export type { TransferCheck } from "./chain/transfer.ts";
+export type { PayoutSettlement } from "./chain/payout.ts";
+export type { MintQuote } from "./chain/mint.ts";
+export type { ChainArgs } from "./chain/context.ts";

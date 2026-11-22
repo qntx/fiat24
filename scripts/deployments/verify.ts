@@ -361,7 +361,11 @@ if (import.meta.main) {
     const i = args.indexOf(`--${name}`);
     return i === -1 ? undefined : args[i + 1];
   };
-  const rpc = flag("rpc") ?? process.env["FIAT24_RPC"] ?? "https://arbitrum.gateway.tenderly.co";
+  const envRpc = process.env["FIAT24_RPC"];
+  const rpc =
+    flag("rpc") ??
+    (envRpc === undefined || envRpc.trim() === "" ? undefined : envRpc) ??
+    "https://arbitrum.gateway.tenderly.co";
   const client = createPublicClient({ chain: arbitrum, transport: http(rpc) });
   const blockArg = flag("block");
   const block = blockArg === undefined ? await client.getBlockNumber() : BigInt(blockArg);

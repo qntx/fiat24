@@ -154,6 +154,9 @@ export async function verifyDeployment(
           contract: name,
           field: "f24Sales",
           expected: deployment.f24Sales.proxy,
+          // Storage at the verified layout is independent of implementation
+          // code: a drifted implementation can't answer a pinned wiring
+          // pointer through a getter, so we read the slot directly.
           run: async () => addressSlot(await storageAt(client, B, pin.proxy, F24SALES_SLOT)),
         },
       );
@@ -163,6 +166,8 @@ export async function verifyDeployment(
         contract: name,
         field: "usdc",
         expected: deployment.usdc,
+        // Same rationale as the account wiring slots: storage at the verified
+        // layout is independent of implementation code.
         run: async () => addressSlot(await storageAt(client, B, pin.proxy, USDC_SLOT)),
       });
     }

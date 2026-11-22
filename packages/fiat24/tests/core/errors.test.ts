@@ -97,7 +97,7 @@ describe("Fiat24Error", () => {
     ]);
   });
 
-  test("parser messages come from fixed templates and never echo the input", () => {
+  test("messages are fixed templates", () => {
     // I7-adjacent rule: a thrown message may interpolate caller-supplied
     // decimal ids/amounts, never the unvalidated text of a parser — so any
     // two inputs that produce the same code must produce the same message.

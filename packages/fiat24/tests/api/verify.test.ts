@@ -97,29 +97,35 @@ describe("verifyBankPayment", () => {
     expect(calls[1]?.url).not.toContain("reference");
   });
 
-  test.each([
-    ["purposeId mismatch", "secured/verify-sp-wrong-purpose.json", undefined],
-    ["contactId not a grammar", "secured/verify-sp-bad-contact.json", undefined],
-    ["ref uuidv4", "secured/verify-sp-bad-ref.json", undefined],
-    [
-      "ref foreign prefix",
-      undefined,
-      { contactId: "EA-123456", purposeId: 2, ref: "999999-50fb0941-4f59-4a89-8735-dd78ba7d53a3" },
-    ],
-    [
-      "ref NUL count",
-      undefined,
-      {
-        contactId: "EA-123456",
-        purposeId: 2,
-        ref: "690333-50fb0941-4f59-4a89-8735-dd78ba7d53a3\u0000",
-      },
-    ],
-  ])("hostile response %s => api-mismatch", async (_name, fixture, inline) => {
-    expect.hasAssertions();
-    const body = hostileBody(fixture, inline);
-    const { session } = sessionApi({ [SP_PATH]: json(body) });
-    await expectCode(async () => session.verifyBankPayment(BANK_REQUEST), "api-mismatch");
+  describe("hostile verify responses", () => {
+    test.each([
+      ["purposeId mismatch", "secured/verify-sp-wrong-purpose.json", undefined],
+      ["contactId not a grammar", "secured/verify-sp-bad-contact.json", undefined],
+      ["ref uuidv4", "secured/verify-sp-bad-ref.json", undefined],
+      [
+        "ref foreign prefix",
+        undefined,
+        {
+          contactId: "EA-123456",
+          purposeId: 2,
+          ref: "999999-50fb0941-4f59-4a89-8735-dd78ba7d53a3",
+        },
+      ],
+      [
+        "ref NUL count",
+        undefined,
+        {
+          contactId: "EA-123456",
+          purposeId: 2,
+          ref: "690333-50fb0941-4f59-4a89-8735-dd78ba7d53a3\u0000",
+        },
+      ],
+    ])("hostile response %s => api-mismatch", async (_name, fixture, inline) => {
+      expect.hasAssertions();
+      const body = hostileBody(fixture, inline);
+      const { session } = sessionApi({ [SP_PATH]: json(body) });
+      await expectCode(async () => session.verifyBankPayment(BANK_REQUEST), "api-mismatch");
+    });
   });
 
   test("{error} => api-rejected, unsafe purposeId => invalid-response", async () => {
@@ -189,18 +195,20 @@ describe("verifySwissQr", () => {
     });
   });
 
-  test.each([
-    ["currency EUR24 for a CHF QR", "secured/verify-qr-wrong-currency.json"],
-    ["amount 194976", "secured/verify-qr-wrong-amount.json"],
-    ["contactId QRSEPA", "secured/verify-qr-wrong-contact.json"],
-    ["type QRSEPA", "secured/verify-qr-wrong-type.json"],
-    ["wrong ref prefix", "secured/verify-qr-wrong-ref.json"],
-    ["different valid account", "secured/verify-qr-wrong-account.json"],
-  ])("hostile response %s => api-mismatch", async (_name, fixture) => {
-    expect.hasAssertions();
-    const path = `/verify?qr=${encodeURIComponent(DOC_QR)}`;
-    const { session } = sessionApi({ [path]: json(fixtureBody(fixture)) });
-    await expectCode(async () => session.verifySwissQr(DOC_QR), "api-mismatch");
+  describe("hostile verify responses", () => {
+    test.each([
+      ["currency EUR24 for a CHF QR", "secured/verify-qr-wrong-currency.json"],
+      ["amount 194976", "secured/verify-qr-wrong-amount.json"],
+      ["contactId QRSEPA", "secured/verify-qr-wrong-contact.json"],
+      ["type QRSEPA", "secured/verify-qr-wrong-type.json"],
+      ["wrong ref prefix", "secured/verify-qr-wrong-ref.json"],
+      ["different valid account", "secured/verify-qr-wrong-account.json"],
+    ])("hostile response %s => api-mismatch", async (_name, fixture) => {
+      expect.hasAssertions();
+      const path = `/verify?qr=${encodeURIComponent(DOC_QR)}`;
+      const { session } = sessionApi({ [path]: json(fixtureBody(fixture)) });
+      await expectCode(async () => session.verifySwissQr(DOC_QR), "api-mismatch");
+    });
   });
 
   test("fractional amount => invalid-response", async () => {

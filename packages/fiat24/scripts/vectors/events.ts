@@ -205,12 +205,17 @@ function inputLog(log: RawLogEntry["log"], patch: Partial<RawLogEntry["log"]> = 
   };
 }
 
-export function build(): {
-  capability: string;
-  source: Omit<VectorSource, "generator">;
-  cases: unknown[];
-} {
+function isSynthetic(entry: unknown): boolean {
+  const label = (entry as { label?: string }).label ?? "";
+  return (
+    label.startsWith("synthetic.") || label.startsWith("malformed.") || label.startsWith("notours.")
+  );
+}
+
+function buildCases(): { recorded: unknown[]; synthetic: unknown[] } {
   const cases: unknown[] = [];
+  const recorded: unknown[] = [];
+  const synthetic: unknown[] = [];
   const byLabel = new Map(raw.logs.map((entry) => [entry.label, entry]));
 
   // One recorded log per §7.1 kind; expected args decoded by cast (recorded raw
@@ -493,6 +498,17 @@ export function build(): {
     );
   }
 
+  recorded.push(...cases.filter((entry) => !isSynthetic(entry)));
+  synthetic.push(...cases.filter((entry) => isSynthetic(entry)));
+  return { recorded, synthetic };
+}
+
+export function build(): {
+  capability: string;
+  source: Omit<VectorSource, "generator">;
+  cases: unknown[];
+} {
+  const { recorded } = buildCases();
   return {
     capability: "events.decode",
     source: {
@@ -500,8 +516,27 @@ export function build(): {
       name: "cast",
       version: "1.10.0",
       evidence:
-        "packages/fiat24/scripts/vectors/raw/events.json (eth_getTransactionReceipt recordings); expected args via `cast decode-event`/`decode-abi`; synthetic logs via `cast abi-encode`/`sig-event`",
+        "packages/fiat24/scripts/vectors/raw/events.json (eth_getTransactionReceipt recordings); expected args via `cast decode-event`/`decode-abi`",
     },
-    cases,
+    cases: recorded,
+  };
+}
+
+export function buildSynthetic(): {
+  capability: string;
+  source: Omit<VectorSource, "generator">;
+  cases: unknown[];
+} {
+  const { synthetic } = buildCases();
+  return {
+    capability: "events.decode-synthetic",
+    source: {
+      kind: "synthetic",
+      name: "cast",
+      version: "1.10.0",
+      evidence:
+        "synthetic logs via `cast abi-encode`/`sig-event`; malformed and not-ours inputs derived from the recorded logs in packages/fiat24/scripts/vectors/raw/events.json",
+    },
+    cases: synthetic,
   };
 }

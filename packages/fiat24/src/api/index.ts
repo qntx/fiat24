@@ -1,6 +1,7 @@
 export { createFiat24Api } from "./client.ts";
 export { API_BASE_URL } from "./http.ts";
 export { sessionLabel, sessionMessage } from "./session.ts";
+export type { SessionArgs } from "./session.ts";
 export { parseSwissQr } from "./swiss-qr.ts";
 export type {
   Bank,

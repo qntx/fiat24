@@ -265,7 +265,7 @@ type Recipient = {
 };
 
 // @public (undocumented)
-type SessionArgs = {
+export type SessionArgs = {
     chainId: 42161;
     tokenId: bigint;
     deadline: bigint;

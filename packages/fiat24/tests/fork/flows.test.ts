@@ -1032,7 +1032,7 @@ describe.skipIf(!FORK_ENABLED)("fork: flows", () => {
       await expect(erc20Allowance(fork, EUR24, owner1, DEPOSIT)).resolves.toBeGreaterThan(0n);
     });
 
-    test("crash after persist ⇒ unknown; nonce unused ⇒ stays unknown; self-tx ⇒ not-sent", async () => {
+    test("crash after persist ⇒ unknown; nonce unused ⇒ stays unknown; self-tx ⇒ unknown", async () => {
       const sign = forkSigner(fork, owner1, { kind: "throw-before-send" });
       const { deps } = makeDeps(fork, sign.signer);
       let state = startTransfer({
@@ -1050,7 +1050,9 @@ describe.skipIf(!FORK_ENABLED)("fork: flows", () => {
       // The recorded nonce is still unused ⇒ outcome stays unknown, never not-sent.
       state = await resumed(advanceTransfer, deps, state);
       expect(state.txs.at(-1)?.phase).toBe("unknown");
-      // A different tx consumes the nonce ⇒ the broadcast provably never happened.
+      // A wallet "cancel" self-transaction consumes the nonce but is not proof the
+      // broadcast never happened — it is not the rebuilt call, so the record stays
+      // `unknown` for the host to resolve, never `not-sent`.
       await fork.testClient.impersonateAccount({ address: owner1 });
       await fork.testClient.setBalance({ address: owner1, value: 10n ** 18n });
       const selfHash = await fork.walletClient.sendTransaction({
@@ -1062,7 +1064,8 @@ describe.skipIf(!FORK_ENABLED)("fork: flows", () => {
       });
       await fork.publicClient.waitForTransactionReceipt({ hash: selfHash });
       state = await resumed(advanceTransfer, deps, state);
-      expect(state.step).toBe("not-sent");
+      expect(state.step).toBe("tx");
+      expect(state.txs.at(-1)?.phase).toBe("unknown");
     });
 
     test("speed-up with identical bytes ⇒ submitted{other hash} ⇒ confirmed", async () => {

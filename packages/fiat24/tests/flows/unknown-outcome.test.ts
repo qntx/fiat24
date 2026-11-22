@@ -234,18 +234,44 @@ describe("unknown outcome", () => {
     expect(persisted).toHaveLength(2);
   });
 
-  test("replaced nonce ⇒ not-sent", async () => {
-    // L > N (the nonce was consumed) but the evidence range holds nothing of ours.
+  test("consumed nonce, empty evidence ⇒ unknown{unknown-outcome}", async () => {
+    // L > N (the nonce was consumed) but the evidence range holds nothing of ours —
+    // a consumed nonce with no own receipt is unknown, never not-sent (R-13).
     const stub = makeFlowStub({
       count: { latest: NONCE + 3 },
       logs: () => [],
     });
     const { deps } = flowDeps(stub.client);
     const next = await advanceTransfer(deps, SENDING);
-    expect(next.step).toBe("not-sent");
-    expect(next.txs[0]?.phase).toBe("not-sent");
+    expect(next.step).toBe("tx");
+    expect(next.txs[0]?.phase).toBe("unknown");
+    expect(next.txs[0]?.error).toBe("unknown-outcome");
     const logCalls = stub.requests.filter((r) => r.method === "eth_getLogs");
     expect(logCalls.length).toBeGreaterThan(0);
+  });
+
+  test("a wallet cancel at the recorded nonce ⇒ unknown", async () => {
+    // The wallet cancelled the send with a self-transaction at nonce N: the ledger moved past
+    // it, the tx is retrievable, but it emits no watched log — corroboration only, so unknown.
+    const cancelTx = txPayload({
+      hash: TXID_2,
+      from: OWNER,
+      to: OWNER,
+      input: "0x",
+      value: 0n,
+      nonce: NONCE,
+      blockNumber: B + 1n,
+    });
+    const stub = makeFlowStub({
+      count: { latest: NONCE + 1 },
+      logs: () => [],
+      transactions: { [TXID_2]: cancelTx },
+    });
+    const { deps } = flowDeps(stub.client);
+    const next = await advanceTransfer(deps, SENDING);
+    expect(next.step).toBe("tx");
+    expect(next.txs[0]?.phase).toBe("unknown");
+    expect(next.txs[0]?.error).toBe("unknown-outcome");
   });
 
   test("same transfer from another device is not evidence", async () => {
@@ -266,7 +292,8 @@ describe("unknown outcome", () => {
     });
     const { deps } = flowDeps(stub.client);
     const next = await advanceTransfer(deps, UNKNOWN);
-    expect(next.step).toBe("not-sent");
+    expect(next.step).toBe("tx");
+    expect(next.txs[0]?.phase).toBe("unknown");
   });
 
   test("speed-up with identical bytes ⇒ submitted{other hash} ⇒ confirmed", async () => {
@@ -312,9 +339,9 @@ describe("unknown outcome", () => {
     expect(confirmed.txs[0]?.hash).toBe(TXID_2);
   });
 
-  test("L <= N ⇒ never not-sent", async () => {
-    // An unrelated transfer at a different nonce must not even be consulted:
-    // with L <= N the nonce is provably unused, so the record stays unknown.
+  test("L <= N at a single block ⇒ no decision", async () => {
+    // An unrelated transfer at a different nonce must not even be consulted, and one block's
+    // reading is no proof — the record stays unknown (B2 == B1 gives no second point).
     const stub = makeFlowStub({
       count: { latest: NONCE },
       logs: () => {
@@ -356,7 +383,8 @@ describe("unknown outcome", () => {
         });
         const { deps } = flowDeps(stub.client);
         const next = await advanceTransfer(deps, UNKNOWN);
-        expect(next.step).toBe("not-sent");
+        expect(next.step).toBe("tx");
+        expect(next.txs[0]?.phase).toBe("unknown");
       }),
     );
   });

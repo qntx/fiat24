@@ -423,11 +423,37 @@ function decodeEvidence(
   return { kind: "fiat24", event };
 }
 
+/** The confirmed (`blockNumber`) or pending (`"pending"`) transaction count, mapped like §4. */
+async function countAt(
+  deps: FlowDeps,
+  owner: Address,
+  at: { readonly blockNumber: bigint } | { readonly pending: true },
+): Promise<number> {
+  try {
+    return checkedCount(
+      await getTransactionCount(
+        deps.client,
+        "pending" in at
+          ? { address: owner, blockTag: "pending" }
+          : { address: owner, blockNumber: at.blockNumber },
+      ),
+    );
+  } catch (error) {
+    if (error instanceof Fiat24Error) {
+      throw error;
+    }
+    return mapViemError(error);
+  }
+}
+
 /**
- * §4 byNonce — `sending`/`unknown`, and hash-bearing records whose hash vanished: the nonce ledger
- * decides. `L <= N` keeps `submitted`/`unknown` unchanged and turns `sending` into `unknown`; `L >
- * N` runs the evidence search — a transaction carrying nonce N with our exact bytes is `submitted`
- * (wallet speed-up), anything else is `not-sent`.
+ * §4 byNonce — `sending`/`unknown` without a hash, and hash-bearing records whose hash vanished:
+ * the account nonce decides (R-13). `L1 > N` is consumed — the evidence search over `[fromBlock,
+ * B1]` only surfaces candidate transactions (the first whose transaction matches all five fields is
+ * `submitted{hash}`); no candidate ⇒ `unknown{unknown-outcome}`, NEVER `not-sent`. `L1 <= N` is no
+ * proof on its own: `not-sent` requires the same reading at a SECOND, LATER block (`L2 <= N` at `B2 >
+ * B1`) plus the pending pool (`P <= N`) — anything else is undecidable, so a `sending` degrades to
+ * `unknown{unknown-outcome}` and `submitted`/`unknown` stay unchanged.
  */
 async function byNonce<S extends FlowState, R>(
   deps: FlowDeps,
@@ -439,22 +465,27 @@ async function byNonce<S extends FlowState, R>(
   if (nonce === undefined || fromBlock === undefined) {
     return invalidState();
   }
-  const { blockNumber } = await snapshot(deps.client, { deployment: args.deployment });
-  let latest: number;
-  try {
-    latest = checkedCount(
-      await getTransactionCount(deps.client, {
-        address: args.owner,
-        blockNumber,
-      }),
-    );
-  } catch (error) {
-    if (error instanceof Fiat24Error) {
-      throw error;
+  const { blockNumber: b1 } = await snapshot(deps.client, { deployment: args.deployment });
+  const l1 = await countAt(deps, args.owner, { blockNumber: b1 });
+  if (l1 <= nonce) {
+    const { blockNumber: b2 } = await snapshot(deps.client, { deployment: args.deployment });
+    if (b2 > b1) {
+      const l2 = await countAt(deps, args.owner, { blockNumber: b2 });
+      const pending = await countAt(deps, args.owner, { pending: true });
+      if (l2 <= nonce && pending <= nonce) {
+        const next: TxRecord = {
+          purpose: args.purpose,
+          phase: "not-sent",
+          fromBlock,
+          nonce,
+          // A signer-returned hash that never landed stays on the record.
+          ...(record.hash === undefined ? {} : { hash: record.hash }),
+        };
+        const state = args.commit(next);
+        await deps.persist(state);
+        return { record: next, state, result: undefined };
+      }
     }
-    return mapViemError(error);
-  }
-  if (latest <= nonce) {
     if (record.phase === "sending") {
       const next: TxRecord = {
         purpose: args.purpose,
@@ -475,7 +506,7 @@ async function byNonce<S extends FlowState, R>(
   const logs = await getLogsChunked(deps.client, {
     filters: args.evidence.filters,
     fromBlock,
-    toBlock: blockNumber,
+    toBlock: b1,
     chunkSize: EVIDENCE_CHUNK,
   });
   const seen = new Set<Hash>();
@@ -505,7 +536,14 @@ async function byNonce<S extends FlowState, R>(
     }
     const next: TxRecord =
       txid === undefined
-        ? { purpose: args.purpose, phase: "not-sent", fromBlock, nonce }
+        ? {
+            purpose: args.purpose,
+            phase: "unknown",
+            fromBlock,
+            nonce,
+            error: "unknown-outcome",
+            ...(record.hash === undefined ? {} : { hash: record.hash }),
+          }
         : { purpose: args.purpose, phase: "submitted", fromBlock, nonce, hash: txid };
     const state = args.commit(next);
     await deps.persist(state);

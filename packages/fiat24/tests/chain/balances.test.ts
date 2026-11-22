@@ -44,6 +44,24 @@ describe("getBalances", () => {
     );
     expect(stub.requests).toStrictEqual([]);
   });
+
+  test("an invalid owner also rejects before eth_blockNumber (§8.1 input before I/O)", async () => {
+    const stub = makeStub({ blockNumber: B, calls: balanceCalls([0n, 0n, 0n, 0n]) });
+    await expectErrorAsync(
+      async () => getBalances(stub.client, { owner: "not-an-address" as never }),
+      "invalid-address",
+    );
+    expect(stub.requests).toStrictEqual([]);
+  });
+
+  test("each action fetches a fresh B — two actions issue two eth_blockNumber", async () => {
+    // Without cacheTime: 0 viem would serve the second read from its
+    // client.cacheTime window (min(pollingInterval, blockTime/2)).
+    const stub = makeStub({ blockNumber: B, calls: balanceCalls([0n, 0n, 0n, 0n]) });
+    await getBalances(stub.client, { owner: OWNER });
+    await getBalances(stub.client, { owner: OWNER });
+    expect(stub.requests.filter((r) => r.method === "eth_blockNumber")).toHaveLength(2);
+  });
 });
 
 describe("getAllowance", () => {

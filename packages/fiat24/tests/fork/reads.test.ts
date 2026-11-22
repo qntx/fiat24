@@ -1,4 +1,4 @@
-import { encodeFunctionData, toHex } from "viem";
+import { decodeAbiParameters, encodeFunctionData, toHex } from "viem";
 import type { Address, Hex } from "viem";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "vite-plus/test";
 
@@ -294,13 +294,33 @@ function sdkOutcome(sdk: Quoted, d: Diff, fromBalance: bigint): string {
   return `out:${value}`;
 }
 
-/** Canonical outcome for the contract side — 0 / ValueZero revert mean below-minimum. */
+/** The reason of an `Error(string)` payload; the raw hex when it is anything else. */
+function revertReason(data: Hex): string {
+  if (!data.startsWith("0x08c379a0")) {
+    return data;
+  }
+  try {
+    const [reason] = decodeAbiParameters([{ type: "string" }], `0x${data.slice(10)}`);
+    return reason;
+  } catch {
+    return data;
+  }
+}
+
+/**
+ * Canonical outcome for the contract side — 0 / ValueZero revert mean below-minimum; only a revert
+ * that decodes to exactly `STF` is a leg failure, anything else must not pass.
+ */
 function oracleOutcome(out: { result: Hex } | { revert: Hex }): string {
   if ("result" in out) {
     const value = BigInt(out.result);
     return value === 0n ? "below-minimum" : `out:${value}`;
   }
-  return out.revert.startsWith(VALUE_ZERO) ? "below-minimum" : "stf";
+  if (out.revert.startsWith(VALUE_ZERO)) {
+    return "below-minimum";
+  }
+  const reason = revertReason(out.revert);
+  return reason === "STF" ? "stf" : `revert:${reason}`;
 }
 
 /** One differential case: SDK quote vs raw eth_call of the same exchange. */

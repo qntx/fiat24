@@ -282,6 +282,15 @@ describe("checkTransfer", () => {
     await expectErrorAsync(async () => checkTransfer(stub.client, ARGS), "stale-recipient");
   });
 
+  test("an index-path owner mismatch is not stale-recipient (I17 is historic-only)", async () => {
+    // Only a lying RPC produces !ownsToken on the index path — and an index-path
+    // account resolves as a walk-in (status tourist), so the verdict is
+    // recipient-not-live, never stale-recipient.
+    expect.hasAssertions();
+    const stub = transferStub({ receiver: { indexId: RECEIVER_ID, owner: THIRD } });
+    await expectErrorAsync(async () => checkTransfer(stub.client, ARGS), "recipient-not-live");
+  });
+
   test("a non-live recipient is recipient-not-live; soft-blocked passes", async () => {
     const blocked = transferStub({
       receiver: { historic: RECEIVER_ID, statusIndex: 3 },
@@ -328,6 +337,21 @@ describe("checkTransfer", () => {
       "unavailable",
     );
     expect(error.detail.reason).toBe("account-paused");
+  });
+
+  test("an 'of this currency' pause revert maps to unavailable/token-paused", async () => {
+    // Fiat24Token.sol:420-421 — the per-currency pause text, distinct from the
+    // account-wide one above.
+    const stub = transferStub({
+      allowedAnswer: {
+        revert: errorString("Fiat24Token: All account transfers of this currency are paused"),
+      },
+    });
+    const error = await expectErrorAsync(
+      async () => checkTransfer(stub.client, ARGS),
+      "unavailable",
+    );
+    expect(error.detail.reason).toBe("token-paused");
   });
 
   test("a custom-error revert maps through §6.3 (deposit paused ⇒ deposit-paused)", async () => {

@@ -339,6 +339,17 @@ describe("getTopUpQuote", () => {
     );
   });
 
+  test("usdcAmount exactly at min is accepted (strict <)", async () => {
+    const stub = topUpStub({ output: "EUR24", min: 100_000n });
+    const quote = await getTopUpQuote(stub.client, {
+      owner: OWNER,
+      output: "EUR24",
+      usdcAmount: 100_000n,
+      blockNumber: B,
+    });
+    expect(quote.min).toBe(100_000n);
+  });
+
   test("a fee above the deposit is an RPC lie (invalid-rpc-response)", async () => {
     expect.hasAssertions();
     const stub = topUpStub({ output: "EUR24", fee: 100n });

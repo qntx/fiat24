@@ -51,8 +51,9 @@ function recordedDate(source: string): string {
   return date;
 }
 
-// A `moneyExchangeExactOut` under-funding reverts Fiat24CryptoDeposit__ValueZero — the quote
-// formula's zero — verified here against `cast sig`, never hand-typed.
+// `moneyExchangeExactOut` reverts Fiat24CryptoDeposit__ValueZero on a zero output request or a
+// zero computed input (Fiat24CryptoDeposit.sol:388,394) — the quote formula's zero — verified
+// here against `cast sig`, never hand-typed.
 const VALUE_ZERO = cast(["sig", "Fiat24CryptoDeposit__ValueZero()"]);
 
 const MINT_REASON = "Not sufficient msg.value for F24 purchase";
@@ -67,9 +68,12 @@ export function build(): {
 
   for (const c of raw.exchange.cases) {
     const input = { side: c.side, amount: c.amount, rate: c.rate, spread: c.spread };
-    if (c.ethCall.result !== undefined) {
-      cases.push({ op: "exchange", input, output: c.ethCall.result });
-    } else if (c.ethCall.revert !== undefined && c.ethCall.revert.startsWith(VALUE_ZERO)) {
+    const { result, revert } = c.ethCall;
+    if (result !== undefined) {
+      cases.push({ op: "exchange", input, output: result });
+    } else if (revert === undefined) {
+      throw new Error("raw/quote.json: exchange case with neither result nor revert");
+    } else if (revert.startsWith(VALUE_ZERO)) {
       cases.push({
         op: "exchange",
         input,
@@ -77,8 +81,12 @@ export function build(): {
         contract: "Fiat24CryptoDeposit__ValueZero",
       });
     } else {
-      // Any other revert is an STF leg failure (computed input > funded balance) — not a
-      // formula case.
+      // The only other admissible revert is an STF leg failure (computed input > funded
+      // balance) — decoded by cast, never assumed; anything else fails the generator.
+      const decoded = cast(["decode-error", revert]);
+      if (!decoded.includes('"STF"')) {
+        throw new Error(`raw/quote.json: unexpected exchange revert ${decoded}`);
+      }
       skipped += 1;
     }
   }

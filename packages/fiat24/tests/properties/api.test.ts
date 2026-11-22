@@ -226,6 +226,34 @@ function mutate(
   return JSON.stringify(copy);
 }
 
+// A kept display amount must re-serialize the double exactly: a plain decimal with no exponent.
+function exactOrRefused(result: string, amount: number): boolean {
+  return (
+    result === "invalid-response" ||
+    (/^-?[0-9]+(\.[0-9]+)?$/.test(result) && Number(result) === amount)
+  );
+}
+
+// Returns the parsed amount string, or the Fiat24Error code the call threw.
+async function amountOutcome(amount: number): Promise<string> {
+  const body = JSON.stringify({
+    count: 1,
+    transactions: [{ title: "x", subtitle: "y", amount, timestamp: 1683221111000 }],
+  });
+  const stub = stubFetch({
+    "/timestamp": json(JSON.stringify({ timestamp: SERVER_MS })),
+    "/transactions?currency=EUR": json(body),
+  });
+  const api = createFiat24Api({ fetch: stub.fetch, now: () => SERVER_MS });
+  const session = api.openSession({ tokenId: TOKEN_ID, signer: testSigner() });
+  try {
+    const page = await session.transactions({ currency: "EUR" });
+    return page.transactions[0]?.amount ?? "missing-amount";
+  } catch (error) {
+    return isFiat24Error(error) ? error.code : "non-fiat24-throw";
+  }
+}
+
 describe("api property tests (I14)", () => {
   describe.each(ENDPOINTS.map((e) => [e.name, e] as const))("%s", (_name, endpoint) => {
     test("arbitrary JSON bodies", async () => {
@@ -255,5 +283,15 @@ describe("api property tests (I14)", () => {
         }),
       );
     });
+  });
+});
+
+describe("unsafe display numbers (R-04)", () => {
+  test("arbitrary doubles in the amount position are exact or refused", async () => {
+    return fc.assert(
+      fc.asyncProperty(fc.double(), async (amount) => {
+        expect(exactOrRefused(await amountOutcome(amount), amount)).toBe(true);
+      }),
+    );
   });
 });

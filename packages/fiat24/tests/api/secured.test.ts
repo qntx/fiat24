@@ -264,16 +264,20 @@ describe("secured reads", () => {
     expect(page.transactions[0]?.timestamp).toBe(1683221111000n);
   });
 
-  test("lossy fields are dropped, never coerced", async () => {
+  test("present-but-inexact ids are invalid-response, never dropped", async () => {
+    expect.hasAssertions();
+    // `from`/`to`/`blockNumber` follow the R-04 rule: any present value that is not a safe
+    // integer >= 0 or a canonical decimal string is invalid-response; a malformed txId is the
+    // remaining dropped field.
     const body =
-      '{"count":1,"transactions":[{"title":"x","subtitle":"y","amount":"1.00","timestamp":1683221111000,"txId":"0x12","from":9007199254740993,"to":"0010","blockNumber":"0123"}]}';
+      '{"count":1,"transactions":[{"title":"x","subtitle":"y","amount":"1.00","timestamp":1683221111000,"txId":"0x12","from":9007199254740993}]}';
     const { session } = sessionApi({ "/transactions?currency=EUR": json(body) });
-    const page = await session.transactions({ currency: "EUR" });
-    const t = page.transactions.at(0);
-    expect(t?.txId).toBeUndefined();
-    expect(t?.from).toBeUndefined();
-    expect(t?.to).toBeUndefined();
-    expect(t?.blockNumber).toBeUndefined();
+    await expectCode(async () => session.transactions({ currency: "EUR" }), "invalid-response");
+    const dropped =
+      '{"count":1,"transactions":[{"title":"x","subtitle":"y","amount":"1.00","timestamp":1683221111000,"txId":"0x12"}]}';
+    const other = sessionApi({ "/transactions?currency=EUR": json(dropped) });
+    const page = await other.session.transactions({ currency: "EUR" });
+    expect(page.transactions.at(0)?.txId).toBeUndefined();
   });
 
   test("amount 1e21 and a 12-digit timestamp => invalid-response", async () => {

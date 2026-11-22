@@ -4,6 +4,266 @@
 
 ```ts
 
+import { Address } from 'viem';
+import { Hash } from 'viem';
+import { Hex } from 'viem';
+
+// @public (undocumented)
+export const API_BASE_URL = "https://api.fiat24.com";
+
+// @public (undocumented)
+type ApprovalSpender = "card" | "deposit" | "account";
+
+// @public (undocumented)
+type Asset = Currency | "USDC" | "F24";
+
+// @public (undocumented)
+export type Bank = {
+    readonly name: string;
+    readonly bic: string;
+    readonly country: string;
+    readonly bankCode: string;
+};
+
+// @public (undocumented)
+export type BankPaymentRequest = {
+    readonly account: string;
+    readonly bankName: string;
+    readonly bic: string;
+    readonly purpose: bigint;
+    readonly reference?: string;
+    readonly creditor: "BR" | {
+        readonly name: string;
+        readonly street: string;
+        readonly city: string;
+        readonly zip: string;
+        readonly country: string;
+    };
+};
+
+// @public (undocumented)
+export type Banks = {
+    readonly lastUpdateAt: bigint;
+    readonly banks: Readonly<Record<string, ReadonlyArray<Bank>>>;
+};
+
+// @public (undocumented)
+export type Card = {
+    readonly externalId: string;
+    readonly status: "active" | "blocked" | "expired" | "unknown";
+    readonly currency: Currency;
+    readonly currencies: ReadonlyArray<FiatCode>;
+    readonly last4: string;
+    readonly activeTokens: ReadonlyArray<CardDeviceToken>;
+    readonly inactiveTokens: ReadonlyArray<CardDeviceToken>;
+};
+
+// @public (undocumented)
+type CardDeviceToken = {
+    readonly id: string;
+    readonly type: string;
+    readonly createdAt: bigint;
+};
+
+// @public (undocumented)
+export type Countries = {
+    readonly eligibleDomiciles: ReadonlyArray<string>;
+    readonly eligibleDomicilesForCards: ReadonlyArray<string>;
+    readonly lowLimitDomiciles: ReadonlyArray<string>;
+    readonly blacklistNationalities: ReadonlyArray<string>;
+};
+
+// @public (undocumented)
+export type CountryCities = {
+    readonly lastUpdateAt: bigint;
+    readonly countries: Readonly<Record<string, {
+        readonly name: string;
+        readonly postalCodeRegEx: string;
+        readonly cities: ReadonlyArray<string>;
+    }>>;
+};
+
+// @public
+export function createFiat24Api(options: Fiat24ApiOptions): Fiat24Api;
+
+// @public (undocumented)
+type Currency = "USD24" | "EUR24" | "CHF24" | "CNH24";
+
+// @public (undocumented)
+export type Fiat24Api = {
+    readonly timestamp: () => Promise<bigint>;
+    readonly countries: () => Promise<Countries>;
+    readonly rates: () => Promise<Readonly<Partial<Record<RatePair, Rate>>>>;
+    readonly paymentPurposes: () => Promise<ReadonlyArray<PaymentPurpose>>;
+    readonly banks: () => Promise<Banks>;
+    readonly bankByIban: (iban: string) => Promise<Bank>;
+    readonly countryCities: () => Promise<CountryCities>;
+    readonly kycStatus: (tokenId: bigint) => Promise<KycStatus>;
+    readonly openSession: (args: {
+        tokenId: bigint;
+        signer: Fiat24SessionSigner;
+    }) => Fiat24Session;
+};
+
+// @public (undocumented)
+export type Fiat24ApiOptions = {
+    readonly fetch?: typeof fetch | undefined;
+    readonly now: () => number;
+};
+
+// @public (undocumented)
+type Fiat24Intent = {
+    readonly kind: "transfer";
+    readonly currency: Currency;
+    readonly amount: bigint;
+    readonly to: Recipient;
+} | {
+    readonly kind: "exchange";
+    readonly side: "exact-in" | "exact-out";
+    readonly from: Currency;
+    readonly to: Currency;
+    readonly amount: bigint;
+} | {
+    readonly kind: "payout";
+    readonly currency: PayoutCurrency;
+    readonly amount: bigint;
+    readonly contactId: string;
+    readonly purposeId?: bigint;
+    readonly ref?: string;
+    readonly payee: "off-chain";
+} | {
+    readonly kind: "approve";
+    readonly asset: Asset;
+    readonly spender: ApprovalSpender;
+    readonly amount: bigint;
+} | {
+    readonly kind: "mint";
+    readonly tokenId: bigint;
+    readonly payment: "f24" | "eth";
+} | {
+    readonly kind: "top-up";
+    readonly output: Currency;
+    readonly usdcAmount: bigint;
+};
+
+// @public (undocumented)
+export type Fiat24Session = {
+    readonly tokenId: bigint;
+    readonly profile: () => Promise<Profile>;
+    readonly cards: () => Promise<ReadonlyArray<Card>>;
+    readonly cardDisplayToken: (externalId: string) => Promise<string>;
+    readonly transactions: (query: TransactionQuery) => Promise<TransactionPage>;
+    readonly verifyBankPayment: (request: BankPaymentRequest) => Promise<VerifiedPayout>;
+    readonly verifySwissQr: (qr: string) => Promise<VerifiedQrPayout>;
+    readonly createCard: () => Promise<void>;
+    readonly setCardStatus: (args: {
+        externalId: string;
+        status: "block" | "unblock";
+    }) => Promise<void>;
+    readonly setCardCurrency: (args: {
+        externalId: string;
+        currency: "EUR" | "USD" | "CHF" | "CNH";
+    }) => Promise<void>;
+    readonly setDeviceToken: (args: {
+        externalId: string;
+        cardTokenId: string;
+        status: "activate" | "deactivate";
+    }) => Promise<void>;
+    readonly end: () => void;
+};
+
+// @public (undocumented)
+type Fiat24SessionGrant = {
+    readonly chainId: 42161;
+    readonly tokenId: bigint;
+    readonly deadline: bigint;
+    readonly hash: string;
+    readonly message: string;
+};
+
+// @public (undocumented)
+type Fiat24SessionSigner = Pick<Fiat24Signer, "address" | "signSessionGrant">;
+
+// @public (undocumented)
+type Fiat24Signer = {
+    readonly address: Address;
+    readonly sendTransaction: (request: Fiat24TransactionRequest) => Promise<Hash>;
+    readonly signSessionGrant: (grant: Fiat24SessionGrant) => Promise<Hex>;
+};
+
+// @public (undocumented)
+type Fiat24TransactionRequest = {
+    readonly chainId: 42161;
+    readonly from: Address;
+    readonly to: Address;
+    readonly data: Hex;
+    readonly value: bigint;
+    readonly nonce: number;
+    readonly intent: Fiat24Intent;
+};
+
+// @public (undocumented)
+type FiatCode = "EUR" | "USD" | "CHF" | "CNH";
+
+// @public (undocumented)
+export type KycStatus = "not-started" | "pending-scan" | "processing" | "action-required" | "manual-review" | "completed" | "rejected" | "error" | "unknown";
+
+// @public
+export function parseSwissQr(qr: string): SwissQr;
+
+// @public (undocumented)
+export type PaymentPurpose = {
+    readonly value: bigint;
+    readonly name: string;
+};
+
+// @public (undocumented)
+type PayoutCurrency = "EUR24" | "CHF24";
+
+// @public (undocumented)
+export type Profile = {
+    readonly tokenId: bigint;
+    readonly name: string;
+    readonly email: string;
+    readonly mobile: string;
+    readonly address: {
+        readonly street: string;
+        readonly postalCode: string;
+        readonly city: string;
+        readonly country: string;
+    };
+    readonly contacts: Readonly<Partial<Record<FiatCode, ReadonlyArray<{
+        readonly id: string;
+        readonly name: string;
+        readonly account: string;
+        readonly bank: string;
+        readonly country: string;
+    }>>>>;
+    readonly isCardEligible: boolean;
+    readonly cardActivation?: {
+        readonly amount: string;
+        readonly currency: FiatCode;
+    };
+};
+
+// @public (undocumented)
+export type Rate = {
+    readonly rate: number;
+    readonly bid: number;
+    readonly ask: number;
+    readonly lastUpdateAt: bigint;
+};
+
+// @public (undocumented)
+export type RatePair = "USDEUR" | "USDCHF" | "USDCNH" | "EURUSD" | "EURCHF" | "EURCNH" | "CHFUSD" | "CHFEUR" | "CHFCNH" | "CNHUSD" | "CNHEUR" | "CNHCHF";
+
+// @public (undocumented)
+type Recipient = {
+    readonly address: Address;
+} | {
+    readonly tokenId: bigint;
+};
+
 // @public (undocumented)
 type SessionArgs = {
     chainId: 42161;
@@ -16,6 +276,60 @@ export function sessionLabel(args: SessionArgs): string;
 
 // @public
 export function sessionMessage(args: SessionArgs): string;
+
+// @public (undocumented)
+export type SwissQr = {
+    readonly account: string;
+    readonly amount: bigint;
+    readonly currency: "CHF" | "EUR";
+};
+
+// @public (undocumented)
+export type TransactionPage = {
+    readonly count: bigint;
+    readonly transactions: ReadonlyArray<{
+        readonly title: string;
+        readonly subtitle: string;
+        readonly amount: string;
+        readonly timestamp: bigint;
+        readonly txId?: Hash;
+        readonly from?: bigint;
+        readonly to?: bigint;
+        readonly blockNumber?: bigint;
+    }>;
+};
+
+// @public (undocumented)
+export type TransactionQuery = {
+    readonly currency: FiatCode | "ALL";
+    readonly fromRecord?: bigint;
+    readonly recordsCount?: bigint;
+    readonly fromTimestamp?: bigint;
+    readonly toTimestamp?: bigint;
+    readonly direction?: "IN" | "OUT" | "ALL";
+    readonly types?: ReadonlyArray<TransactionType>;
+};
+
+// @public (undocumented)
+type TransactionType = "P2P" | "FRX" | "CTU" | "CRD" | "CDP" | "CWD";
+
+// @public (undocumented)
+export type VerifiedPayout = {
+    readonly contactId: string;
+    readonly purposeId: bigint;
+    readonly ref: string;
+};
+
+// @public (undocumented)
+export type VerifiedQrPayout = VerifiedPayout & {
+    readonly currency: PayoutCurrency;
+    readonly amount: bigint;
+    readonly account: string;
+    readonly creditor: {
+        readonly name: string;
+    };
+    readonly reference?: string;
+};
 
 // (No @packageDocumentation comment for this package)
 

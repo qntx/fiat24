@@ -234,8 +234,9 @@ type ParsedTopUp = Extract<Parsed, { readonly flow: "top-up" }>;
 const ACTIVE_PHASES: ReadonlySet<TxPhase> = new Set(["ready", "sending", "submitted", "unknown"]);
 
 // §6 card API-write table: the `ready` error set a declined write may carry
-// (the write was not executed; retry is a new user action).
-const API_READY_ERRORS: ReadonlySet<Fiat24ErrorCode> = new Set([
+// (the write was not executed; retry is a new user action). card.ts shares it —
+// a write error with any other code is classified ambiguous instead.
+export const API_READY_ERRORS: ReadonlySet<Fiat24ErrorCode> = new Set([
   "unauthorized",
   "rate-limited",
   "http-error",

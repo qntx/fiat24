@@ -134,7 +134,7 @@ function checkedCount(value: number): number {
   return Number.isSafeInteger(value) && value >= 0 ? value : invalidResponse();
 }
 
-async function persistSwallow(deps: FlowDeps, state: FlowState): Promise<void> {
+export async function persistSwallow(deps: FlowDeps, state: FlowState): Promise<void> {
   // §3.3: this state was produced after signer.sendTransaction was called — a
   // persist rejection is swallowed and the state returned, because the already
   // persisted `sending` record covers it and throwing would leave the host

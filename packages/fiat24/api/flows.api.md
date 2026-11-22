@@ -25,10 +25,16 @@ export type AccountView = {
 };
 
 // @public
+export function advanceCard(deps: FlowDeps, state: CardState): Promise<CardState>;
+
+// @public
 export function advanceExchange(deps: FlowDeps, state: ExchangeState): Promise<ExchangeState>;
 
 // @public
 export function advanceOnboarding(deps: FlowDeps, state: OnboardingState): Promise<OnboardingState>;
+
+// @public
+export function advancePayout(deps: FlowDeps, state: PayoutDraft | PayoutState): Promise<PayoutState>;
 
 // @public
 export function advanceTopUp(deps: FlowDeps, state: TopUpState): Promise<TopUpState>;
@@ -505,6 +511,23 @@ type Recipient = {
 };
 
 // @public
+export function startCardOperation(input: {
+    readonly owner: Address;
+    readonly tokenId: bigint;
+    readonly operation: CardOperation;
+}): CardState;
+
+// @public
+export function startCardSetup(input: {
+    readonly owner: Address;
+    readonly tokenId: bigint;
+    readonly cap: {
+        readonly currency: Currency;
+        readonly amount: bigint;
+    };
+}): CardState;
+
+// @public
 export function startExchange(input: {
     readonly owner: Address;
     readonly side: "exact-in" | "exact-out";
@@ -519,6 +542,15 @@ export function startOnboarding(input: {
     readonly tokenId: bigint;
     readonly payment: "f24" | "eth";
 }): OnboardingState;
+
+// @public
+export function startPayout(input: {
+    readonly owner: Address;
+    readonly tokenId: bigint;
+    readonly currency: PayoutCurrency;
+    readonly amount: bigint;
+    readonly target: PayoutTarget;
+}): PayoutDraft;
 
 // @public
 export function startTopUp(input: {

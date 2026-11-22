@@ -21,12 +21,18 @@ function checked(args: SessionArgs): SessionArgs {
 }
 
 /**
- * §9.2 `label = "fiat24-session-v1:" chainId ":" tokenId ":" deadline` — canonical decimals, no
- * host fields (I19: the wallet rebuilds the same bytes from the three inputs).
+ * §9.2 `label = "fiat24-session-v1:" chainId ":" tokenId ":" deadline ";"` — canonical decimals, no
+ * host fields (I19: the wallet rebuilds the same bytes from the three inputs). The signed digest is
+ * `keccak256(label || deadline)`, and the server recomputes it from `hash` and `deadline` as
+ * separate headers without parsing the label — so any split of the signed text into `(hash,
+ * all-digit tail)` is accepted as a grant for that tail's deadline. The `;` terminator pins the
+ * boundary: with it every all-digit suffix of `label || deadline` is a suffix of the deadline's own
+ * digits, hence numerically `<= deadline`; without it the same signed text could be re-split into a
+ * later deadline than the one the signer saw.
  */
 export function sessionLabel(args: SessionArgs): string {
   const { chainId, tokenId, deadline } = checked(args);
-  return `fiat24-session-v1:${chainId}:${tokenId}:${deadline}`;
+  return `fiat24-session-v1:${chainId}:${tokenId}:${deadline};`;
 }
 
 /**

@@ -67,10 +67,13 @@ export function runSmoke(): void {
   );
   // §9.2 session strings (api layer; keccak over UTF-8 exercises the encoder).
   const session = { chainId: 42161 as const, tokenId: 123456n, deadline: 1795278000n };
-  assert(api.sessionLabel(session) === "fiat24-session-v1:42161:123456:1795278000", "sessionLabel");
+  assert(
+    api.sessionLabel(session) === "fiat24-session-v1:42161:123456:1795278000;",
+    "sessionLabel",
+  );
   assert(
     api.sessionMessage(session) ===
-      "I agree to access my profile. 0x7aa5d53d52ac69271847fc6b9385c9080a249f9d3c2aff9f721ca821a8109025",
+      "I agree to access my profile. 0x88f9ba6123137a551cdcf75f832f04b49b808ca993a625ecde45be54094e9cbd",
     "sessionMessage",
   );
   // §9.4 parsing on bare Hermes: the zod/mini converters and the QR grammar (no DOM, no fetch).

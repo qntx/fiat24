@@ -5,7 +5,7 @@
     "kind": "reference",
     "name": "cast",
     "version": "1.10.0",
-    "evidence": "SPEC §9.2 table; digest via `cast keccak`, EIP-191 hash via `cast hash-message`, row-1 signature via `cast wallet sign` (public anvil test key 0)",
+    "evidence": "SPEC §9.2 table with the `;` label terminator; digest via `cast keccak`, EIP-191 hash via `cast hash-message`, row-1 signature via `cast wallet sign` (public anvil test key 0)",
     "generator": "packages/fiat24/scripts/vectors/session.ts"
   },
   "cases": [
@@ -15,13 +15,13 @@
         "tokenId": "123456",
         "deadline": "1795278000"
       },
-      "label": "fiat24-session-v1:42161:123456:1795278000",
-      "preimage": "fiat24-session-v1:42161:123456:17952780001795278000",
-      "digest": "0x7aa5d53d52ac69271847fc6b9385c9080a249f9d3c2aff9f721ca821a8109025",
-      "message": "I agree to access my profile. 0x7aa5d53d52ac69271847fc6b9385c9080a249f9d3c2aff9f721ca821a8109025",
-      "eip191Hash": "0x42e71571afdd4e74672f74c8bddc84e45a6f637fae50032640edb54588efcdfa",
+      "label": "fiat24-session-v1:42161:123456:1795278000;",
+      "preimage": "fiat24-session-v1:42161:123456:1795278000;1795278000",
+      "digest": "0x88f9ba6123137a551cdcf75f832f04b49b808ca993a625ecde45be54094e9cbd",
+      "message": "I agree to access my profile. 0x88f9ba6123137a551cdcf75f832f04b49b808ca993a625ecde45be54094e9cbd",
+      "eip191Hash": "0xe7f34100a9d827d0d8f9468a9b7145a9df9b735c52212ac547edf45a045e629e",
       "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-      "signature": "0x09410c3f5d15d8022f6baa8e556eeeee446164f864e33c9e6ff30fc63d7c45996719e723721bef79e3daebade7979538306b14039290d25338f19b74fe8cb0031c"
+      "signature": "0x1fed1f861a97bc875df8aa61b79dd054a614d0934b42a5750b8b873410afee1625cf19bb748e61fabef563fda4711dd9f92f84ae7275e6fdb1258bdca6c876c81c"
     },
     {
       "args": {
@@ -29,11 +29,11 @@
         "tokenId": "1",
         "deadline": "1795305600"
       },
-      "label": "fiat24-session-v1:42161:1:1795305600",
-      "preimage": "fiat24-session-v1:42161:1:17953056001795305600",
-      "digest": "0x5d7df61b38b749bb4f56ed475606a771754b12494427b00c7e1df9a200ac2202",
-      "message": "I agree to access my profile. 0x5d7df61b38b749bb4f56ed475606a771754b12494427b00c7e1df9a200ac2202",
-      "eip191Hash": "0x385c99758dfbd01204bcd980b990c73dd91e5bd25ff07cad5c6a8e5d43eaab64"
+      "label": "fiat24-session-v1:42161:1:1795305600;",
+      "preimage": "fiat24-session-v1:42161:1:1795305600;1795305600",
+      "digest": "0xa52ed47d4a4753121fc303162a376bfda1aad1d54e4f6be5b142ebb13099a440",
+      "message": "I agree to access my profile. 0xa52ed47d4a4753121fc303162a376bfda1aad1d54e4f6be5b142ebb13099a440",
+      "eip191Hash": "0xa3b400459402c66bfe82a63c438a405932a4f594f8aebd3ed7df5fc56cb2bf8f"
     },
     {
       "args": {
@@ -41,11 +41,11 @@
         "tokenId": "9007199254740993",
         "deadline": "4102444800"
       },
-      "label": "fiat24-session-v1:42161:9007199254740993:4102444800",
-      "preimage": "fiat24-session-v1:42161:9007199254740993:41024448004102444800",
-      "digest": "0x2357270ce0d4f3fa5a9a51eafbf0580ebb8dad931e4008b30ba274e83dacdb2b",
-      "message": "I agree to access my profile. 0x2357270ce0d4f3fa5a9a51eafbf0580ebb8dad931e4008b30ba274e83dacdb2b",
-      "eip191Hash": "0xe66787ac443bd91d65cc73499568ad74cba295b0790b11315333c8a75b26bc2e"
+      "label": "fiat24-session-v1:42161:9007199254740993:4102444800;",
+      "preimage": "fiat24-session-v1:42161:9007199254740993:4102444800;4102444800",
+      "digest": "0xa21de2f4028526654fac3b214496aed83c4b2facc6bb1d3e9b892a0b39a555b5",
+      "message": "I agree to access my profile. 0xa21de2f4028526654fac3b214496aed83c4b2facc6bb1d3e9b892a0b39a555b5",
+      "eip191Hash": "0x2e347769f6dcabf28c3aa3875b0b37407ece9e804e30d4522b3d4043124db393"
     },
     {
       "args": {

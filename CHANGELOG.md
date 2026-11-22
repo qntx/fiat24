@@ -35,9 +35,11 @@ Saphirstein AG.
   simulation) and the `fiat24PublicActions` client decorator.
 - `api`: the REST client for public endpoints (redirects refused, the
   response body capped while streaming, display and id JSON numbers
-  required safe), session grants with local lifetime bounds and the
-  exported `SessionArgs`, secured reads, `/verify` bindings and card
-  writes (card `create` counts as done only on an `Active` card).
+  required safe), session grants (label
+  `fiat24-session-v1:<chainId>:<tokenId>:<deadline>;`) with local
+  lifetime bounds and the exported `SessionArgs`, secured reads,
+  `/verify` bindings and card writes (card `create` counts as done only
+  on an `Active` card).
 - `flows`: resumable state machines for the account view, P2P transfer,
   FX exchange, payout, card management, onboarding and USDC top-up.
   `FlowDeps` injects `client`, `signer` and `persist` (no clock).

@@ -19,7 +19,7 @@ export function build(): {
 } {
   const cases: unknown[] = [];
   for (const [index, row] of ROWS.entries()) {
-    const label = `fiat24-session-v1:${row.chainId}:${row.tokenId}:${row.deadline}`;
+    const label = `fiat24-session-v1:${row.chainId}:${row.tokenId}:${row.deadline};`;
     const preimage = `${label}${row.deadline}`;
     const digest = cast(["keccak", preimage]);
     const message = `I agree to access my profile. ${digest}`;
@@ -59,7 +59,7 @@ export function build(): {
       name: "cast",
       version: "1.10.0",
       evidence:
-        "SPEC §9.2 table; digest via `cast keccak`, EIP-191 hash via `cast hash-message`, row-1 signature via `cast wallet sign` (public anvil test key 0)",
+        "SPEC §9.2 table with the `;` label terminator; digest via `cast keccak`, EIP-191 hash via `cast hash-message`, row-1 signature via `cast wallet sign` (public anvil test key 0)",
     },
     cases,
   };

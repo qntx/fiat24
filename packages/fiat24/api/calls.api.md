@@ -4,6 +4,185 @@
 
 ```ts
 
+import { Address } from 'viem';
+import { Hex } from 'viem';
+
+// @public (undocumented)
+export type ApprovalSpender = "card" | "deposit" | "account";
+
+// @public
+export function approveCall(args: {
+    asset: Asset;
+    spender: ApprovalSpender;
+    amount: bigint;
+    deployment?: Deployment;
+}): Fiat24Call;
+
+// @public (undocumented)
+type Asset = Currency | "USDC" | "F24";
+
+// @public
+type ContractName = "account" | Currency | "deposit" | "card" | "priceList" | "f24Sales" | "f24";
+
+// @public (undocumented)
+type Currency = "USD24" | "EUR24" | "CHF24" | "CNH24";
+
+// @public (undocumented)
+type Deployment = {
+    readonly chainId: 42161;
+    readonly block: bigint;
+    readonly account: PinnedProxy;
+    readonly tokens: Readonly<Record<Currency, PinnedProxy>>;
+    readonly deposit: PinnedProxy;
+    readonly card: PinnedProxy;
+    readonly priceList: PinnedProxy;
+    readonly f24Sales: PinnedProxy;
+    readonly f24: {
+        readonly address: Address;
+        readonly codeHash: Hex;
+    };
+    readonly usdc: Address;
+    readonly proxyAdmin: {
+        readonly address: Address;
+        readonly owner: Address;
+    };
+};
+
+// @public
+export function exchangeCall(args: {
+    side: "exact-in" | "exact-out";
+    from: Currency;
+    to: Currency;
+    amount: bigint;
+    deployment?: Deployment;
+}): Fiat24Call;
+
+// @public
+export type Fiat24Call = {
+    readonly to: Address;
+    readonly data: Hex;
+    readonly value: bigint;
+    readonly intent: Fiat24Intent;
+    readonly contracts: ReadonlyArray<ContractName>;
+};
+
+// @public (undocumented)
+export type Fiat24Intent = {
+    readonly kind: "transfer";
+    readonly currency: Currency;
+    readonly amount: bigint;
+    readonly to: Recipient;
+} | {
+    readonly kind: "exchange";
+    readonly side: "exact-in" | "exact-out";
+    readonly from: Currency;
+    readonly to: Currency;
+    readonly amount: bigint;
+} | {
+    readonly kind: "payout";
+    readonly currency: PayoutCurrency;
+    readonly amount: bigint;
+    readonly contactId: string;
+    readonly purposeId?: bigint;
+    readonly ref?: string;
+    readonly payee: "off-chain";
+} | {
+    readonly kind: "approve";
+    readonly asset: Asset;
+    readonly spender: ApprovalSpender;
+    readonly amount: bigint;
+} | {
+    readonly kind: "mint";
+    readonly tokenId: bigint;
+    readonly payment: "f24" | "eth";
+} | {
+    readonly kind: "top-up";
+    readonly output: Currency;
+    readonly usdcAmount: bigint;
+};
+
+// @public
+export function isValidContactId(text: string): boolean;
+
+// @public
+export function isValidPayoutRef(text: string, tokenId: bigint): boolean;
+
+// @public
+export function mintAccountCall(args: {
+    tokenId: bigint;
+    deployment?: Deployment;
+}): Fiat24Call;
+
+// @public
+export function mintAccountWithEthCall(args: {
+    tokenId: bigint;
+    value: bigint;
+    deployment?: Deployment;
+}): Fiat24Call;
+
+// @public
+export const PAYOUT_CURRENCIES: ReadonlyArray<PayoutCurrency>;
+
+// @public
+export function payoutCall(args: {
+    currency: PayoutCurrency;
+    amount: bigint;
+    contactId: string;
+    deployment?: Deployment;
+}): Fiat24Call;
+
+// @public (undocumented)
+export type PayoutCurrency = "EUR24" | "CHF24";
+
+// @public
+export function payoutRefCall(args: {
+    currency: PayoutCurrency;
+    amount: bigint;
+    contactId: string;
+    purposeId: bigint;
+    ref: string;
+    tokenId: bigint;
+    deployment?: Deployment;
+}): Fiat24Call;
+
+// @public
+type PinnedProxy = {
+    readonly proxy: Address;
+    readonly implementation: Address;
+    readonly codeHash: Hex;
+    readonly admin: Address;
+};
+
+// @public (undocumented)
+export type Recipient = {
+    readonly address: Address;
+} | {
+    readonly tokenId: bigint;
+};
+
+// @public
+export function topUpCall(args: {
+    output: Currency;
+    usdcAmount: bigint;
+    deployment?: Deployment;
+}): Fiat24Call;
+
+// @public
+export function transferCall(args: {
+    currency: Currency;
+    to: Address;
+    amount: bigint;
+    deployment?: Deployment;
+}): Fiat24Call;
+
+// @public
+export function transferToAccountCall(args: {
+    currency: Currency;
+    tokenId: bigint;
+    amount: bigint;
+    deployment?: Deployment;
+}): Fiat24Call;
+
 // (No @packageDocumentation comment for this package)
 
 ```

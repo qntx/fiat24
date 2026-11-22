@@ -1,8 +1,14 @@
 /// <reference types="node" />
 /**
- * Bundle tests/hermes/entry.ts into a single classic script and run it on the Hermes CLI (`HERMES`
- * env var). Pass = stdout contains `HERMES_SMOKE_OK`; Hermes exits 0 on unhandled async rejections,
- * so the marker is the only contract. The full Hermes output is printed either way.
+ * Bundle the two Hermes entries into classic scripts and run each on the Hermes CLI (`HERMES` env
+ * var):
+ *
+ * 1. `entry.ts` — the native run: bare-Hermes TextEncoder/TextDecoder (RN 0.88).
+ * 2. `entry-shim.ts` — replaces both globals with a pure-JS UTF-8 shim before the SDK modules
+ *    evaluate, then asserts the shim served every encode/decode.
+ *
+ * Each run must print its marker (`HERMES_SMOKE_OK` / `HERMES_SHIM_SMOKE_OK`); Hermes exits 0 on
+ * unhandled async rejections, so the markers are the only contract. Full output is printed.
  */
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,7 +37,20 @@ declare const Bun: {
 };
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-const outfile = resolve(root, ".hermes-smoke.iife.js");
+
+type Bundle = { entry: string; out: string; marker: string };
+const BUNDLES: Bundle[] = [
+  {
+    entry: "tests/hermes/entry.ts",
+    out: ".hermes-smoke.iife.js",
+    marker: "HERMES_SMOKE_OK",
+  },
+  {
+    entry: "tests/hermes/entry-shim.ts",
+    out: ".hermes-smoke-shim.iife.js",
+    marker: "HERMES_SHIM_SMOKE_OK",
+  },
+];
 
 async function main(): Promise<number> {
   const hermes = process.env["HERMES"];
@@ -40,30 +59,33 @@ async function main(): Promise<number> {
     return 1;
   }
 
-  const result = await Bun.build({
-    entrypoints: [resolve(root, "tests/hermes/entry.ts")],
-    target: "browser",
-    format: "iife",
-  });
-  if (!result.success) {
-    for (const log of result.logs) {
-      console.error(String(log));
+  for (const { entry, out, marker } of BUNDLES) {
+    const result = await Bun.build({
+      entrypoints: [resolve(root, entry)],
+      target: "browser",
+      format: "iife",
+    });
+    if (!result.success) {
+      for (const log of result.logs) {
+        console.error(String(log));
+      }
+      return 1;
     }
-    return 1;
-  }
-  const bundle = result.outputs.find((o: { kind: string }) => o.kind === "entry-point");
-  if (!bundle) {
-    console.error("bun build produced no entry-point output");
-    return 1;
-  }
-  await Bun.write(outfile, bundle);
+    const bundle = result.outputs.find((o: { kind: string }) => o.kind === "entry-point");
+    if (!bundle) {
+      console.error(`bun build produced no entry-point output for ${entry}`);
+      return 1;
+    }
+    const outfile = resolve(root, out);
+    await Bun.write(outfile, bundle);
 
-  const proc = Bun.spawnSync([hermes, outfile], { stdout: "pipe", stderr: "pipe" });
-  const out = proc.stdout.toString() + proc.stderr.toString();
-  process.stdout.write(out);
-  if (proc.exitCode !== 0 || !out.includes("HERMES_SMOKE_OK")) {
-    console.error(`hermes smoke failed (exit ${proc.exitCode}): no HERMES_SMOKE_OK`);
-    return 1;
+    const proc = Bun.spawnSync([hermes, outfile], { stdout: "pipe", stderr: "pipe" });
+    const text = proc.stdout.toString() + proc.stderr.toString();
+    process.stdout.write(text);
+    if (proc.exitCode !== 0 || !text.includes(marker)) {
+      console.error(`hermes smoke failed for ${entry} (exit ${proc.exitCode}): no ${marker}`);
+      return 1;
+    }
   }
   return 0;
 }

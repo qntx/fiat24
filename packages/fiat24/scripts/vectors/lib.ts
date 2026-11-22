@@ -1,26 +1,32 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
-import viemPkg from "viem/package.json" with { type: "json" };
-
 const CHECK = process.argv.includes("--check");
 const ROOT = new URL("../../../../", import.meta.url).pathname;
-const VIEM_VERSION = viemPkg.version;
 
 let drifted = 0;
+
+// Envelope `source` (vectors/README.md): `kind` plus whichever of name,
+// version, date, url, block or evidence identifies the oracle that produced
+// the expected outputs; `generator` names the producing script.
+export type VectorSource = {
+  readonly kind: "spec" | "official" | "reference" | "recorded" | "synthetic" | "generated";
+  readonly name?: string;
+  readonly version?: string;
+  readonly date?: string;
+  readonly url?: string;
+  readonly block?: string;
+  readonly evidence?: string;
+  readonly generator: string;
+};
 
 export function vectorFile(
   relative: string,
   capability: string,
+  source: VectorSource,
   cases: unknown[],
-  generator: string,
 ): void {
-  const envelope = {
-    schema: 1,
-    capability,
-    source: { kind: "reference", name: "viem", version: VIEM_VERSION, generator },
-    cases,
-  };
+  const envelope = { schema: 1, capability, source, cases };
   const path = `${ROOT}${relative}`;
   const content = `${JSON.stringify(envelope, null, 2)}\n`;
   if (CHECK) {
@@ -49,4 +55,30 @@ export function finish(): void {
     }
     console.log("vectors up to date");
   }
+}
+
+// The repo does not depend on @types/bun; declare the used surface (same
+// pattern as packages/fiat24/scripts/hermes-smoke.ts).
+declare const Bun: {
+  spawnSync: (
+    cmd: ReadonlyArray<string>,
+    options: { stdout: "pipe"; stderr: "pipe" },
+  ) => {
+    exitCode: number;
+    stdout: { toString: () => string };
+    stderr: { toString: () => string };
+  };
+};
+
+/**
+ * The vector oracle (§11.1): `cast` 1.x run synchronously. Expected values are produced by foundry
+ * tooling or recorded bytes, never by SDK code; check mode re-runs the same commands and never
+ * touches the network.
+ */
+export function cast(args: ReadonlyArray<string>): string {
+  const out = Bun.spawnSync(["cast", ...args], { stdout: "pipe", stderr: "pipe" });
+  if (out.exitCode !== 0) {
+    throw new Error(`cast ${args.join(" ")} failed: ${out.stderr.toString().trim()}`);
+  }
+  return out.stdout.toString().trim();
 }

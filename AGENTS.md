@@ -14,24 +14,22 @@
 
 The SDK never holds keys and never signs: every signature goes through an injected signer. Writes are data first — builders return `{ to, data, value }` plus a typed intent; nothing broadcasts except through the injected signer. Paused or maintenance-mode features are implemented, fork-tested, and report a typed `unavailable` state from on-chain facts at run time; they are never hidden behind build-time flags.
 
-Only the scaffold exists so far; no Fiat24 logic has landed.
+Landed so far: the `abi` layer (generated from `data/`), the `core` layer (errors, money, account ids, IBAN, status, revert decoding, signer and shared types), the `deployments` layer (generated `arbitrum` pin plus lookups), the `calls` layer (the nine §6.1 builders plus the §6.2 grammars), the `events` layer (`decodeFiat24Log(s)` over the §7.1 set), and `api`'s session helpers (`sessionLabel`/`sessionMessage`, §9.2). `chain` and `flows` are still empty subpaths.
 
 ## Source data
 
-`data/` is the single source of truth: `data/abis/*.json` (the full verified ABIs exactly as verified, never hand-reduced), `data/deployments.json` (proxy address, pinned implementation address, runtime code keccak, the block they were read at), `data/SOURCE.md` (per-contract provenance: Sourcify match type, verified-source file hashes, retrieval date, URL). `bun run gen` writes `packages/fiat24/src/abi/*.ts` (`as const`); `bun run lint` runs it in check mode so generated files never drift. `scripts/deployments/verify.ts` re-reads every pinned value from chain.
-
-`data/` does not exist yet — `gen` currently produces an empty `abi` layer, which is the intended state until the verified ABIs land in `data/abis`.
+`data/` is the single source of truth: `data/abis/*.json` (the full verified ABIs exactly as verified, never hand-reduced), `data/deployments.json` (proxy address, pinned implementation address, runtime code keccak, the block they were read at), `data/SOURCE.md` (per-contract provenance: Sourcify match type, verified-source file hashes, retrieval date, URL). `bun run abi` fetches both from Sourcify; `bun run gen` writes `packages/fiat24/src/abi/*.ts` (`as const`) and `packages/fiat24/src/deployments/data.ts`; `bun run lint` runs it in check mode so generated files never drift. `scripts/deployments/verify.ts` re-reads every pinned value from chain.
 
 ## TypeScript (`packages/fiat24`)
 
 - `viem` is a peer dependency (caret range); `zod` (used as `zod/mini`) is the only other runtime dependency (caret range). devDependencies are exact-pinned. Nothing else without owner approval.
 - `src/` is platform-neutral and Hermes V1-safe: no Node or browser globals, no `node:*` imports, no ES2023+ array methods (`tsconfig.src.json` compiles `src` against `es2022`), no `Buffer`, no `crypto.subtle`, no top-level side effects (`"sideEffects": false`), no module-level mutable state. All I/O is injected (`fetch`, `now`, the viem client, the signer); `fetch` defaults to a call-time `globalThis.fetch` lookup. No ambient singletons.
-- One-directional layering, enforced by lint (`LAYERS` in the root `vite.config.ts`): `abi` is the leaf (generated data); `core` imports `abi`; `deployments` imports `abi`, `core`; `calls` (calldata builders returning `{ to, data, value }` + typed intent) and `events` (log decoding) import `abi`, `core`, `deployments`; `chain` (viem-style read actions `(client, args)`, deployment verification, availability) imports `abi`, `core`, `deployments`, `calls`, `events`; `api` (session grant, HTTP client, schemas) imports `core` only; `flows` (resumable state machines) composes all. Every layer is a subpath export. The root entry composes the chain-stack public surface and must not import `api` or `flows` — consumers opt into them via the `@qntx/fiat24/api` and `@qntx/fiat24/flows` subpaths.
+- One-directional layering, enforced by lint (`LAYERS` in the root `vite.config.ts`): `abi` is the leaf (generated data); `core` imports `abi`; `deployments` imports `core`; `calls` (calldata builders returning `{ to, data, value }` + typed intent) and `events` (log decoding) import `abi`, `core`, `deployments`; `chain` (viem-style read actions `(client, args)`, deployment verification, availability) imports `abi`, `core`, `deployments`, `calls`, `events`; `api` (session grant, HTTP client, schemas) imports `core` only; `flows` (resumable state machines) imports `core`, `deployments`, `calls`, `events`, `chain`, `api`. Every layer is a subpath export. The root entry composes the chain-stack public surface and must not import `api` or `flows` — consumers opt into them via the `@qntx/fiat24/api` and `@qntx/fiat24/flows` subpaths.
 - No `any`, no non-null assertions, no enums, no classes except `Fiat24Error`, no default exports, `bigint` for every amount and token id (never `number`), `readonly` data. No thrown strings and no untyped throws from any parser of untrusted data.
 
 ## Shared semantics
 
-Only one rule exists so far: the SDK throws a single `Fiat24Error` whose `code` is the closed union `Fiat24ErrorCode` (`invalid-argument`, `contract-changed`, `unknown-outcome`) shared with the failure cases in `vectors/`. Everything else does not exist yet.
+The SDK throws a single `Fiat24Error` whose `code` is the closed union `Fiat24ErrorCode` (declared as the `fiat24ErrorCodes` tuple in `core/errors.ts`) shared with the failure cases in `vectors/`.
 
 ## Versioning and release
 
@@ -54,9 +52,14 @@ bun run check:pkg                       # pack + dist-deps + API report + publin
 More:
 
 ```bash
-bun run --cwd packages/fiat24 test:fork                    # anvil fork suite (needs FIAT24_FORK_URL)
+bun run --cwd packages/fiat24 test:fork                    # runs only tests/fork (FIAT24_FORK=1 include
+                                                           # switch; needs FIAT24_FORK_URL)
 bun run --cwd packages/fiat24 smoke:hermes                 # needs HERMES=/path/to/hermes
 bun scripts/check-api.ts packages/fiat24 --update          # re-baseline packages/fiat24/api/
-bun run gen                                                # regenerate src/abi from data/abis
+bun scripts/deployments/verify.ts [--block N]              # re-read every deployments.json pin from
+                                                           # chain (FIAT24_RPC or Tenderly archive)
+bun run abi                                                # fetch data/abis + data/SOURCE.md from Sourcify
+bun run abi --check                                        # re-fetch and fail on any difference
+bun run gen                                                # regenerate src/abi + src/deployments/data.ts from data/
 bun run vectors                                            # regenerate vectors/
 ```

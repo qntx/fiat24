@@ -1,14 +1,22 @@
+import { build as buildCalls } from "./calls.ts";
+import { build as buildEvents } from "./events.ts";
+import { build as buildIban } from "./iban.ts";
 import { finish, vectorFile } from "./lib.ts";
+import { build as buildMoney } from "./money.ts";
+import { build as buildSession } from "./session.ts";
 
-// No generators yet: a producer is added together with the code whose
-// constants it pins down. An entry is
-// ["vectors/<area>/<name>.json", build, "packages/fiat24/scripts/vectors/<name>.ts"].
-const GENERATORS: ReadonlyArray<
-  readonly [path: string, build: () => { capability: string; cases: unknown[] }, generator: string]
-> = [];
+// An entry is ["vectors/<area>/<name>.json", build, "<generator script>"]; the
+// generator name lands in the envelope's `source.generator`.
+const GENERATORS = [
+  ["vectors/core/amount.json", buildMoney, "packages/fiat24/scripts/vectors/money.ts"],
+  ["vectors/core/iban.json", buildIban, "packages/fiat24/scripts/vectors/iban.ts"],
+  ["vectors/calls/calldata.json", buildCalls, "packages/fiat24/scripts/vectors/calls.ts"],
+  ["vectors/events/decode.json", buildEvents, "packages/fiat24/scripts/vectors/events.ts"],
+  ["vectors/api/session.json", buildSession, "packages/fiat24/scripts/vectors/session.ts"],
+] as const;
 
 for (const [path, build, generator] of GENERATORS) {
-  const { capability, cases } = build();
-  vectorFile(path, capability, cases, generator);
+  const { capability, source, cases } = build();
+  vectorFile(path, capability, { ...source, generator }, cases);
 }
 finish();

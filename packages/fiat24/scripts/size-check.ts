@@ -43,12 +43,12 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 // up to the next 1024 B. When an entry grows past its budget, re-measure and
 // raise the number deliberately in the same PR.
 const ENTRIES = [
-  { name: "index", entry: "src/index.ts", budget: 1024 },
-  { name: "abi", entry: "src/abi/index.ts", budget: 1024 },
-  { name: "core", entry: "src/core/index.ts", budget: 1024 },
-  { name: "deployments", entry: "src/deployments/index.ts", budget: 1024 },
-  { name: "calls", entry: "src/calls/index.ts", budget: 1024 },
-  { name: "events", entry: "src/events/index.ts", budget: 1024 },
+  { name: "index", entry: "src/index.ts", budget: 5120 },
+  { name: "abi", entry: "src/abi/index.ts", budget: 6144 },
+  { name: "core", entry: "src/core/index.ts", budget: 4096 },
+  { name: "deployments", entry: "src/deployments/index.ts", budget: 2048 },
+  { name: "calls", entry: "src/calls/index.ts", budget: 8192 },
+  { name: "events", entry: "src/events/index.ts", budget: 8192 },
   { name: "chain", entry: "src/chain/index.ts", budget: 1024 },
   { name: "api", entry: "src/api/index.ts", budget: 1024 },
   { name: "flows", entry: "src/flows/index.ts", budget: 1024 },

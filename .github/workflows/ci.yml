@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
 
 permissions:
   contents: read
@@ -15,16 +14,30 @@ concurrency:
 
 jobs:
   ci:
-    uses: qntx/workflows/.github/workflows/ci-bun.yml@b1a930e790044f34f06bd5e1e0ede9e7dd5fa122 # v2.13.1
+    # Inlined from ci-bun.yml because `bun run lint` → `vectors --check` needs `cast`.
+    runs-on: ubuntu-latest
     permissions:
       contents: read
-    with:
-      scripts: "check:pkg"
-    # bun run lint → vp check + check-version + gen --check + vectors --check
-    # bun run typecheck → per-package tsc + root tsc
-    # bun run build → vp run -r build (vp pack)
-    # bun run test → package vp test --coverage + size budgets, repo script tests
-    # scripts → bun run check:pkg (pack, dist deps, API report, publint, attw)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: foundry-rs/foundry-toolchain@dba66c27052e63476d886f22216e119ba7e615bf # v1.9.2
+        with:
+          # Same cast as fork.yml; v1.8.6 reproduces every vector byte for byte.
+          version: v1.8.6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - run: bun install --frozen-lockfile
+      # bun run lint → vp check + check-version + gen --check + vectors --check
+      - run: bun run lint
+      # bun run typecheck → per-package tsc + root tsc
+      - run: bun run typecheck
+      # bun run build → vp run -r build (vp pack)
+      - run: bun run build
+      # bun run test → package vp test --coverage + size budgets, repo script tests
+      - run: bun run test
+      # bun run check:pkg → pack, dist deps, API report, publint, attw
+      - run: bun run check:pkg
 
   smoke:
     uses: qntx/workflows/.github/workflows/ci-hermes.yml@b1a930e790044f34f06bd5e1e0ede9e7dd5fa122 # v2.13.1

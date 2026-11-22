@@ -17,7 +17,7 @@ dist
 coverage/
 
 # Hermes smoke bundle (built on demand by scripts/hermes-smoke.ts)
-packages/fiat24/.hermes-smoke.iife.js
+packages/fiat24/.hermes-smoke*.iife.js
 
 # Size-check scratch entries (packages/fiat24/scripts/size-check.ts)
 .size-check/

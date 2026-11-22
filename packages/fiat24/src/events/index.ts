@@ -1,3 +1,2 @@
-// Empty until the layer is implemented; kept a module so the subpath builds.
-// oxlint-disable-next-line unicorn/require-module-specifiers -- placeholder for a layer that exports nothing yet
-export {};
+export { decodeFiat24Log, decodeFiat24Logs } from "./decode.ts";
+export type { Fiat24Event, RawLog } from "./types.ts";

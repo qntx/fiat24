@@ -173,6 +173,18 @@ function cardQueue(bodies: ReadonlyArray<ReadonlyArray<ApiCard>>): () => Readonl
   };
 }
 
+/** A persist hook that throws `error` on call `failAt`; keeps test bodies branch-free. */
+function failingPersist(failAt: number, error: Error) {
+  let calls = 0;
+  return {
+    calls: () => calls,
+    persist: async () => {
+      calls += 1;
+      return calls === failAt ? Promise.reject(error) : Promise.resolve();
+    },
+  };
+}
+
 type TableOpts = {
   readonly currency?: "EUR24" | "USD24";
   readonly allowance?: bigint;
@@ -397,7 +409,6 @@ describe("advanceCard chain part", () => {
         fromBlock: B,
         nonce: 3,
         hash: TXID_1,
-        blockNumber: B + 1n,
       },
       { purpose: "main", phase: "ready" },
     ]);
@@ -661,6 +672,31 @@ describe("advanceCard API write", () => {
     expect(again.writes).toStrictEqual([]);
   });
 
+  test("persist failing after the write ⇒ the persisted `sending` never re-posts", async () => {
+    // The write landed but the post-write persist was swallowed: the host only ever saw
+    // `sending`. Resuming that state reconciles with one read — no second POST.
+    const storage = failingPersist(2, new Error("storage full"));
+    const { session, writes: issued } = cardSession({ cards: [] });
+    const stub = makeFlowStub({ storage: honestStorage() });
+    const { deps, persisted } = flowDeps(stub.client, { persist: storage.persist });
+    const returned = await advanceCard({ ...deps, session }, CREATE);
+    expect(returned.step).toBe("confirmed");
+    expect(issued).toStrictEqual(["POST /card"]);
+    expect(storage.calls()).toBe(2);
+
+    const last = persisted[0] as CardState;
+    expect(last.step).toBe("tx");
+    expect(last.txs.at(-1)).toStrictEqual({ purpose: "main", phase: "sending" });
+
+    const resume = cardSession({ cards: [] });
+    const stub2 = makeFlowStub({ storage: honestStorage() });
+    const { deps: deps2 } = flowDeps(stub2.client);
+    const next = await advanceCard({ ...deps2, session: resume.session }, last);
+    expect(next.txs.at(-1)?.phase).toBe("unknown");
+    expect(resume.writes).toStrictEqual([]);
+    expect(resume.cardReads.count).toBe(1);
+  });
+
   test("session missing ⇒ session-required; wrong tokenId ⇒ invalid-argument", async () => {
     const stub = makeFlowStub({ storage: honestStorage() });
     const { deps } = flowDeps(stub.client);
@@ -677,9 +713,7 @@ describe("advanceCard API write", () => {
     expect(mismatch).toBeInstanceOf(Fiat24Error);
   });
 
-  test("terminal steps ⇒ invalid-state with no I/O", async () => {
-    const stub = makeFlowStub({});
-    const { deps } = flowDeps(stub.client);
+  test("a confirmed set-cap approve re-checks the receipt — still there ⇒ the same state", async () => {
     const confirmed: CardState = {
       ...SET_CAP,
       step: "confirmed",
@@ -690,12 +724,108 @@ describe("advanceCard API write", () => {
           fromBlock: B,
           nonce: 1,
           hash: TXID_1,
-          blockNumber: B + 1n,
         },
       ],
     };
-    const error = await expectErrorAsync(async () => advanceCard(deps, confirmed), "invalid-state");
+    const stub = makeFlowStub({
+      receipts: {
+        [TXID_1]: receiptPayload({
+          transactionHash: TXID_1,
+          blockNumber: B + 1n,
+          status: "success",
+        }),
+      },
+      transactions: {
+        [TXID_1]: txPayload({
+          hash: TXID_1,
+          from: OWNER,
+          to: EUR24,
+          input: encodeFunctionData({
+            abi: tokenAbi,
+            functionName: "approve",
+            args: [CARD, CAP_AMOUNT],
+          }),
+          value: 0n,
+          nonce: 1,
+          blockNumber: B + 1n,
+        }),
+      },
+    });
+    const { deps, persisted } = flowDeps(stub.client);
+    const next = await advanceCard(deps, confirmed);
+    expect(next).toStrictEqual(confirmed);
+    expect(persisted).toStrictEqual([next]);
+  });
+
+  test("a confirmed API write record stays terminal ⇒ invalid-state", async () => {
+    const stub = makeFlowStub({});
+    const { deps } = flowDeps(stub.client);
+    const { session } = cardSession();
+    const confirmed: CardState = {
+      ...CREATE,
+      step: "confirmed",
+      txs: [{ purpose: "main", phase: "confirmed" }],
+    };
+    const error = await expectErrorAsync(
+      async () => advanceCard({ ...deps, session }, confirmed),
+      "invalid-state",
+    );
     expect(error).toBeInstanceOf(Fiat24Error);
+  });
+});
+
+describe("create observes an active card only", () => {
+  test("an existing active card ⇒ confirmed, no POST", async () => {
+    const { session, writes, cardReads } = cardSession({ cards: [apiCard()] });
+    const stub = makeFlowStub({ storage: honestStorage() });
+    const { deps } = flowDeps(stub.client);
+    const next = await advanceCard({ ...deps, session }, CREATE);
+    expect(next.step).toBe("confirmed");
+    expect(next.txs).toStrictEqual([{ purpose: "main", phase: "confirmed" }]);
+    expect(writes).toStrictEqual([]);
+    expect(cardReads.count).toBe(1);
+  });
+
+  test("only blocked / expired / unknown cards ⇒ exactly one POST", async () => {
+    const cases: ReadonlyArray<ApiCard["status"]> = ["blocked", "expired", "unknown"];
+    await Promise.all(
+      cases.map(async (status) => {
+        const { session, writes } = cardSession({ cards: [apiCard({ status })] });
+        const stub = makeFlowStub({ storage: honestStorage() });
+        const { deps } = flowDeps(stub.client);
+        const next = await advanceCard({ ...deps, session }, CREATE);
+        expect(next.step).toBe("confirmed");
+        expect(writes).toStrictEqual(["POST /card"]);
+      }),
+    );
+  });
+
+  test("ambiguous write + observe read of expired + active ⇒ confirmed", async () => {
+    const { session, writes } = cardSession({
+      cards: cardQueue([[], [apiCard({ status: "expired" }), apiCard()]]),
+      writeError: apiError("network-error", "POST /card"),
+    });
+    const stub = makeFlowStub({ storage: honestStorage() });
+    const { deps } = flowDeps(stub.client);
+    const next = await advanceCard({ ...deps, session }, CREATE);
+    expect(next.step).toBe("confirmed");
+    expect(writes).toStrictEqual(["POST /card"]);
+  });
+
+  test("ambiguous write + observe read of expired only ⇒ unknown", async () => {
+    const { session, writes } = cardSession({
+      cards: cardQueue([[], [apiCard({ status: "expired" })]]),
+      writeError: apiError("network-error", "POST /card"),
+    });
+    const stub = makeFlowStub({ storage: honestStorage() });
+    const { deps } = flowDeps(stub.client);
+    const next = await advanceCard({ ...deps, session }, CREATE);
+    expect(next.txs.at(-1)).toStrictEqual({
+      purpose: "main",
+      phase: "unknown",
+      error: "unknown-outcome",
+    });
+    expect(writes).toStrictEqual(["POST /card"]); // never a second POST
   });
 });
 

@@ -1,29 +1,26 @@
 import { getAddress, isAddress, isAddressEqual } from "viem";
 import type { Address, Client } from "viem";
 
-import { freeze } from "../api/schemas.ts";
 import { transferCall, transferToAccountCall } from "../calls/transfer.ts";
 import { getAvailability } from "../chain/availability.ts";
 import {
+  addressTopic,
   checkedAddress,
   contractTarget,
   resolveDeployment,
-  snapshot,
   topic0Of,
 } from "../chain/context.ts";
 import { checkTransfer } from "../chain/transfer.ts";
 import { Fiat24Error } from "../core/errors.ts";
+import { freeze } from "../core/freeze.ts";
 import type { Currency, Recipient } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
-import { assertPath, assertUnpaused, checkedSigner } from "./guards.ts";
-import { checkedState } from "./state.ts";
-import { advanceTx } from "./tx.ts";
+import { assertUnpaused, checkedSigner, contractsOf, verifiedBlock } from "./guards.ts";
+import type { VerifiedBlock } from "./guards.ts";
+import { checkedState, invalidState } from "./state.ts";
+import { advanceTx, recheckTx, stepFor } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
-import type { FlowDeps, TransferState, TxRecord } from "./types.ts";
-
-function invalidState(): never {
-  throw new Fiat24Error("invalid-state", "invalid flow state");
-}
+import type { FlowDeps, TransferState } from "./types.ts";
 
 function buildCall(state: TransferState, deployment: Deployment): ReturnType<typeof transferCall> {
   return "address" in state.to
@@ -104,7 +101,7 @@ async function transferGuards(
   client: Client,
   deployment: Deployment,
   state: TransferState,
-  blockNumber: bigint,
+  at: VerifiedBlock,
 ): Promise<void> {
   const check = await checkTransfer(client, {
     deployment,
@@ -112,9 +109,12 @@ async function transferGuards(
     to: state.to,
     currency: state.currency,
     amount: state.amount,
-    blockNumber,
+    blockNumber: at.blockNumber,
   });
-  const availability = await getAvailability(client, { deployment, blockNumber });
+  const availability = await getAvailability(client, {
+    deployment,
+    blockNumber: at.blockNumber,
+  });
   assertUnpaused(availability, [state.currency]);
   if (isAddressEqual(check.recipient, state.owner)) {
     throw new Fiat24Error("invalid-argument", "invalid argument");
@@ -130,21 +130,12 @@ function transferEvidence(deployment: Deployment, state: TransferState): TxEvide
         address: deployment.tokens[state.currency].proxy,
         topics: [
           topic0Of(contractTarget(deployment, state.currency).abi, "Transfer"),
-          `0x${state.owner.slice(2).padStart(64, "0")}`,
+          addressTopic(state.owner),
         ],
       },
     ],
   };
 }
-
-const stepFor = (record: TxRecord): TransferState["step"] =>
-  record.phase === "confirmed"
-    ? "confirmed"
-    : record.phase === "failed"
-      ? "failed"
-      : record.phase === "not-sent"
-        ? "not-sent"
-        : "tx";
 
 /**
  * §10.4. `checkedState` first (any failure ⇒ `invalid-state`, before I/O), then the §3.1 signer
@@ -160,14 +151,16 @@ export async function advanceTransfer(
   checkedSigner(deps.signer, checked.owner);
   const deployment = resolveDeployment(deps.client, deps.deployment);
   switch (checked.step) {
-    case "confirmed":
     case "failed":
     case "not-sent":
       return invalidState();
     case "draft": {
-      const { blockNumber } = await snapshot(deps.client, { deployment });
-      await assertPath(deps.client, deployment, blockNumber, [buildCall(checked, deployment)]);
-      await transferGuards(deps.client, deployment, checked, blockNumber);
+      const at = await verifiedBlock(
+        deps.client,
+        deployment,
+        contractsOf([buildCall(checked, deployment)]),
+      );
+      await transferGuards(deps.client, deployment, checked, at);
       const next = freeze({ ...checked, step: "ready" as const });
       await deps.persist(next);
       return next;
@@ -175,13 +168,18 @@ export async function advanceTransfer(
     default: {
       const call = buildCall(checked, deployment);
       const index = checked.txs.length === 0 ? 0 : checked.txs.length - 1;
-      const outcome = await advanceTx<TransferState, undefined>(deps, {
+      // `confirmed` re-checks the receipt of its last transaction (R-12); every
+      // other in-flight step advances the sub-machine.
+      const outcome = await (checked.step === "confirmed" ? recheckTx : advanceTx)<
+        TransferState,
+        undefined
+      >(deps, {
         record: checked.txs[index],
         purpose: "main",
         call,
         owner: checked.owner,
         deployment,
-        guard: async (blockNumber) => transferGuards(deps.client, deployment, checked, blockNumber),
+        guard: async (at: VerifiedBlock) => transferGuards(deps.client, deployment, checked, at),
         evidence: transferEvidence(deployment, checked),
         commit: (record) =>
           freeze({

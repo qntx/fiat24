@@ -9,15 +9,13 @@ import type { Fiat24Signer } from "../core/signer.ts";
 import type { AccountStatus, Currency, PayoutCurrency, Recipient } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 
-// SPEC §3.9/§10.2 — every injectable dependency of a flow. `now` is ms for
-// ordering/display only; it never feeds a chain decision.
+// SPEC §3.9/§10.2 — every injectable dependency of a flow.
 export type FlowDeps = {
   readonly client: Client;
   readonly signer: Fiat24Signer;
   readonly persist: (state: FlowState) => Promise<void>;
   readonly session?: Fiat24Session;
   readonly api?: Fiat24Api;
-  readonly now: () => number;
   readonly deployment?: Deployment;
 };
 
@@ -30,10 +28,16 @@ export type TxPhase =
   | "unknown"
   | "not-sent";
 
+/** The first binding field that differed between the mined transaction and the rebuilt call. */
+export type TxMismatch = "from" | "nonce" | "to" | "input" | "value";
+
 /**
  * SPEC §10.1. The call is never stored — it is rebuilt from the flow's intent fields each advance
  * (I20); `nonce` is chosen by the SDK and passed to the signer, which must sign with exactly that
- * nonce or throw (§10.9).
+ * nonce or throw (§10.9). `mismatch` is legal only on `unknown{hash, unknown-outcome}`: the mined
+ * transaction under that hash is not ours — the field says where it diverged. Nothing persisted may
+ * depend on the L2 block a receipt was first seen in — a `confirmed` record is re-checked against a
+ * fresh receipt on every advance (R-12).
  */
 export type TxRecord = {
   readonly purpose: "approve" | "main";
@@ -41,7 +45,7 @@ export type TxRecord = {
   readonly fromBlock?: bigint;
   readonly nonce?: number;
   readonly hash?: Hash;
-  readonly blockNumber?: bigint;
+  readonly mismatch?: TxMismatch;
   readonly error?: Fiat24ErrorCode;
 };
 
@@ -102,7 +106,6 @@ export type PayoutState = Common & {
   readonly contactId: string;
   readonly purposeId?: bigint;
   readonly ref?: string;
-  readonly txid?: string;
 };
 
 export type CardCurrency = "EUR" | "USD" | "CHF" | "CNH";

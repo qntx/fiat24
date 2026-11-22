@@ -1,37 +1,39 @@
 import { isAddressEqual } from "viem";
-import type { Address, Client, Hex, TransactionReceipt } from "viem";
+import type { Address, Client, TransactionReceipt } from "viem";
 
-import { freeze } from "../api/schemas.ts";
 import { approveCall } from "../calls/approve.ts";
 import { exchangeCall } from "../calls/exchange.ts";
 import { getAvailability } from "../chain/availability.ts";
 import { getAllowance } from "../chain/balances.ts";
 import {
+  addressTopic,
   asBigint,
   checkedAddress,
   contractTarget,
   readAt,
   resolveDeployment,
-  snapshot,
   topic0Of,
 } from "../chain/context.ts";
 import { getExchangeQuote } from "../chain/quote.ts";
 import type { ExchangeQuote } from "../chain/quote.ts";
 import { Fiat24Error } from "../core/errors.ts";
+import { freeze } from "../core/freeze.ts";
 import type { Currency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
 import {
-  assertPath,
   assertUnpaused,
   checkedSigner,
   deskOwner,
   legAllowed,
   senderLive,
   supplyBound,
+  contractsOf,
+  verifiedBlock,
 } from "./guards.ts";
-import { checkedState } from "./state.ts";
-import { advanceTx } from "./tx.ts";
+import type { VerifiedBlock } from "./guards.ts";
+import { checkedState, invalidState } from "./state.ts";
+import { advanceTx, recheckTx, stepFor } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
 import type { ExchangeState, FlowDeps, TxRecord } from "./types.ts";
 
@@ -39,10 +41,6 @@ import type { ExchangeState, FlowDeps, TxRecord } from "./types.ts";
 // leg goes crypto desk → owner.
 const TREASURY_DESK = 9100n;
 const CRYPTO_DESK = 9105n;
-
-function invalidState(): never {
-  throw new Fiat24Error("invalid-state", "invalid flow state");
-}
 
 function quoteChanged(): never {
   throw new Fiat24Error("quote-changed", "quote changed");
@@ -89,7 +87,7 @@ async function quotedGuards(
   client: Client,
   deployment: Deployment,
   state: ExchangeState,
-  blockNumber: bigint,
+  at: VerifiedBlock,
 ): Promise<ExchangeQuote> {
   const quote = await getExchangeQuote(client, {
     deployment,
@@ -97,17 +95,20 @@ async function quotedGuards(
     from: state.from,
     to: state.to,
     amount: state.amount,
-    blockNumber,
+    blockNumber: at.blockNumber,
   });
-  const availability = await getAvailability(client, { deployment, blockNumber });
+  const availability = await getAvailability(client, {
+    deployment,
+    blockNumber: at.blockNumber,
+  });
   assertUnpaused(availability, [state.from, state.to]);
   const account = await senderLive(client, {
     deployment,
     owner: state.owner,
-    blockNumber,
+    at,
   });
   const balance = asBigint(
-    await readAt(client, blockNumber, {
+    await readAt(client, at.blockNumber, {
       ...contractTarget(deployment, state.from),
       functionName: "balanceOf",
       args: [state.owner],
@@ -118,12 +119,12 @@ async function quotedGuards(
   }
   const treasury = await deskOwner(client, {
     deployment,
-    blockNumber,
+    at,
     tokenId: TREASURY_DESK,
   });
   await legAllowed(client, {
     deployment,
-    blockNumber,
+    at,
     token: state.from,
     from: state.owner,
     to: treasury,
@@ -132,12 +133,12 @@ async function quotedGuards(
   });
   const crypto = await deskOwner(client, {
     deployment,
-    blockNumber,
+    at,
     tokenId: CRYPTO_DESK,
   });
   await legAllowed(client, {
     deployment,
-    blockNumber,
+    at,
     token: state.to,
     from: crypto,
     to: state.owner,
@@ -163,12 +164,12 @@ async function approveGuard(
   client: Client,
   deployment: Deployment,
   state: ExchangeState,
-  blockNumber: bigint,
+  at: VerifiedBlock,
 ): Promise<void> {
-  await quotedGuards(client, deployment, state, blockNumber);
+  await quotedGuards(client, deployment, state, at);
   await supplyBound(client, {
     deployment,
-    blockNumber,
+    at,
     asset: state.from,
     amount: approveAmount(state),
   });
@@ -179,19 +180,19 @@ async function mainGuard(
   client: Client,
   deployment: Deployment,
   state: ExchangeState,
-  blockNumber: bigint,
+  at: VerifiedBlock,
 ): Promise<void> {
   const { quote } = state;
   if (quote === undefined) {
     return invalidState();
   }
-  const fresh = await quotedGuards(client, deployment, state, blockNumber);
+  const fresh = await quotedGuards(client, deployment, state, at);
   const allowance = await getAllowance(client, {
     deployment,
     owner: state.owner,
     asset: state.from,
     spender: "deposit",
-    blockNumber,
+    blockNumber: at.blockNumber,
   });
   if (state.side === "exact-in") {
     if (fresh.output < quote.output) {
@@ -205,10 +206,6 @@ async function mainGuard(
   }
 }
 
-function ownerTopic(owner: Address): Hex {
-  return `0x${owner.slice(2).toLowerCase().padStart(64, "0")}`;
-}
-
 // §4 evidence rows — cash-token `Approval(owner, deposit)` for the approve, the
 // side's `MoneyExchanged*(owner)` on the deposit proxy for the main.
 function approveEvidence(deployment: Deployment, state: ExchangeState): TxEvidence {
@@ -218,8 +215,8 @@ function approveEvidence(deployment: Deployment, state: ExchangeState): TxEviden
         address: deployment.tokens[state.from].proxy,
         topics: [
           topic0Of(contractTarget(deployment, state.from).abi, "Approval"),
-          ownerTopic(state.owner),
-          ownerTopic(deployment.deposit.proxy),
+          addressTopic(state.owner),
+          addressTopic(deployment.deposit.proxy),
         ],
       },
     ],
@@ -234,7 +231,7 @@ function mainEvidence(deployment: Deployment, state: ExchangeState): TxEvidence 
         address: deployment.deposit.proxy,
         topics: [
           topic0Of(contractTarget(deployment, "deposit").abi, event),
-          ownerTopic(state.owner),
+          addressTopic(state.owner),
         ],
       },
     ],
@@ -278,24 +275,26 @@ export async function advanceExchange(
   checkedSigner(deps.signer, checked.owner);
   const deployment = resolveDeployment(deps.client, deps.deployment);
   switch (checked.step) {
-    case "confirmed":
     case "failed":
     case "not-sent":
       return invalidState();
     case "draft": {
-      const { blockNumber } = await snapshot(deps.client, { deployment });
       // Draft predates the quote/allowance split: the union is the exchange call alone
       // (the approve's contracts are a subset of it).
-      await assertPath(deps.client, deployment, blockNumber, [
-        exchangeCall({
-          side: checked.side,
-          from: checked.from,
-          to: checked.to,
-          amount: checked.amount,
-          deployment,
-        }),
-      ]);
-      const quote = await quotedGuards(deps.client, deployment, checked, blockNumber);
+      const at = await verifiedBlock(
+        deps.client,
+        deployment,
+        contractsOf([
+          exchangeCall({
+            side: checked.side,
+            from: checked.from,
+            to: checked.to,
+            amount: checked.amount,
+            deployment,
+          }),
+        ]),
+      );
+      const quote = await quotedGuards(deps.client, deployment, checked, at);
       const next = freeze({
         ...checked,
         step: "quoted" as const,
@@ -304,7 +303,7 @@ export async function advanceExchange(
           output: quote.output,
           rate: quote.rate,
           spread: quote.spread,
-          blockNumber,
+          blockNumber: at.blockNumber,
         },
       });
       await deps.persist(next);
@@ -319,28 +318,31 @@ export async function advanceExchange(
     if (checked.quote === undefined) {
       return invalidState();
     }
-    const { blockNumber } = await snapshot(deps.client, { deployment });
-    await assertPath(deps.client, deployment, blockNumber, [
-      approveCall({
-        asset: checked.from,
-        spender: "deposit",
-        amount: approveAmount(checked),
-        deployment,
-      }),
-      exchangeCall({
-        side: checked.side,
-        from: checked.from,
-        to: checked.to,
-        amount: checked.amount,
-        deployment,
-      }),
-    ]);
+    const at = await verifiedBlock(
+      deps.client,
+      deployment,
+      contractsOf([
+        approveCall({
+          asset: checked.from,
+          spender: "deposit",
+          amount: approveAmount(checked),
+          deployment,
+        }),
+        exchangeCall({
+          side: checked.side,
+          from: checked.from,
+          to: checked.to,
+          amount: checked.amount,
+          deployment,
+        }),
+      ]),
+    );
     const allowance = await getAllowance(deps.client, {
       deployment,
       owner: checked.owner,
       asset: checked.from,
       spender: "deposit",
-      blockNumber,
+      blockNumber: at.blockNumber,
     });
     purpose =
       checked.side === "exact-in"
@@ -375,19 +377,22 @@ export async function advanceExchange(
         deployment,
       });
   let actual: { readonly input: bigint; readonly output: bigint } | undefined;
-  const outcome = await advanceTx<
+  // A `confirmed` state re-checks the receipt of its last transaction (R-12) — the
+  // fresh `actual` from that receipt must equal the persisted one; everything else
+  // advances the sub-machine.
+  const outcome = await (checked.step === "confirmed" ? recheckTx : advanceTx)<
     ExchangeState,
     { readonly input: bigint; readonly output: bigint }
   >(deps, {
-    record: checked.step === "tx" ? checked.txs[index] : undefined,
+    record: checked.step === "quoted" ? undefined : checked.txs[index],
     purpose,
     call,
     owner: checked.owner,
     deployment,
-    guard: async (blockNumber) =>
+    guard: async (at: VerifiedBlock) =>
       isApprove
-        ? approveGuard(deps.client, deployment, checked, blockNumber)
-        : mainGuard(deps.client, deployment, checked, blockNumber),
+        ? approveGuard(deps.client, deployment, checked, at)
+        : mainGuard(deps.client, deployment, checked, at),
     evidence: isApprove ? approveEvidence(deployment, checked) : mainEvidence(deployment, checked),
     // `onConfirmed` is omitted entirely for the approve record —
     // exactOptionalPropertyTypes forbids an explicit `undefined`.
@@ -400,24 +405,28 @@ export async function advanceExchange(
           },
         }),
     commit: (record: TxRecord) => {
+      const { actual: persisted, ...rest } = checked;
       const txs = [...checked.txs.slice(0, index), record];
       // A confirmed approve only unlocks the main record — the main is sent
       // on the next advance, never in the same one (§10.5).
       const step: ExchangeState["step"] =
-        record.phase === "confirmed"
-          ? isApprove
-            ? "tx"
-            : "confirmed"
-          : record.phase === "failed"
-            ? "failed"
-            : record.phase === "not-sent"
-              ? "not-sent"
-              : "tx";
+        record.phase === "confirmed" ? (isApprove ? "tx" : "confirmed") : stepFor(record);
       if (isApprove && record.phase === "confirmed") {
         txs.push({ purpose: "main", phase: "ready" });
       }
+      // Re-checking a confirmed main: the receipt's re-derived `actual` must
+      // equal the persisted one — a different read means the state lies.
+      if (
+        step === "confirmed" &&
+        persisted !== undefined &&
+        (actual === undefined ||
+          actual.input !== persisted.input ||
+          actual.output !== persisted.output)
+      ) {
+        return invalidState();
+      }
       return freeze({
-        ...checked,
+        ...rest,
         step,
         txs,
         ...(actual === undefined ? {} : { actual }),

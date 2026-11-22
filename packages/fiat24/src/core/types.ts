@@ -1,12 +1,19 @@
 import type { Address } from "viem";
 
+import { freeze } from "./freeze.ts";
+
 /** Arbitrum One — the only chain the protocol is deployed on. */
 export const CHAIN_ID = 42161;
 
 export type Currency = "USD24" | "EUR24" | "CHF24" | "CNH24";
 export type Asset = Currency | "USDC" | "F24";
 
-export const CURRENCIES: ReadonlyArray<Currency> = ["USD24", "EUR24", "CHF24", "CNH24"];
+export const CURRENCIES: ReadonlyArray<Currency> = /* @__PURE__ */ freeze([
+  "USD24",
+  "EUR24",
+  "CHF24",
+  "CNH24",
+]);
 
 /** Fiat24Account `Status` enum indexes 0–5 as kebab-case (`Fiat24Account.sol:26`). */
 export type AccountStatus = "na" | "soft-blocked" | "tourist" | "blocked" | "closed" | "live";

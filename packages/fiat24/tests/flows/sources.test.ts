@@ -85,7 +85,6 @@ const TOURIST: OnboardingState = {
       fromBlock: B,
       nonce: 6,
       hash: TXID_1,
-      blockNumber: B + 1n,
     },
   ],
   step: "tourist",
@@ -216,7 +215,10 @@ describe("API fixtures contradicting chain do not change decisions", () => {
     });
     const api = createFiat24Api({ fetch: apiStub.fetch, now: NOW });
     // statusIndex 2 = tourist on chain, while the recorded API status is COMPLETED.
-    const stub = makeFlowStub({ calls: accountByIdEntries(2) });
+    const stub = makeFlowStub({
+      calls: mergeCalls(proxyAdminEntry(), accountByIdEntries(2)),
+      storage: honestStorage(),
+    });
     const { deps } = flowDeps(stub.client);
     const next = await advanceOnboarding({ ...deps, api }, TOURIST);
     expect(next.step).toBe("kyc");

@@ -157,3 +157,78 @@ export function expectFrozenCall(call: {
     expect(Object.isFrozen(recipient)).toBe(true);
   }
 }
+
+/**
+ * Source with comments blanked to spaces (newlines kept, strings untouched): doc mentions are
+ * prose, not calls — but `//` inside a string literal must never start a "comment".
+ */
+export function codeOnly(text: string): string {
+  const out = text.split("");
+  let state: "code" | "line" | "block" | "single" | "double" | "template" = "code";
+  let i = 0;
+  while (i < out.length) {
+    const c = out[i];
+    const n = out[i + 1];
+    if (state === "line") {
+      if (c === "\n") {
+        state = "code";
+      } else {
+        out[i] = " ";
+      }
+      i += 1;
+      continue;
+    }
+    if (state === "block") {
+      if (c === "*" && n === "/") {
+        out[i] = " ";
+        out[i + 1] = " ";
+        i += 2;
+        state = "code";
+        continue;
+      }
+      if (c !== "\n") {
+        out[i] = " ";
+      }
+      i += 1;
+      continue;
+    }
+    if (state === "code") {
+      if (c === "/" && n === "/") {
+        out[i] = " ";
+        out[i + 1] = " ";
+        i += 2;
+        state = "line";
+        continue;
+      }
+      if (c === "/" && n === "*") {
+        out[i] = " ";
+        out[i + 1] = " ";
+        i += 2;
+        state = "block";
+        continue;
+      }
+      if (c === "'") {
+        state = "single";
+      } else if (c === '"') {
+        state = "double";
+      } else if (c === "`") {
+        state = "template";
+      }
+      i += 1;
+      continue;
+    }
+    if (c === "\\") {
+      i += 2;
+      continue;
+    }
+    if (
+      (state === "single" && c === "'") ||
+      (state === "double" && c === '"') ||
+      (state === "template" && c === "`")
+    ) {
+      state = "code";
+    }
+    i += 1;
+  }
+  return out.join("");
+}

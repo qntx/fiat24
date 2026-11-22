@@ -97,29 +97,35 @@ describe("verifyBankPayment", () => {
     expect(calls[1]?.url).not.toContain("reference");
   });
 
-  test.each([
-    ["purposeId mismatch", "secured/verify-sp-wrong-purpose.json", undefined],
-    ["contactId not a grammar", "secured/verify-sp-bad-contact.json", undefined],
-    ["ref uuidv4", "secured/verify-sp-bad-ref.json", undefined],
-    [
-      "ref foreign prefix",
-      undefined,
-      { contactId: "EA-123456", purposeId: 2, ref: "999999-50fb0941-4f59-4a89-8735-dd78ba7d53a3" },
-    ],
-    [
-      "ref NUL count",
-      undefined,
-      {
-        contactId: "EA-123456",
-        purposeId: 2,
-        ref: "690333-50fb0941-4f59-4a89-8735-dd78ba7d53a3\u0000",
-      },
-    ],
-  ])("hostile response %s => api-mismatch", async (_name, fixture, inline) => {
-    expect.hasAssertions();
-    const body = hostileBody(fixture, inline);
-    const { session } = sessionApi({ [SP_PATH]: json(body) });
-    await expectCode(async () => session.verifyBankPayment(BANK_REQUEST), "api-mismatch");
+  describe("hostile verify responses", () => {
+    test.each([
+      ["purposeId mismatch", "secured/verify-sp-wrong-purpose.json", undefined],
+      ["contactId not a grammar", "secured/verify-sp-bad-contact.json", undefined],
+      ["ref uuidv4", "secured/verify-sp-bad-ref.json", undefined],
+      [
+        "ref foreign prefix",
+        undefined,
+        {
+          contactId: "EA-123456",
+          purposeId: 2,
+          ref: "999999-50fb0941-4f59-4a89-8735-dd78ba7d53a3",
+        },
+      ],
+      [
+        "ref NUL count",
+        undefined,
+        {
+          contactId: "EA-123456",
+          purposeId: 2,
+          ref: "690333-50fb0941-4f59-4a89-8735-dd78ba7d53a3\u0000",
+        },
+      ],
+    ])("hostile response %s => api-mismatch", async (_name, fixture, inline) => {
+      expect.hasAssertions();
+      const body = hostileBody(fixture, inline);
+      const { session } = sessionApi({ [SP_PATH]: json(body) });
+      await expectCode(async () => session.verifyBankPayment(BANK_REQUEST), "api-mismatch");
+    });
   });
 
   test("{error} => api-rejected, unsafe purposeId => invalid-response", async () => {
@@ -189,18 +195,20 @@ describe("verifySwissQr", () => {
     });
   });
 
-  test.each([
-    ["currency EUR24 for a CHF QR", "secured/verify-qr-wrong-currency.json"],
-    ["amount 194976", "secured/verify-qr-wrong-amount.json"],
-    ["contactId QRSEPA", "secured/verify-qr-wrong-contact.json"],
-    ["type QRSEPA", "secured/verify-qr-wrong-type.json"],
-    ["wrong ref prefix", "secured/verify-qr-wrong-ref.json"],
-    ["different valid account", "secured/verify-qr-wrong-account.json"],
-  ])("hostile response %s => api-mismatch", async (_name, fixture) => {
-    expect.hasAssertions();
-    const path = `/verify?qr=${encodeURIComponent(DOC_QR)}`;
-    const { session } = sessionApi({ [path]: json(fixtureBody(fixture)) });
-    await expectCode(async () => session.verifySwissQr(DOC_QR), "api-mismatch");
+  describe("hostile verify responses", () => {
+    test.each([
+      ["currency EUR24 for a CHF QR", "secured/verify-qr-wrong-currency.json"],
+      ["amount 194976", "secured/verify-qr-wrong-amount.json"],
+      ["contactId QRSEPA", "secured/verify-qr-wrong-contact.json"],
+      ["type QRSEPA", "secured/verify-qr-wrong-type.json"],
+      ["wrong ref prefix", "secured/verify-qr-wrong-ref.json"],
+      ["different valid account", "secured/verify-qr-wrong-account.json"],
+    ])("hostile response %s => api-mismatch", async (_name, fixture) => {
+      expect.hasAssertions();
+      const path = `/verify?qr=${encodeURIComponent(DOC_QR)}`;
+      const { session } = sessionApi({ [path]: json(fixtureBody(fixture)) });
+      await expectCode(async () => session.verifySwissQr(DOC_QR), "api-mismatch");
+    });
   });
 
   test("fractional amount => invalid-response", async () => {
@@ -232,4 +240,42 @@ describe("verifySwissQr", () => {
     );
     expect(calls).toHaveLength(0);
   });
+});
+
+describe("IBAN-country gating (R-07)", () => {
+  // LY gained a registered format in SWIFT IBAN Registry Release 103; DZ, LK and TG are listed by
+  // the docs but absent from the registry, so their accounts go to /verify for Fiat24 to decide.
+  test("an LY BIC with the registry IBAN is accepted locally", async () => {
+    const request = {
+      account: "LY83002048000020100120361",
+      bankName: "x",
+      bic: "XXXXLYXX",
+      purpose: 2n,
+      creditor: "BR" as const,
+    };
+    const { session, calls } = sessionApi({
+      [spPath({ ...request, purpose: 2 })]: json(fixtureBody("secured/verify-sp.json")),
+    });
+    const verified = await session.verifyBankPayment(request);
+    expect(verified.purposeId).toBe(2n);
+    expect(calls[1]?.url).toContain("/verify?sp=");
+  });
+
+  test.each(["DZ", "LK", "TG"])(
+    "a %s BIC with a non-IBAN account reaches /verify",
+    async (country) => {
+      const request = {
+        account: "00720012001345",
+        bankName: "x",
+        bic: `XXXX${country}XX`,
+        purpose: 2n,
+        creditor: "BR" as const,
+      };
+      const { session, calls } = sessionApi({
+        [spPath({ ...request, purpose: 2 })]: json(fixtureBody("secured/verify-sp.json")),
+      });
+      await session.verifyBankPayment(request);
+      expect(calls[1]?.url).toContain("/verify?sp=");
+    },
+  );
 });

@@ -116,6 +116,18 @@ const config: UserConfig = defineConfig({
         },
       },
       {
+        // README examples declare their free variables above the // #region
+        // block the README quotes, so imports are not first, bound names are
+        // unused, and the pacing loop awaits sequentially.
+        files: ["packages/fiat24/tests/readme/**"],
+        rules: {
+          "import/first": "off",
+          "eslint/no-unused-vars": "off",
+          "eslint/no-useless-assignment": "off",
+          "eslint/no-await-in-loop": "off",
+        },
+      },
+      {
         // Vector runners and shared helpers adapt `unknown` vector cases; the
         // preset relaxes the same rules for `*.test.*` only.
         files: ["packages/fiat24/tests/**"],

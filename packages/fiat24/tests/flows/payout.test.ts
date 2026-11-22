@@ -12,7 +12,12 @@ import type {
 import { topic0Of } from "../../src/chain/context.ts";
 import { Fiat24Error } from "../../src/core/errors.ts";
 import { arbitrum as C } from "../../src/deployments/index.ts";
-import { advancePayout, encodeFlowState, startPayout } from "../../src/flows/index.ts";
+import {
+  advancePayout,
+  encodeFlowState,
+  loadPayoutSettlement,
+  startPayout,
+} from "../../src/flows/index.ts";
 import type { PayoutDraft, PayoutState } from "../../src/flows/index.ts";
 import { DOC_QR } from "../api/stub.ts";
 import type { CallEntry } from "../chain/stub.ts";
@@ -586,6 +591,9 @@ describe("advancePayout verified → tx", () => {
 
   test("confirmed: txid extracted from the ClientPayout event", async () => {
     const stub = makeFlowStub({
+      blockNumber: B + 10n,
+      calls: proxyAdminEntry(),
+      storage: honestStorage(),
       receipts: {
         [TXID_1]: receiptPayload({
           transactionHash: TXID_1,
@@ -605,15 +613,21 @@ describe("advancePayout verified → tx", () => {
           blockNumber: B + 1n,
         }),
       },
+      logs: () => [],
     });
     const { deps } = flowDeps(stub.client);
     const next = await advancePayout(deps, SUBMITTED);
     expect(next.step).toBe("confirmed");
-    expect(next.txid).toBe("pacs.008-done");
+    // The txid is not persisted — loadPayoutSettlement re-derives it from the receipt.
+    const settlement = await loadPayoutSettlement({ client: stub.client }, next);
+    expect(settlement.txid).toBe("pacs.008-done");
   });
 
   test("confirmed: ClientPayoutRef receipt yields txid for a ref payout", async () => {
     const stub = makeFlowStub({
+      blockNumber: B + 10n,
+      calls: proxyAdminEntry(),
+      storage: honestStorage(),
       receipts: {
         [TXID_1]: receiptPayload({
           transactionHash: TXID_1,
@@ -633,11 +647,13 @@ describe("advancePayout verified → tx", () => {
           blockNumber: B + 1n,
         }),
       },
+      logs: () => [],
     });
     const { deps } = flowDeps(stub.client);
     const next = await advancePayout(deps, SUBMITTED_REF);
     expect(next.step).toBe("confirmed");
-    expect(next.txid).toBe("pacs.008-ref");
+    const settlement = await loadPayoutSettlement({ client: stub.client }, next);
+    expect(settlement.txid).toBe("pacs.008-ref");
   });
 
   test("missing payout event ⇒ invalid-rpc-response, no transition", async () => {
@@ -697,13 +713,10 @@ describe("advancePayout verified → tx", () => {
     expect(next.txs.at(-1)?.error).toBe("tx-reverted");
   });
 
-  test("terminal advance ⇒ invalid-state with no I/O", async () => {
-    const stub = makeFlowStub({});
-    const { deps } = flowDeps(stub.client);
+  test("confirmed re-checks the receipt — still there ⇒ the same state, persisted once", async () => {
     const confirmed: PayoutState = {
       ...VERIFIED,
       step: "confirmed",
-      txid: TXID,
       txs: [
         {
           purpose: "main",
@@ -711,14 +724,246 @@ describe("advancePayout verified → tx", () => {
           fromBlock: B,
           nonce: 5,
           hash: TXID_1,
-          blockNumber: B + 1n,
         },
       ],
     };
-    const error = await expectErrorAsync(
-      async () => advancePayout(deps, confirmed),
+    const stub = makeFlowStub({
+      receipts: {
+        [TXID_1]: receiptPayload({
+          transactionHash: TXID_1,
+          blockNumber: B + 1n,
+          status: "success",
+          logs: [payoutLog({ token: TOKEN })],
+        }),
+      },
+      transactions: {
+        [TXID_1]: txPayload({
+          hash: TXID_1,
+          from: OWNER,
+          to: TOKEN,
+          input: payoutData(AMOUNT, CONTACT_ID),
+          value: 0n,
+          nonce: 5,
+          blockNumber: B + 1n,
+        }),
+      },
+    });
+    const { deps, persisted } = flowDeps(stub.client);
+    const next = await advancePayout(deps, confirmed);
+    expect(next).toStrictEqual(confirmed);
+    expect(persisted).toStrictEqual([next]);
+  });
+
+  test("confirmed re-check: receipt and tx gone, nonce consumed ⇒ back to tx{unknown}", async () => {
+    const confirmed: PayoutState = {
+      ...VERIFIED,
+      step: "confirmed",
+      txs: [
+        {
+          purpose: "main",
+          phase: "confirmed",
+          fromBlock: B,
+          nonce: 5,
+          hash: TXID_1,
+        },
+      ],
+    };
+    const stub = makeFlowStub({ count: { latest: 6 }, logs: () => [] });
+    const { deps } = flowDeps(stub.client);
+    const next = await advancePayout(deps, confirmed);
+    expect(next.step).toBe("tx");
+    expect(next.txs.at(-1)).toStrictEqual({
+      purpose: "main",
+      phase: "unknown",
+      fromBlock: B,
+      nonce: 5,
+      hash: TXID_1,
+      error: "unknown-outcome",
+    });
+  });
+});
+
+describe("loadPayoutSettlement", () => {
+  const CONFIRMED: PayoutState = {
+    ...VERIFIED,
+    step: "confirmed",
+    txs: [
+      {
+        purpose: "main",
+        phase: "confirmed",
+        fromBlock: B,
+        nonce: 5,
+        hash: TXID_1,
+      },
+    ],
+  };
+
+  test("settled payout: txid from the fresh receipt, logs from its block", async () => {
+    const seen: Array<Record<string, unknown>> = [];
+    const stub = makeFlowStub({
+      blockNumber: B + 10n,
+      calls: proxyAdminEntry(),
+      storage: honestStorage(),
+      receipts: {
+        [TXID_1]: receiptPayload({
+          transactionHash: TXID_1,
+          blockNumber: B + 3n,
+          status: "success",
+          logs: [payoutLog({ token: TOKEN })],
+        }),
+      },
+      transactions: {
+        [TXID_1]: txPayload({
+          hash: TXID_1,
+          from: OWNER,
+          to: TOKEN,
+          input: payoutData(AMOUNT, CONTACT_ID),
+          value: 0n,
+          nonce: 5,
+          blockNumber: B + 3n,
+        }),
+      },
+      logs: (filter) => {
+        seen.push(filter);
+        return [];
+      },
+    });
+    const result = await loadPayoutSettlement({ client: stub.client }, CONFIRMED);
+    // `pacs.008.001.01-abc` is the txid in payoutLog's ClientPayout event.
+    expect(result).toStrictEqual({ status: "pending", blockNumber: B + 10n, txid: TXID });
+    // The getLogs window starts at the FRESH receipt's block — nothing persisted.
+    expect(seen).toStrictEqual([
+      {
+        address: TOKEN,
+        topics: [topic0Of(tokenAbi, "CashPayout"), word(TOKEN_ID)],
+        fromBlock: `0x${(B + 3n).toString(16)}`,
+        toBlock: `0x${(B + 10n).toString(16)}`,
+      },
+    ]);
+  });
+
+  test("a matching CashPayout log settles (and 9103 rejects)", async () => {
+    const cash = (payoutAccount: bigint) => ({
+      address: TOKEN,
+      topics: [topic0Of(tokenAbi, "CashPayout"), word(TOKEN_ID), addressTopic(DESK)],
+      data: encodeAbiParameters(
+        [{ type: "uint256" }, { type: "string" }, { type: "string" }],
+        [payoutAccount, CONTACT_ID, TXID],
+      ),
+      blockNumber: `0x${(B + 5n).toString(16)}`,
+      transactionHash: TXID_1,
+      logIndex: "0x0",
+    });
+    await Promise.all(
+      (
+        [
+          [9104n, "settled"],
+          [9103n, "rejected"],
+        ] as const
+      ).map(async ([payoutAccount, status]) => {
+        const stub = makeFlowStub({
+          blockNumber: B + 10n,
+          calls: proxyAdminEntry(),
+          storage: honestStorage(),
+          receipts: {
+            [TXID_1]: receiptPayload({
+              transactionHash: TXID_1,
+              blockNumber: B + 3n,
+              status: "success",
+              logs: [payoutLog({ token: TOKEN })],
+            }),
+          },
+          transactions: {
+            [TXID_1]: txPayload({
+              hash: TXID_1,
+              from: OWNER,
+              to: TOKEN,
+              input: payoutData(AMOUNT, CONTACT_ID),
+              value: 0n,
+              nonce: 5,
+              blockNumber: B + 3n,
+            }),
+          },
+          logs: () => [cash(payoutAccount)],
+        });
+        const result = await loadPayoutSettlement({ client: stub.client }, CONFIRMED);
+        expect(result.status).toBe(status);
+        expect(result.txid).toBe(TXID);
+      }),
+    );
+  });
+
+  test("missing receipt ⇒ invalid-state (advance the flow to reconcile)", async () => {
+    expect.hasAssertions();
+    const stub = makeFlowStub({});
+    await expectErrorAsync(
+      async () => loadPayoutSettlement({ client: stub.client }, CONFIRMED),
       "invalid-state",
     );
-    expect(error).toBeInstanceOf(Fiat24Error);
+  });
+
+  test("mismatching transaction ⇒ invalid-state", async () => {
+    expect.hasAssertions();
+    const stub = makeFlowStub({
+      receipts: {
+        [TXID_1]: receiptPayload({
+          transactionHash: TXID_1,
+          blockNumber: B + 3n,
+          status: "success",
+        }),
+      },
+      transactions: {
+        [TXID_1]: txPayload({
+          hash: TXID_1,
+          from: OWNER,
+          to: TOKEN,
+          input: payoutData(AMOUNT, "OTHER-CONTACT"),
+          value: 0n,
+          nonce: 5,
+          blockNumber: B + 3n,
+        }),
+      },
+    });
+    await expectErrorAsync(
+      async () => loadPayoutSettlement({ client: stub.client }, CONFIRMED),
+      "invalid-state",
+    );
+  });
+
+  test("reverted receipt ⇒ invalid-state", async () => {
+    expect.hasAssertions();
+    const stub = makeFlowStub({
+      receipts: {
+        [TXID_1]: receiptPayload({
+          transactionHash: TXID_1,
+          blockNumber: B + 3n,
+          status: "reverted",
+        }),
+      },
+      transactions: {
+        [TXID_1]: txPayload({
+          hash: TXID_1,
+          from: OWNER,
+          to: TOKEN,
+          input: payoutData(AMOUNT, CONTACT_ID),
+          value: 0n,
+          nonce: 5,
+          blockNumber: B + 3n,
+        }),
+      },
+    });
+    await expectErrorAsync(
+      async () => loadPayoutSettlement({ client: stub.client }, CONFIRMED),
+      "invalid-state",
+    );
+  });
+
+  test("a non-confirmed state is invalid-state before I/O", async () => {
+    const stub = makeFlowStub({});
+    await expectErrorAsync(
+      async () => loadPayoutSettlement({ client: stub.client }, VERIFIED),
+      "invalid-state",
+    );
+    expect(stub.requests).toHaveLength(0);
   });
 });

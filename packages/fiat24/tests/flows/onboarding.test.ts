@@ -9,7 +9,7 @@ import { Fiat24Error } from "../../src/core/errors.ts";
 import { arbitrum as C } from "../../src/deployments/index.ts";
 import { advanceOnboarding, kycUrl, startOnboarding } from "../../src/flows/index.ts";
 import type { OnboardingState } from "../../src/flows/index.ts";
-import type { CallEntry } from "../chain/stub.ts";
+import type { CallEntry, RecordedRequest } from "../chain/stub.ts";
 import { expectErrorAsync } from "../chain/stub.ts";
 import { throwsCode } from "../helpers.ts";
 import {
@@ -75,7 +75,6 @@ const CONFIRMED_MAIN = {
   fromBlock: B,
   nonce: 6,
   hash: TXID_1,
-  blockNumber: B + 1n,
 };
 
 const TOURIST: OnboardingState = {
@@ -106,7 +105,6 @@ const MAIN_READY_F24: OnboardingState = {
       fromBlock: B,
       nonce: 5,
       hash: TXID_1,
-      blockNumber: B + 1n,
     },
     { purpose: "main", phase: "ready" },
   ],
@@ -303,6 +301,13 @@ function accountByIdEntries(
 
 function apiStub(status: string): Fiat24Api {
   return { kycStatus: async () => Promise.resolve(status as never) } as unknown as Fiat24Api;
+}
+
+function isAccountCall(request: RecordedRequest): boolean {
+  return (
+    request.method === "eth_call" &&
+    (request.params as ReadonlyArray<{ to?: Address }>)[0]?.to === ACCOUNT
+  );
 }
 
 describe("startOnboarding", () => {
@@ -665,7 +670,10 @@ describe("advanceOnboarding tourist/kyc polling", () => {
   });
 
   test("API completed + chain tourist ⇒ stays kyc with the API status", async () => {
-    const stub = makeFlowStub({ calls: accountByIdEntries({ statusIndex: 2 }) });
+    const stub = makeFlowStub({
+      calls: mergeCalls(proxyAdminEntry(), accountByIdEntries({ statusIndex: 2 })),
+      storage: honestStorage(),
+    });
     const { deps: base } = flowDeps(stub.client);
     const deps = { ...base, api: apiStub("completed") };
     const next = await advanceOnboarding(deps, TOURIST);
@@ -674,7 +682,10 @@ describe("advanceOnboarding tourist/kyc polling", () => {
   });
 
   test("API completed + chain live ⇒ live", async () => {
-    const stub = makeFlowStub({ calls: accountByIdEntries({ statusIndex: 5 }) });
+    const stub = makeFlowStub({
+      calls: mergeCalls(proxyAdminEntry(), accountByIdEntries({ statusIndex: 5 })),
+      storage: honestStorage(),
+    });
     const { deps: base } = flowDeps(stub.client);
     const deps = { ...base, api: apiStub("completed") };
     const next = await advanceOnboarding(deps, TOURIST);
@@ -682,7 +693,10 @@ describe("advanceOnboarding tourist/kyc polling", () => {
   });
 
   test("API rejected + chain not live ⇒ rejected", async () => {
-    const stub = makeFlowStub({ calls: accountByIdEntries({ statusIndex: 2 }) });
+    const stub = makeFlowStub({
+      calls: mergeCalls(proxyAdminEntry(), accountByIdEntries({ statusIndex: 2 })),
+      storage: honestStorage(),
+    });
     const { deps: base } = flowDeps(stub.client);
     const deps = { ...base, api: apiStub("rejected") };
     const next = await advanceOnboarding(deps, KYC);
@@ -690,7 +704,10 @@ describe("advanceOnboarding tourist/kyc polling", () => {
   });
 
   test("API rejected + chain live ⇒ live wins", async () => {
-    const stub = makeFlowStub({ calls: accountByIdEntries({ statusIndex: 5 }) });
+    const stub = makeFlowStub({
+      calls: mergeCalls(proxyAdminEntry(), accountByIdEntries({ statusIndex: 5 })),
+      storage: honestStorage(),
+    });
     const { deps: base } = flowDeps(stub.client);
     const deps = { ...base, api: apiStub("rejected") };
     const next = await advanceOnboarding(deps, KYC);
@@ -749,5 +766,39 @@ describe("advanceOnboarding drift before guard reads", () => {
     );
     expect(error.detail).toMatchObject({ contract: "account", field: "priceList" });
     expect(guardCalls(stub)).toStrictEqual([]);
+  });
+
+  test("kyc poll ⇒ contract-changed before the account read (R-05)", async () => {
+    const storage = honestStorage();
+    storage.set(`${ACCOUNT.toLowerCase()}:${IMPL_SLOT}`, wordWithAddress(OWNER));
+    const stub = makeFlowStub({
+      calls: mergeCalls(proxyAdminEntry(), accountByIdEntries({ statusIndex: 5 })),
+      storage,
+    });
+    const { deps: base, persisted } = flowDeps(stub.client);
+    const deps = { ...base, api: apiStub("completed") };
+    const error = await expectErrorAsync(
+      async () => advanceOnboarding(deps, KYC),
+      "contract-changed",
+    );
+    expect(error.detail).toMatchObject({ contract: "account", field: "implementation" });
+    expect(persisted).toHaveLength(0);
+    // No delegated account read ran: the drift check precedes it.
+    expect(guardCalls(stub)).toStrictEqual([]);
+  });
+
+  test("kyc poll ⇒ the deployment check reads storage before the account", async () => {
+    const stub = makeFlowStub({
+      calls: mergeCalls(proxyAdminEntry(), accountByIdEntries({ statusIndex: 5 })),
+      storage: honestStorage(),
+    });
+    const { deps: base } = flowDeps(stub.client);
+    const deps = { ...base, api: apiStub("completed") };
+    const next = await advanceOnboarding(deps, KYC);
+    expect(next.step).toBe("live");
+    const storageAt = stub.requests.findIndex((r) => r.method === "eth_getStorageAt");
+    const accountRead = stub.requests.findIndex((r) => isAccountCall(r));
+    expect(storageAt).toBeGreaterThanOrEqual(0);
+    expect(accountRead).toBeGreaterThan(storageAt);
   });
 });

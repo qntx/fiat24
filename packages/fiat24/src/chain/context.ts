@@ -16,7 +16,7 @@ import type { UnavailableReason } from "../core/errors.ts";
 import { decodeFiat24Revert, revertCode } from "../core/revert.ts";
 import type { RevertReason } from "../core/revert.ts";
 import { CHAIN_ID } from "../core/types.ts";
-import type { ContractName, PayoutCurrency } from "../core/types.ts";
+import type { ContractName } from "../core/types.ts";
 import { contractAddress, getDeployment } from "../deployments/deployment.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import type { RawLog } from "../events/types.ts";
@@ -94,12 +94,9 @@ export function checkedAddress(value: unknown): Address {
   return getAddress(value);
 }
 
-/** Caller-side payout currency check (SPEC §8.2: CashPayout exists on EUR24/CHF24 only). */
-export function checkedPayoutCurrency(currency: unknown): PayoutCurrency {
-  if (currency !== "EUR24" && currency !== "CHF24") {
-    throw new Fiat24Error("unsupported-currency", "unsupported currency");
-  }
-  return currency;
+/** Lowercase, left-padded 32-byte topic for an address (SPEC §7.2 filter topics). */
+export function addressTopic(address: Address): Hex {
+  return `0x${address.slice(2).toLowerCase().padStart(64, "0")}`;
 }
 
 const MAX_CHUNK = 10_000_000n;
@@ -161,7 +158,7 @@ export function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 // Walks the error's `cause` chain, collecting every object for inspection.
-function errorChain(error: unknown): Array<Record<string, unknown>> {
+export function errorChain(error: unknown): Array<Record<string, unknown>> {
   const chain: Array<Record<string, unknown>> = [];
   let current: unknown = error;
   const seen = new Set<unknown>();
@@ -290,6 +287,20 @@ export function revertError(revert: RevertReason): Fiat24Error {
     revert,
     ...(reason === undefined ? {} : { reason }),
   });
+}
+
+// §6.3: when a call site knows the table applies (checkTransfer's later steps,
+// the flows' leg pre-checks), a `contract-revert` carrying a decoded revert maps
+// to its table code — a pause revert is `unavailable`, not `contract-revert`.
+export function remapRevert(error: unknown): never {
+  if (
+    error instanceof Fiat24Error &&
+    error.code === "contract-revert" &&
+    error.detail.revert !== undefined
+  ) {
+    throw revertError(error.detail.revert);
+  }
+  throw error;
 }
 
 // A Map (not an object literal): `Error(string)` reason text is untrusted input — plain

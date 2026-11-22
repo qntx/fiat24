@@ -1,10 +1,10 @@
 import { Fiat24Error } from "../core/errors.ts";
+import { freeze } from "../core/freeze.ts";
 import { isValidIban } from "../core/iban.ts";
 import { isValidContactId, isValidPayoutRef } from "../core/payout-grammar.ts";
 import { apiError, request } from "./http.ts";
 import type { ApiCard, VerifiedQrResponse } from "./schemas.ts";
 import {
-  freeze,
   parseCards,
   parseProfile,
   parseTransactions,
@@ -56,10 +56,13 @@ const CARD_STATUS_CHANGES: ReadonlySet<string> = new Set(["block", "unblock"]);
 const DEVICE_TOKEN_CHANGES: ReadonlySet<string> = new Set(["activate", "deactivate"]);
 const TRANSACTION_TYPES: ReadonlySet<string> = new Set(["P2P", "FRX", "CTU", "CRD", "CDP", "CWD"]);
 
-// IBAN countries in ISO2, verbatim from the docs (Part 2 §10, step "Check the destination bank
-// account format"); the BIC's country field (ISO 9362 chars 5-6) decides the local IBAN check.
+// IBAN countries in ISO2, from the docs (Part 2 §10, step "Check the destination bank account
+// format"); the BIC's country field (ISO 9362 chars 5-6) decides the local IBAN check. DZ, LK and
+// TG are listed by the docs but are not registered in the SWIFT IBAN Registry (Release 103), so
+// no local format exists for them — such accounts proceed to /verify unchecked and Fiat24
+// decides (R-07).
 const IBAN_COUNTRIES: ReadonlySet<string> = new Set(
-  "AD,AE,AL,AT,AZ,BA,BE,BG,BH,BR,BY,CH,CR,CY,CZ,DE,DK,DO,DZ,EE,EG,ES,FI,FO,FR,GB,GE,GI,GL,GR,GT,HR,HU,IE,IL,IQ,IS,IT,JO,KW,KZ,LB,LC,LI,LK,LT,LU,LV,LY,MC,MD,ME,MK,MR,MT,MU,NL,NO,PK,PL,PS,PT,QA,RO,RS,SA,SC,SE,SI,SK,SM,ST,SV,TG,TL,TN,TR,UA,VA,VG,XK".split(
+  "AD,AE,AL,AT,AZ,BA,BE,BG,BH,BR,BY,CH,CR,CY,CZ,DE,DK,DO,EE,EG,ES,FI,FO,FR,GB,GE,GI,GL,GR,GT,HR,HU,IE,IL,IQ,IS,IT,JO,KW,KZ,LB,LC,LI,LT,LU,LV,LY,MC,MD,ME,MK,MR,MT,MU,NL,NO,PK,PL,PS,PT,QA,RO,RS,SA,SC,SE,SI,SK,SM,ST,SV,TL,TN,TR,UA,VA,VG,XK".split(
     ",",
   ),
 );

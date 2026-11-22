@@ -36,6 +36,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+// deepFreeze lives in the abi leaf so every layer can freeze its exported
+// tables without importing above itself (core re-exports it as `freeze`).
+const FREEZE_MODULE = `function isCollection(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+/** Recursively freezes arrays and plain objects; returns the value. */
+export function deepFreeze<const T>(value: T): T {
+  if (isCollection(value)) {
+    for (const item of Object.values(value)) {
+      deepFreeze(item);
+    }
+    Object.freeze(value);
+  }
+  return value;
+}
+`;
+
 function abiModules(): GeneratedFile[] {
   // The table and the directory must describe exactly the same set of files.
   const onDisk = new Set(
@@ -80,7 +98,11 @@ function abiModules(): GeneratedFile[] {
       content:
         `${MARKER}\n` +
         `// Source: data/abis/${source} (see data/SOURCE.md).\n` +
-        `export const ${exportName} = ${JSON.stringify(abi, null, 2)} as const;\n`,
+        `import { deepFreeze } from "./freeze.ts";\n\n` +
+        // isolatedDeclarations needs an explicit annotation on a call result;
+        // the private const keeps the literal `as const` type.
+        `const abi = ${JSON.stringify(abi, null, 2)} as const;\n\n` +
+        `export const ${exportName}: typeof abi = /* @__PURE__ */ deepFreeze(abi);\n`,
     });
     exports.push(`export { ${exportName} } from "./${module}.ts";`);
   }
@@ -100,7 +122,14 @@ function abiModules(): GeneratedFile[] {
       content:
         `${MARKER}\n` +
         `// Source: data/abis/*.json — every "error" entry, deduplicated and sorted by name.\n` +
-        `export const fiat24ErrorsAbi = ${JSON.stringify(errors, null, 2)} as const;\n`,
+        `import { deepFreeze } from "./freeze.ts";\n\n` +
+        `const abi = ${JSON.stringify(errors, null, 2)} as const;\n\n` +
+        `export const fiat24ErrorsAbi: typeof abi = /* @__PURE__ */ deepFreeze(abi);\n`,
+    },
+    // deepFreeze is generated, not public: abi/index.ts must never re-export it.
+    {
+      path: join(ABI_DIR, "freeze.ts"),
+      content: `${MARKER}\n${FREEZE_MODULE}`,
     },
     {
       path: join(ABI_DIR, "index.ts"),

@@ -24,8 +24,8 @@ jobs:
           persist-credentials: false
       - uses: foundry-rs/foundry-toolchain@dba66c27052e63476d886f22216e119ba7e615bf # v1.9.2
         with:
-          # Same cast as fork.yml; v1.8.6 reproduces every vector byte for byte.
-          version: v1.8.6
+          # Same cast as fork.yml; v1.10.0 reproduces every vector byte for byte.
+          version: v1.10.0
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - run: bun install --frozen-lockfile
       # bun run lint → vp check + check-version + gen --check + vectors --check

@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "paths": {
+      "@qntx/fiat24": ["../../src/index.ts"],
+      "@qntx/fiat24/*": ["../../src/*/index.ts"]
+    }
+  },
+  "include": ["."],
+  "exclude": []
+}

@@ -112,6 +112,14 @@ type Banks = {
 };
 
 // @public (undocumented)
+type Base = {
+    readonly address: Address;
+    readonly blockNumber: bigint;
+    readonly transactionHash: Hash;
+    readonly logIndex: number;
+};
+
+// @public (undocumented)
 type Card = {
     readonly externalId: string;
     readonly status: "active" | "blocked" | "expired" | "unknown";
@@ -221,6 +229,9 @@ type Deployment = {
 export function encodeFlowState(state: FlowState): string;
 
 // @public (undocumented)
+const errorCodes: readonly ["invalid-amount", "too-many-decimals", "amount-out-of-range", "invalid-account-id", "invalid-address", "invalid-argument", "internal-account", "unlimited-approval", "unsupported-currency", "unsupported-chain", "no-account", "not-live", "recipient-not-live", "stale-recipient", "address-ineligible", "account-id-taken", "insufficient-balance", "insufficient-allowance", "limit-exceeded", "transfer-not-allowed", "below-minimum", "above-maximum", "unavailable", "contract-changed", "quote-changed", "rpc-error", "invalid-rpc-response", "malformed-log", "contract-revert", "tx-reverted", "network-error", "unauthorized", "rate-limited", "http-error", "invalid-response", "api-rejected", "api-mismatch", "session-required", "signer-rejected", "unknown-outcome", "invalid-state"];
+
+// @public (undocumented)
 export type ExchangeState = Common & {
     readonly flow: "exchange";
     readonly step: "draft" | "quoted" | "tx" | "confirmed" | "failed" | "not-sent";
@@ -279,7 +290,114 @@ type Fiat24Api = {
 type Fiat24ErrorCode = (typeof fiat24ErrorCodes)[number];
 
 // @public (undocumented)
-const fiat24ErrorCodes: readonly ["invalid-amount", "too-many-decimals", "amount-out-of-range", "invalid-account-id", "invalid-address", "invalid-argument", "internal-account", "unlimited-approval", "unsupported-currency", "unsupported-chain", "no-account", "not-live", "recipient-not-live", "stale-recipient", "address-ineligible", "account-id-taken", "insufficient-balance", "insufficient-allowance", "limit-exceeded", "transfer-not-allowed", "below-minimum", "above-maximum", "unavailable", "contract-changed", "quote-changed", "rpc-error", "invalid-rpc-response", "malformed-log", "contract-revert", "tx-reverted", "network-error", "unauthorized", "rate-limited", "http-error", "invalid-response", "api-rejected", "api-mismatch", "session-required", "signer-rejected", "unknown-outcome", "invalid-state"];
+const fiat24ErrorCodes: typeof errorCodes;
+
+// @public
+type Fiat24Event = Base & ({
+    readonly kind: "transfer";
+    readonly currency: Currency;
+    readonly from: Address;
+    readonly to: Address;
+    readonly amount: bigint;
+} | {
+    readonly kind: "approval";
+    readonly currency: Currency;
+    readonly owner: Address;
+    readonly spender: Address;
+    readonly amount: bigint;
+} | {
+    readonly kind: "payout";
+    readonly currency: Currency;
+    readonly tokenId: bigint;
+    readonly sender: Address;
+    readonly payoutAccount: bigint;
+    readonly amount: bigint;
+    readonly contactId: string;
+    readonly txid: string;
+} | {
+    readonly kind: "payout-ref";
+    readonly currency: Currency;
+    readonly tokenId: bigint;
+    readonly sender: Address;
+    readonly payoutAccount: bigint;
+    readonly amount: bigint;
+    readonly contactId: string;
+    readonly txid: string;
+    readonly purposeId: bigint;
+    readonly ref: string;
+} | {
+    readonly kind: "cash-deposit";
+    readonly currency: Currency;
+    readonly tokenId: bigint;
+    readonly recipient: Address;
+    readonly depositAccount: bigint;
+} | {
+    readonly kind: "cash-deposit-rejected";
+    readonly currency: Currency;
+    readonly tokenId: bigint;
+    readonly depositAccount: bigint;
+} | {
+    readonly kind: "cash-payout";
+    readonly currency: Currency;
+    readonly tokenId: bigint;
+    readonly sender: Address;
+    readonly payoutAccount: bigint;
+    readonly settlement: "settled" | "rejected" | "unknown";
+    readonly bankId: string;
+    readonly trxId: string;
+} | {
+    readonly kind: "exchange";
+    readonly side: "exact-in" | "exact-out";
+    readonly sender: Address;
+    readonly inputToken: Address;
+    readonly outputToken: Address;
+    readonly input?: Currency;
+    readonly output?: Currency;
+    readonly inputAmount: bigint;
+    readonly outputAmount: bigint;
+} | {
+    readonly kind: "top-up";
+    readonly via: "usdc" | "eth" | "token-via-eth";
+    readonly sender: Address;
+    readonly inputToken: Address;
+    readonly outputToken: Address;
+    readonly output?: Currency;
+    readonly inputAmount: bigint;
+    readonly outputAmount: bigint;
+} | {
+    readonly kind: "top-up-by-wallet";
+    readonly tokenId: bigint;
+    readonly client: Address;
+    readonly walletId: bigint;
+    readonly wallet: Address;
+    readonly outputToken: Address;
+    readonly output?: Currency;
+    readonly usdcAmount: bigint;
+} | {
+    readonly kind: "card-authorized" | "card-incremented";
+    readonly tokenId: bigint;
+    readonly sender: Address;
+    readonly cardId: string;
+    readonly authorizationToken: string;
+    readonly token: Address;
+    readonly currency?: Currency;
+    readonly amount: bigint;
+} | {
+    readonly kind: "card-refund" | "card-reversal";
+    readonly tokenId: bigint;
+    readonly sender: Address;
+    readonly cardId: string;
+    readonly adviceToken: string;
+    readonly originalAuthorizationToken: string;
+    readonly token: Address;
+    readonly currency?: Currency;
+    readonly amount: bigint;
+} | {
+    readonly kind: "account-transfer";
+    readonly from: Address;
+    readonly to: Address;
+    readonly tokenId: bigint;
+});
 
 // @public (undocumented)
 type Fiat24Intent = {
@@ -382,7 +500,6 @@ export type FlowDeps = {
     readonly persist: (state: FlowState) => Promise<void>;
     readonly session?: Fiat24Session;
     readonly api?: Fiat24Api;
-    readonly now: () => number;
     readonly deployment?: Deployment;
 };
 
@@ -399,6 +516,14 @@ export function kycUrl(walletProviderId?: bigint): string;
 export function loadAccount(deps: Pick<FlowDeps, "client" | "deployment">, args: {
     readonly owner: Address;
 }): Promise<AccountView>;
+
+// @public
+export function loadPayoutSettlement(deps: {
+    readonly client: Client;
+    readonly deployment?: Deployment;
+}, state: PayoutState): Promise<PayoutSettlement & {
+    readonly txid: string;
+}>;
 
 // @public (undocumented)
 export type OnboardingState = Common & {
@@ -433,6 +558,13 @@ export type PayoutDraft = {
     readonly target: PayoutTarget;
 };
 
+// @public
+type PayoutSettlement = {
+    readonly status: "pending" | "settled" | "rejected";
+    readonly event?: Fiat24Event;
+    readonly blockNumber: bigint;
+};
+
 // @public (undocumented)
 export type PayoutState = Common & {
     readonly flow: "payout";
@@ -443,7 +575,6 @@ export type PayoutState = Common & {
     readonly contactId: string;
     readonly purposeId?: bigint;
     readonly ref?: string;
-    readonly txid?: string;
 };
 
 // @public (undocumented)
@@ -623,6 +754,9 @@ export type TransferState = Common & {
     readonly to: Recipient;
 };
 
+// @public
+export type TxMismatch = "from" | "nonce" | "to" | "input" | "value";
+
 // @public (undocumented)
 export type TxPhase = "ready" | "sending" | "submitted" | "confirmed" | "failed" | "unknown" | "not-sent";
 
@@ -633,7 +767,7 @@ export type TxRecord = {
     readonly fromBlock?: bigint;
     readonly nonce?: number;
     readonly hash?: Hash;
-    readonly blockNumber?: bigint;
+    readonly mismatch?: TxMismatch;
     readonly error?: Fiat24ErrorCode;
 };
 

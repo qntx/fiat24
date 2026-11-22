@@ -1,0 +1,1893 @@
+{
+  "lengths": {
+    "AD": 24,
+    "AE": 23,
+    "AL": 28,
+    "AT": 20,
+    "AZ": 28,
+    "BA": 20,
+    "BE": 16,
+    "BG": 22,
+    "BH": 22,
+    "BR": 29,
+    "BY": 28,
+    "CH": 21,
+    "CR": 22,
+    "CY": 28,
+    "CZ": 24,
+    "DE": 22,
+    "DK": 18,
+    "DO": 28,
+    "EE": 20,
+    "EG": 29,
+    "ES": 24,
+    "FI": 18,
+    "FO": 18,
+    "FR": 27,
+    "GB": 22,
+    "GE": 22,
+    "GI": 23,
+    "GL": 18,
+    "GR": 27,
+    "GT": 28,
+    "HR": 21,
+    "HU": 28,
+    "IE": 22,
+    "IL": 23,
+    "IQ": 23,
+    "IS": 26,
+    "IT": 27,
+    "JO": 30,
+    "KW": 30,
+    "KZ": 20,
+    "LB": 28,
+    "LC": 32,
+    "LI": 21,
+    "LT": 20,
+    "LU": 20,
+    "LV": 21,
+    "LY": 25,
+    "MC": 27,
+    "MD": 24,
+    "ME": 22,
+    "MK": 19,
+    "MR": 27,
+    "MT": 31,
+    "MU": 30,
+    "NL": 18,
+    "NO": 15,
+    "PK": 24,
+    "PL": 28,
+    "PS": 29,
+    "PT": 25,
+    "QA": 29,
+    "RO": 24,
+    "RS": 22,
+    "SA": 24,
+    "SC": 31,
+    "SE": 24,
+    "SI": 19,
+    "SK": 24,
+    "SM": 27,
+    "ST": 25,
+    "SV": 28,
+    "TL": 23,
+    "TN": 24,
+    "TR": 26,
+    "UA": 29,
+    "VA": 22,
+    "VG": 24,
+    "XK": 20
+  },
+  "provenance": {
+    "registry": "SWIFT IBAN Registry",
+    "version": "Release 103 (Sep 2026)",
+    "url": "https://www.swift.com/swift-resource/9606/download?language=en",
+    "input": "registry-103-lengths.tsv (country, length, electronic example)",
+    "countries": "every entry of IBAN_CODE_LENGTHS (78 incl. LY)",
+    "validator": "schwifty 2025.6.0",
+    "docCheck": "docs' generic check recomputed by this script (see module docstring)",
+    "command": "scripts/vectors/record-iban-registry.py /Users/xu/Desktop/qntx/fiat24-audit/fix-review/evidence/iban/registry-103-lengths.tsv src/core/iban.ts",
+    "date": "2026-11-22"
+  },
+  "cases": [
+    {
+      "country": "AD",
+      "variant": "registry",
+      "iban": "AD1200012030200359100100",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "AD",
+      "variant": "check-digits",
+      "iban": "AD1300012030200359100100",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "AD",
+      "variant": "truncated",
+      "iban": "AD120001203020035910010",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "AE",
+      "variant": "registry",
+      "iban": "AE070331234567890123456",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "AE",
+      "variant": "check-digits",
+      "iban": "AE080331234567890123456",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "AE",
+      "variant": "truncated",
+      "iban": "AE07033123456789012345",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "AL",
+      "variant": "registry",
+      "iban": "AL47212110090000000235698741",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "AL",
+      "variant": "check-digits",
+      "iban": "AL48212110090000000235698741",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "AL",
+      "variant": "truncated",
+      "iban": "AL4721211009000000023569874",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "AT",
+      "variant": "registry",
+      "iban": "AT611904300234573201",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "AT",
+      "variant": "check-digits",
+      "iban": "AT621904300234573201",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "AT",
+      "variant": "truncated",
+      "iban": "AT61190430023457320",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "AZ",
+      "variant": "registry",
+      "iban": "AZ21NABZ00000000137010001944",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "AZ",
+      "variant": "check-digits",
+      "iban": "AZ22NABZ00000000137010001944",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "AZ",
+      "variant": "truncated",
+      "iban": "AZ21NABZ0000000013701000194",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "BA",
+      "variant": "registry",
+      "iban": "BA391290079401028494",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "BA",
+      "variant": "check-digits",
+      "iban": "BA401290079401028494",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "BA",
+      "variant": "truncated",
+      "iban": "BA39129007940102849",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "BE",
+      "variant": "registry",
+      "iban": "BE68539007547034",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "BE",
+      "variant": "check-digits",
+      "iban": "BE69539007547034",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "BE",
+      "variant": "truncated",
+      "iban": "BE6853900754703",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "BG",
+      "variant": "registry",
+      "iban": "BG80BNBG96611020345678",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "BG",
+      "variant": "check-digits",
+      "iban": "BG81BNBG96611020345678",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "BG",
+      "variant": "truncated",
+      "iban": "BG80BNBG9661102034567",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "BH",
+      "variant": "registry",
+      "iban": "BH67BMAG00001299123456",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "BH",
+      "variant": "check-digits",
+      "iban": "BH68BMAG00001299123456",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "BH",
+      "variant": "truncated",
+      "iban": "BH67BMAG0000129912345",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "BR",
+      "variant": "registry",
+      "iban": "BR6699999A03000010009795493C1",
+      "valid": false,
+      "docCheck": true,
+      "error": "InvalidStructure"
+    },
+    {
+      "country": "BR",
+      "variant": "check-digits",
+      "iban": "BR6799999A03000010009795493C1",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidStructure"
+    },
+    {
+      "country": "BR",
+      "variant": "truncated",
+      "iban": "BR6699999A03000010009795493C",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "BY",
+      "variant": "registry",
+      "iban": "BY13NBRB36009000000002Z00AB00",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "BY",
+      "variant": "check-digits",
+      "iban": "BY14NBRB36009000000002Z00AB00",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "BY",
+      "variant": "truncated",
+      "iban": "BY13NBRB36009000000002Z00AB0",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "CH",
+      "variant": "registry",
+      "iban": "CH9300762011623852957",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "CH",
+      "variant": "check-digits",
+      "iban": "CH9400762011623852957",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "CH",
+      "variant": "truncated",
+      "iban": "CH930076201162385295",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "CR",
+      "variant": "registry",
+      "iban": "CR05015202001026284066",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "CR",
+      "variant": "check-digits",
+      "iban": "CR06015202001026284066",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "CR",
+      "variant": "truncated",
+      "iban": "CR0501520200102628406",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "CY",
+      "variant": "registry",
+      "iban": "CY17002001280000001200527600",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "CY",
+      "variant": "check-digits",
+      "iban": "CY18002001280000001200527600",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "CY",
+      "variant": "truncated",
+      "iban": "CY1700200128000000120052760",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "CZ",
+      "variant": "registry",
+      "iban": "CZ6508000000192000145399",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "CZ",
+      "variant": "check-digits",
+      "iban": "CZ6608000000192000145399",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "CZ",
+      "variant": "truncated",
+      "iban": "CZ650800000019200014539",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "DE",
+      "variant": "registry",
+      "iban": "DE89370400440532013000",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "DE",
+      "variant": "check-digits",
+      "iban": "DE90370400440532013000",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "DE",
+      "variant": "truncated",
+      "iban": "DE8937040044053201300",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "DK",
+      "variant": "registry",
+      "iban": "DK5000400440116243",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "DK",
+      "variant": "check-digits",
+      "iban": "DK5100400440116243",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "DK",
+      "variant": "truncated",
+      "iban": "DK500040044011624",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "DO",
+      "variant": "registry",
+      "iban": "DO28BAGR00000001212453611324",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "DO",
+      "variant": "check-digits",
+      "iban": "DO29BAGR00000001212453611324",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "DO",
+      "variant": "truncated",
+      "iban": "DO28BAGR0000000121245361132",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "EE",
+      "variant": "registry",
+      "iban": "EE382200221020145685",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "EE",
+      "variant": "check-digits",
+      "iban": "EE392200221020145685",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "EE",
+      "variant": "truncated",
+      "iban": "EE38220022102014568",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "EG",
+      "variant": "registry",
+      "iban": "EG38001900050000000263180002",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "EG",
+      "variant": "check-digits",
+      "iban": "EG39001900050000000263180002",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "EG",
+      "variant": "truncated",
+      "iban": "EG3800190005000000026318000",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "ES",
+      "variant": "registry",
+      "iban": "ES9121000418450200051332",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "ES",
+      "variant": "check-digits",
+      "iban": "ES9221000418450200051332",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "ES",
+      "variant": "truncated",
+      "iban": "ES912100041845020005133",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "FI",
+      "variant": "registry",
+      "iban": "FI2112345600000785",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "FI",
+      "variant": "check-digits",
+      "iban": "FI2212345600000785",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "FI",
+      "variant": "truncated",
+      "iban": "FI211234560000078",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "FO",
+      "variant": "registry",
+      "iban": "FO6264600001631634",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "FO",
+      "variant": "check-digits",
+      "iban": "FO6364600001631634",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "FO",
+      "variant": "truncated",
+      "iban": "FO626460000163163",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "FR",
+      "variant": "registry",
+      "iban": "FR1420041010050500013M02606",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "FR",
+      "variant": "check-digits",
+      "iban": "FR1520041010050500013M02606",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "FR",
+      "variant": "truncated",
+      "iban": "FR1420041010050500013M0260",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "GB",
+      "variant": "registry",
+      "iban": "GB29NWBK60161331926819",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "GB",
+      "variant": "check-digits",
+      "iban": "GB30NWBK60161331926819",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "GB",
+      "variant": "truncated",
+      "iban": "GB29NWBK6016133192681",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "GE",
+      "variant": "registry",
+      "iban": "GE29NB000000101904917",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "GE",
+      "variant": "check-digits",
+      "iban": "GE30NB000000101904917",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "GE",
+      "variant": "truncated",
+      "iban": "GE29NB00000010190491",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "GI",
+      "variant": "registry",
+      "iban": "GI75NWBK000000007099453",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "GI",
+      "variant": "check-digits",
+      "iban": "GI76NWBK000000007099453",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "GI",
+      "variant": "truncated",
+      "iban": "GI75NWBK00000000709945",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "GL",
+      "variant": "registry",
+      "iban": "GL8964710001000206",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "GL",
+      "variant": "check-digits",
+      "iban": "GL9064710001000206",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "GL",
+      "variant": "truncated",
+      "iban": "GL896471000100020",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "GR",
+      "variant": "registry",
+      "iban": "GR1601101250000000012300695",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "GR",
+      "variant": "check-digits",
+      "iban": "GR1701101250000000012300695",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "GR",
+      "variant": "truncated",
+      "iban": "GR160110125000000001230069",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "GT",
+      "variant": "registry",
+      "iban": "GT82TRAJ01020000001210029690",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "GT",
+      "variant": "check-digits",
+      "iban": "GT83TRAJ01020000001210029690",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "GT",
+      "variant": "truncated",
+      "iban": "GT82TRAJ0102000000121002969",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "HR",
+      "variant": "registry",
+      "iban": "HR1210010051863000160",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "HR",
+      "variant": "check-digits",
+      "iban": "HR1310010051863000160",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "HR",
+      "variant": "truncated",
+      "iban": "HR121001005186300016",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "HU",
+      "variant": "registry",
+      "iban": "HU42117730161111101800000000",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "HU",
+      "variant": "check-digits",
+      "iban": "HU43117730161111101800000000",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "HU",
+      "variant": "truncated",
+      "iban": "HU4211773016111110180000000",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "IE",
+      "variant": "registry",
+      "iban": "IE29AIBK93115212345678",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "IE",
+      "variant": "check-digits",
+      "iban": "IE30AIBK93115212345678",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "IE",
+      "variant": "truncated",
+      "iban": "IE29AIBK9311521234567",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "IL",
+      "variant": "registry",
+      "iban": "IL620108000000099999999",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "IL",
+      "variant": "check-digits",
+      "iban": "IL630108000000099999999",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "IL",
+      "variant": "truncated",
+      "iban": "IL62010800000009999999",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "IQ",
+      "variant": "registry",
+      "iban": "IQ98NBIQ850123456789012",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "IQ",
+      "variant": "check-digits",
+      "iban": "IQ02NBIQ850123456789012",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "IQ",
+      "variant": "truncated",
+      "iban": "IQ98NBIQ85012345678901",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "IS",
+      "variant": "registry",
+      "iban": "IS140159260076545510730339",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "IS",
+      "variant": "check-digits",
+      "iban": "IS150159260076545510730339",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "IS",
+      "variant": "truncated",
+      "iban": "IS14015926007654551073033",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "IT",
+      "variant": "registry",
+      "iban": "IT60X0542811101000000123456",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "IT",
+      "variant": "check-digits",
+      "iban": "IT61X0542811101000000123456",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "IT",
+      "variant": "truncated",
+      "iban": "IT60X054281110100000012345",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "JO",
+      "variant": "registry",
+      "iban": "JO94CBJO0010000000000131000302",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "JO",
+      "variant": "check-digits",
+      "iban": "JO95CBJO0010000000000131000302",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "JO",
+      "variant": "truncated",
+      "iban": "JO94CBJO001000000000013100030",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "KW",
+      "variant": "registry",
+      "iban": "KW81CBKU0000000000001234560101",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "KW",
+      "variant": "check-digits",
+      "iban": "KW82CBKU0000000000001234560101",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "KW",
+      "variant": "truncated",
+      "iban": "KW81CBKU000000000000123456010",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "KZ",
+      "variant": "registry",
+      "iban": "KZ86125KZT5004100100",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "KZ",
+      "variant": "check-digits",
+      "iban": "KZ87125KZT5004100100",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "KZ",
+      "variant": "truncated",
+      "iban": "KZ86125KZT500410010",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "LB",
+      "variant": "registry",
+      "iban": "LB62099900000001001901229114",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "LB",
+      "variant": "check-digits",
+      "iban": "LB63099900000001001901229114",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "LB",
+      "variant": "truncated",
+      "iban": "LB6209990000000100190122911",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "LC",
+      "variant": "registry",
+      "iban": "LC55HEMM000100010012001200023015",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "LC",
+      "variant": "check-digits",
+      "iban": "LC56HEMM000100010012001200023015",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "LC",
+      "variant": "truncated",
+      "iban": "LC55HEMM00010001001200120002301",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "LI",
+      "variant": "registry",
+      "iban": "LI21088100002324013AA",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "LI",
+      "variant": "check-digits",
+      "iban": "LI22088100002324013AA",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "LI",
+      "variant": "truncated",
+      "iban": "LI21088100002324013A",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "LT",
+      "variant": "registry",
+      "iban": "LT121000011101001000",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "LT",
+      "variant": "check-digits",
+      "iban": "LT131000011101001000",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "LT",
+      "variant": "truncated",
+      "iban": "LT12100001110100100",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "LU",
+      "variant": "registry",
+      "iban": "LU280019400644750000",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "LU",
+      "variant": "check-digits",
+      "iban": "LU290019400644750000",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "LU",
+      "variant": "truncated",
+      "iban": "LU28001940064475000",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "LV",
+      "variant": "registry",
+      "iban": "LV80BANK0000435195001",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "LV",
+      "variant": "check-digits",
+      "iban": "LV81BANK0000435195001",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "LV",
+      "variant": "truncated",
+      "iban": "LV80BANK000043519500",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "LY",
+      "variant": "registry",
+      "iban": "LY83002048000020100120361",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "LY",
+      "variant": "check-digits",
+      "iban": "LY84002048000020100120361",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "LY",
+      "variant": "truncated",
+      "iban": "LY8300204800002010012036",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "MC",
+      "variant": "registry",
+      "iban": "MC5811222000010123456789030",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "MC",
+      "variant": "check-digits",
+      "iban": "MC5911222000010123456789030",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "MC",
+      "variant": "truncated",
+      "iban": "MC581122200001012345678903",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "MD",
+      "variant": "registry",
+      "iban": "MD24AG000225100013104168",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "MD",
+      "variant": "check-digits",
+      "iban": "MD25AG000225100013104168",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "MD",
+      "variant": "truncated",
+      "iban": "MD24AG00022510001310416",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "ME",
+      "variant": "registry",
+      "iban": "ME25505000012345678951",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "ME",
+      "variant": "check-digits",
+      "iban": "ME26505000012345678951",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "ME",
+      "variant": "truncated",
+      "iban": "ME2550500001234567895",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "MK",
+      "variant": "registry",
+      "iban": "MK07250120000058984",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "MK",
+      "variant": "check-digits",
+      "iban": "MK08250120000058984",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "MK",
+      "variant": "truncated",
+      "iban": "MK0725012000005898",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "MR",
+      "variant": "registry",
+      "iban": "MR1300020001010000123456753",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "MR",
+      "variant": "check-digits",
+      "iban": "MR1400020001010000123456753",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "MR",
+      "variant": "truncated",
+      "iban": "MR130002000101000012345675",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "MT",
+      "variant": "registry",
+      "iban": "MT84MALT011000012345MTLCAST001S",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "MT",
+      "variant": "check-digits",
+      "iban": "MT85MALT011000012345MTLCAST001S",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "MT",
+      "variant": "truncated",
+      "iban": "MT84MALT011000012345MTLCAST001",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "MU",
+      "variant": "registry",
+      "iban": "MU17BOMM0101101030300200000MUR",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "MU",
+      "variant": "check-digits",
+      "iban": "MU18BOMM0101101030300200000MUR",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "MU",
+      "variant": "truncated",
+      "iban": "MU17BOMM0101101030300200000MU",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "NL",
+      "variant": "registry",
+      "iban": "NL91ABNA0417164300",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "NL",
+      "variant": "check-digits",
+      "iban": "NL92ABNA0417164300",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "NL",
+      "variant": "truncated",
+      "iban": "NL91ABNA041716430",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "NO",
+      "variant": "registry",
+      "iban": "NO9386011117947",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "NO",
+      "variant": "check-digits",
+      "iban": "NO9486011117947",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "NO",
+      "variant": "truncated",
+      "iban": "NO938601111794",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "PK",
+      "variant": "registry",
+      "iban": "PK36SCBL0000001123456702",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "PK",
+      "variant": "check-digits",
+      "iban": "PK37SCBL0000001123456702",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "PK",
+      "variant": "truncated",
+      "iban": "PK36SCBL000000112345670",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "PL",
+      "variant": "registry",
+      "iban": "PL61109010140000071219812874",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "PL",
+      "variant": "check-digits",
+      "iban": "PL62109010140000071219812874",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "PL",
+      "variant": "truncated",
+      "iban": "PL6110901014000007121981287",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "PS",
+      "variant": "registry",
+      "iban": "PS92PALS000000000400123456702",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "PS",
+      "variant": "check-digits",
+      "iban": "PS93PALS000000000400123456702",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "PS",
+      "variant": "truncated",
+      "iban": "PS92PALS00000000040012345670",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "PT",
+      "variant": "registry",
+      "iban": "PT50000201231234567890154",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "PT",
+      "variant": "check-digits",
+      "iban": "PT51000201231234567890154",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "PT",
+      "variant": "truncated",
+      "iban": "PT5000020123123456789015",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "QA",
+      "variant": "registry",
+      "iban": "QA58DOHB00001234567890ABCDEFG",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "QA",
+      "variant": "check-digits",
+      "iban": "QA59DOHB00001234567890ABCDEFG",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "QA",
+      "variant": "truncated",
+      "iban": "QA58DOHB00001234567890ABCDEF",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "RO",
+      "variant": "registry",
+      "iban": "RO49AAAA1B31007593840000",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "RO",
+      "variant": "check-digits",
+      "iban": "RO50AAAA1B31007593840000",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "RO",
+      "variant": "truncated",
+      "iban": "RO49AAAA1B3100759384000",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "RS",
+      "variant": "registry",
+      "iban": "RS35260005601001611379",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "RS",
+      "variant": "check-digits",
+      "iban": "RS36260005601001611379",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "RS",
+      "variant": "truncated",
+      "iban": "RS3526000560100161137",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "SA",
+      "variant": "registry",
+      "iban": "SA0380000000608010167519",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "SA",
+      "variant": "check-digits",
+      "iban": "SA0480000000608010167519",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "SA",
+      "variant": "truncated",
+      "iban": "SA038000000060801016751",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "SC",
+      "variant": "registry",
+      "iban": "SC18SSCB11010000000000001497USD",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "SC",
+      "variant": "check-digits",
+      "iban": "SC19SSCB11010000000000001497USD",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "SC",
+      "variant": "truncated",
+      "iban": "SC18SSCB11010000000000001497US",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "SE",
+      "variant": "registry",
+      "iban": "SE4550000000058398257466",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "SE",
+      "variant": "check-digits",
+      "iban": "SE4650000000058398257466",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "SE",
+      "variant": "truncated",
+      "iban": "SE455000000005839825746",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "SI",
+      "variant": "registry",
+      "iban": "SI56263300012039086",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "SI",
+      "variant": "check-digits",
+      "iban": "SI57263300012039086",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "SI",
+      "variant": "truncated",
+      "iban": "SI5626330001203908",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "SK",
+      "variant": "registry",
+      "iban": "SK3112000000198742637541",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "SK",
+      "variant": "check-digits",
+      "iban": "SK3212000000198742637541",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "SK",
+      "variant": "truncated",
+      "iban": "SK311200000019874263754",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "SM",
+      "variant": "registry",
+      "iban": "SM86U0322509800000000270100",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "SM",
+      "variant": "check-digits",
+      "iban": "SM87U0322509800000000270100",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "SM",
+      "variant": "truncated",
+      "iban": "SM86U032250980000000027010",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "ST",
+      "variant": "registry",
+      "iban": "ST23000100010051845310146",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "ST",
+      "variant": "check-digits",
+      "iban": "ST24000100010051845310146",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "ST",
+      "variant": "truncated",
+      "iban": "ST2300010001005184531014",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "SV",
+      "variant": "registry",
+      "iban": "SV62CENR00000000000000700025",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "SV",
+      "variant": "check-digits",
+      "iban": "SV63CENR00000000000000700025",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "SV",
+      "variant": "truncated",
+      "iban": "SV62CENR0000000000000070002",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "TL",
+      "variant": "registry",
+      "iban": "TL380080012345678910157",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "TL",
+      "variant": "check-digits",
+      "iban": "TL390080012345678910157",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "TL",
+      "variant": "truncated",
+      "iban": "TL38008001234567891015",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "TN",
+      "variant": "registry",
+      "iban": "TN5910006035183598478831",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "TN",
+      "variant": "check-digits",
+      "iban": "TN6010006035183598478831",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "TN",
+      "variant": "truncated",
+      "iban": "TN591000603518359847883",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "TR",
+      "variant": "registry",
+      "iban": "TR330006100519786457841326",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "TR",
+      "variant": "check-digits",
+      "iban": "TR340006100519786457841326",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "TR",
+      "variant": "truncated",
+      "iban": "TR33000610051978645784132",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "UA",
+      "variant": "registry",
+      "iban": "UA213223130000026007233566001",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "UA",
+      "variant": "check-digits",
+      "iban": "UA223223130000026007233566001",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "UA",
+      "variant": "truncated",
+      "iban": "UA21322313000002600723356600",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "VA",
+      "variant": "registry",
+      "iban": "VA59001123000012345678",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "VA",
+      "variant": "check-digits",
+      "iban": "VA60001123000012345678",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "VA",
+      "variant": "truncated",
+      "iban": "VA5900112300001234567",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "VG",
+      "variant": "registry",
+      "iban": "VG96VPVG0000012345678901",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "VG",
+      "variant": "check-digits",
+      "iban": "VG00VPVG0000012345678901",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "VG",
+      "variant": "truncated",
+      "iban": "VG96VPVG000001234567890",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    },
+    {
+      "country": "XK",
+      "variant": "registry",
+      "iban": "XK051212012345678906",
+      "valid": true,
+      "docCheck": true
+    },
+    {
+      "country": "XK",
+      "variant": "check-digits",
+      "iban": "XK061212012345678906",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidChecksumDigits"
+    },
+    {
+      "country": "XK",
+      "variant": "truncated",
+      "iban": "XK05121201234567890",
+      "valid": false,
+      "docCheck": false,
+      "error": "InvalidLength"
+    }
+  ]
+}

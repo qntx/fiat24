@@ -1,8 +1,9 @@
 import type { Hash } from "viem";
 import * as z from "zod/mini";
 
+import { freeze } from "../core/freeze.ts";
 import type { Currency } from "../core/types.ts";
-import { apiError } from "./http.ts";
+import { apiError, isRecord } from "./http.ts";
 import type {
   Bank,
   Banks,
@@ -46,28 +47,47 @@ const iso2 = z.string().check(z.regex(/^[A-Z]{2}$/));
 const iso3 = z.string().check(z.regex(/^[A-Z]{3}$/));
 const fiatCode = z.enum(["EUR", "USD", "CHF", "CNH"]);
 const currencyCode = z.enum(["EUR24", "USD24", "CHF24", "CNH24"]);
-const decimal = z.union([z.number(), text]);
+
+// A JSON number or capped string that must serialize to a plain decimal — no exponent, sign
+// beyond a leading "-", or loss (I4 display-only fields: amounts, cardActivation). The JSON
+// source text is gone after JSON.parse, so a number is accepted only when it re-serializes
+// losslessly: a safe integer, or a finite fraction whose String() is a decimal of at most 15
+// significant digits (every such decimal is a binary64 value). An unsafe integer, an exponent
+// form or a longer fraction is invalid-response rather than displayed rounded (R-04).
+const DECIMAL = /^-?[0-9]+(\.[0-9]+)?$/;
+const MAX_DISPLAY_DIGITS = 15;
+
+function isDisplayNumber(value: number): boolean {
+  if (!Number.isFinite(value)) {
+    return false;
+  }
+  if (Number.isSafeInteger(value)) {
+    return true;
+  }
+  if (Math.abs(value) >= 2 ** 53) {
+    return false;
+  }
+  const printed = String(value);
+  return (
+    DECIMAL.test(printed) &&
+    printed.replaceAll(/[-.]/g, "").replace(/^0+/, "").length <= MAX_DISPLAY_DIGITS
+  );
+}
+
+const decimal = z.union([
+  z.number().check(z.refine((value): boolean => isDisplayNumber(value))),
+  text.check(z.regex(DECIMAL)),
+]);
+
+export function decimalText(value: number | string, endpoint: string): string {
+  const result = typeof value === "number" ? String(value) : value;
+  if (!DECIMAL.test(result)) {
+    throw apiError("invalid-response", endpoint);
+  }
+  return result;
+}
 
 const list = <T extends z.ZodMiniType>(element: T) => z.array(element).check(z.maxLength(10_000));
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isCollection(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-/** Deep-freeze a result (arrays and nested objects included), like the calls results. */
-export function freeze<T>(value: T): T {
-  if (isCollection(value)) {
-    for (const item of Object.values(value)) {
-      freeze(item);
-    }
-    Object.freeze(value);
-  }
-  return value;
-}
 
 /** `z.safeParse` wrapper: a schema failure is `invalid-response` with the endpoint template (§9.5). */
 function checked<T>(schema: z.ZodMiniType<T>, json: unknown, endpoint: string): T {
@@ -76,18 +96,6 @@ function checked<T>(schema: z.ZodMiniType<T>, json: unknown, endpoint: string): 
     throw apiError("invalid-response", endpoint);
   }
   return parsed.data;
-}
-
-// A JSON number or capped string that must serialize to a plain decimal — no exponent, sign
-// beyond a leading "-", or loss (I4 display-only fields: amounts, cardActivation).
-const DECIMAL = /^-?[0-9]+(\.[0-9]+)?$/;
-
-export function decimalText(value: number | string, endpoint: string): string {
-  const result = typeof value === "number" ? String(value) : value;
-  if (!DECIMAL.test(result)) {
-    throw apiError("invalid-response", endpoint);
-  }
-  return result;
 }
 
 const timestampSchema = z.object({ timestamp: z.int().check(z.gt(0)) });
@@ -378,16 +386,20 @@ function isHash(value: string): value is Hash {
   return TX_ID.test(value);
 }
 
-// `from`/`to`/`blockNumber` are kept only as exact values — a safe-integer JSON number >= 0 or a
-// canonical decimal string; anything else is dropped rather than coerced to a lossy bigint (§9.4).
+// `from`/`to`/`blockNumber` are exact ids: a safe-integer JSON number >= 0 or a canonical decimal
+// string; any other present value is invalid-response rather than a dropped or lossy bigint
+// (§9.4, R-04).
 function optionalId(value: unknown): bigint | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
   if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) {
     return BigInt(value);
   }
   if (typeof value === "string" && DECIMAL_FIELD.test(value)) {
     return BigInt(value);
   }
-  return undefined;
+  throw apiError("invalid-response", "GET /transactions");
 }
 
 export function parseTransactions(json: unknown): TransactionPage {

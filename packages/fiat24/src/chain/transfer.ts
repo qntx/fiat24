@@ -15,7 +15,7 @@ import {
   checkedAddress,
   readAt,
   resolveDeployment,
-  revertError,
+  remapRevert,
   snapshot,
 } from "./context.ts";
 
@@ -25,19 +25,6 @@ export type TransferCheck = {
   readonly recipientTokenId: bigint | undefined;
   readonly blockNumber: bigint;
 };
-
-// checkTransfer's later steps map contract reverts through the §6.3 table, not
-// the plain contract-revert bucket (§8.4 step 5).
-function remapRevert(error: unknown): never {
-  if (
-    error instanceof Fiat24Error &&
-    error.code === "contract-revert" &&
-    error.detail.revert !== undefined
-  ) {
-    throw revertError(error.detail.revert);
-  }
-  throw error;
-}
 
 /**
  * SPEC §8.4 — the same ordered refusals the contract would give, checked locally and on chain at

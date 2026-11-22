@@ -520,7 +520,6 @@ export function flowDeps(
       client,
       signer: opts.signer ?? makeSigner(OWNER).signer,
       persist,
-      now: () => 0,
     },
   };
 }

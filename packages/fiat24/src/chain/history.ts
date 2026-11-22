@@ -1,4 +1,4 @@
-import { numberToHex, pad } from "viem";
+import { numberToHex } from "viem";
 import type { Address, Client, Hex } from "viem";
 
 import { accountAbi, cardAbi, depositAbi, tokenAbi } from "../abi/index.ts";
@@ -9,6 +9,7 @@ import { decodeFiat24Log } from "../events/decode.ts";
 import type { Fiat24Event } from "../events/types.ts";
 import type { ChainArgs } from "./context.ts";
 import {
+  addressTopic,
   checkedAddress,
   checkedChunkSize,
   getLogsChunked,
@@ -41,7 +42,7 @@ export async function getHistory(
 ): Promise<ReadonlyArray<Fiat24Event>> {
   resolveDeployment(client, args.deployment);
   const owner = checkedAddress(args.owner);
-  const ownerTopic: Hex = `0x${pad(owner, { size: 32 }).slice(2).toLowerCase()}`;
+  const ownerTopic: Hex = addressTopic(owner);
   if (typeof args.fromBlock !== "bigint" || args.fromBlock < 0n) {
     invalidArgument();
   }

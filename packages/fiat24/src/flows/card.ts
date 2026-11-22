@@ -1,36 +1,36 @@
-import type { Address, Client, Hex } from "viem";
+import type { Address, Client } from "viem";
 
 import { apiError } from "../api/http.ts";
-import { freeze } from "../api/schemas.ts";
 import type { Card as ApiCard, Fiat24Session } from "../api/types.ts";
 import { approveCall } from "../calls/approve.ts";
 import { getAvailability } from "../chain/availability.ts";
 import { getAllowance } from "../chain/balances.ts";
 import {
+  addressTopic,
   checkedAddress,
   contractTarget,
   resolveDeployment,
-  snapshot,
   topic0Of,
 } from "../chain/context.ts";
 import { assertTokenId } from "../core/account-id.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import type { Fiat24ErrorCode } from "../core/errors.ts";
+import { freeze } from "../core/freeze.ts";
 import type { Currency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
-import { assertPath, assertUnpaused, checkedSigner, supplyBound } from "./guards.ts";
-import { API_READY_ERRORS, checkedState } from "./state.ts";
-import { advanceTx, persistSwallow } from "./tx.ts";
+import {
+  checkedSession,
+  assertUnpaused,
+  checkedSigner,
+  contractsOf,
+  supplyBound,
+  verifiedBlock,
+} from "./guards.ts";
+import type { VerifiedBlock } from "./guards.ts";
+import { API_READY_ERRORS, checkedState, invalidState, invalidArgument } from "./state.ts";
+import { advanceTx, persistSwallow, recheckTx, stepFor } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
 import type { CardOperation, CardState, FlowDeps, TxRecord } from "./types.ts";
-
-function invalidState(): never {
-  throw new Fiat24Error("invalid-state", "invalid flow state");
-}
-
-function invalidArgument(): never {
-  throw new Fiat24Error("invalid-argument", "invalid argument");
-}
 
 const CARD_OPERATION_KINDS: ReadonlySet<string> = new Set([
   "create",
@@ -161,7 +161,10 @@ function writeFor(operation: CardOperation): CardWrite {
       return {
         endpoint: "POST /card",
         call: async (session) => session.createCard(),
-        observed: (cards) => cards.length > 0,
+        // The observed condition is "a usable card exists": `active` counts; `blocked` does not
+        // (unusable until the user unblocks it with a block/unblock operation — the server decides
+        // whether a new card may be created); `expired` and `unknown` do not.
+        observed: (cards) => cards.some((card) => card.status === "active"),
       };
     case "block":
     case "unblock":
@@ -232,18 +235,7 @@ function classifyWriteError(error: unknown, endpoint: string): WriteVerdict {
       return "api-rejected";
     }
   }
-  return API_READY_ERRORS.has(error.code) ? error.code : "ambiguous";
-}
-
-function checkedSession(deps: FlowDeps, tokenId: bigint): Fiat24Session {
-  const { session } = deps;
-  if (session === undefined) {
-    throw new Fiat24Error("session-required", "session required");
-  }
-  if (session.tokenId !== tokenId) {
-    invalidArgument();
-  }
-  return session;
+  return API_READY_ERRORS.includes(error.code) ? error.code : "ambiguous";
 }
 
 /**
@@ -330,10 +322,6 @@ async function observeOnce(session: Fiat24Session, write: CardWrite): Promise<Tx
     : { purpose: "main", phase: "unknown", error: "unknown-outcome" };
 }
 
-function ownerTopic(owner: Address): Hex {
-  return `0x${owner.slice(2).toLowerCase().padStart(64, "0")}`;
-}
-
 // §4 approve row: `Approval(owner, card)` on the cap's token.
 function approveEvidence(deployment: Deployment, currency: Currency, owner: Address): TxEvidence {
   return {
@@ -342,8 +330,8 @@ function approveEvidence(deployment: Deployment, currency: Currency, owner: Addr
         address: deployment.tokens[currency].proxy,
         topics: [
           topic0Of(contractTarget(deployment, currency).abi, "Approval"),
-          ownerTopic(owner),
-          ownerTopic(deployment.card.proxy),
+          addressTopic(owner),
+          addressTopic(deployment.card.proxy),
         ],
       },
     ],
@@ -359,11 +347,14 @@ async function approveGuard(
   deployment: Deployment,
   currency: Currency,
   amount: bigint,
-  blockNumber: bigint,
+  at: VerifiedBlock,
 ): Promise<void> {
-  const availability = await getAvailability(client, { deployment, blockNumber });
+  const availability = await getAvailability(client, {
+    deployment,
+    blockNumber: at.blockNumber,
+  });
   assertUnpaused(availability, [currency], { account: false });
-  await supplyBound(client, { deployment, blockNumber, asset: currency, amount });
+  await supplyBound(client, { deployment, at, asset: currency, amount });
 }
 
 // The chain leg of an operation: the setup's `cap` or a `set-cap` (the approve IS the operation).
@@ -391,7 +382,6 @@ export async function advanceCard(deps: FlowDeps, state: CardState): Promise<Car
   checkedSigner(deps.signer, checked.owner);
   const deployment = resolveDeployment(deps.client, deps.deployment);
   switch (checked.step) {
-    case "confirmed":
     case "failed":
     case "not-sent":
       return invalidState();
@@ -401,9 +391,9 @@ export async function advanceCard(deps: FlowDeps, state: CardState): Promise<Car
   const chain = chainAmount(checked);
   let index: number;
   let purpose: "approve" | "main";
-  if (checked.step === "tx") {
+  if (checked.step === "tx" || checked.step === "confirmed") {
     const last = checked.txs.at(-1);
-    if (last === undefined) {
+    if (last === undefined || (checked.step === "confirmed" && last.phase !== "confirmed")) {
       return invalidState();
     }
     index = checked.txs.length - 1;
@@ -412,21 +402,24 @@ export async function advanceCard(deps: FlowDeps, state: CardState): Promise<Car
     index = checked.txs.length;
     purpose = "main";
   } else {
-    const { blockNumber } = await snapshot(deps.client, { deployment });
-    await assertPath(deps.client, deployment, blockNumber, [
-      approveCall({
-        asset: chain.currency,
-        spender: "card",
-        amount: chain.amount,
-        deployment,
-      }),
-    ]);
+    const at = await verifiedBlock(
+      deps.client,
+      deployment,
+      contractsOf([
+        approveCall({
+          asset: chain.currency,
+          spender: "card",
+          amount: chain.amount,
+          deployment,
+        }),
+      ]),
+    );
     const allowance = await getAllowance(deps.client, {
       deployment,
       owner: checked.owner,
       asset: chain.currency,
       spender: "card",
-      blockNumber,
+      blockNumber: at.blockNumber,
     });
     if (allowance === chain.amount) {
       if (checked.operation.kind === "set-cap") {
@@ -442,12 +435,7 @@ export async function advanceCard(deps: FlowDeps, state: CardState): Promise<Car
     }
   }
   if (purpose === "main") {
-    return advanceApiWrite(
-      deps,
-      checked,
-      checked.step === "tx" ? checked.txs[index] : undefined,
-      index,
-    );
+    return advanceApiWrite(deps, checked, checked.txs[index], index);
   }
   if (chain === undefined) {
     return invalidState();
@@ -458,33 +446,37 @@ export async function advanceCard(deps: FlowDeps, state: CardState): Promise<Car
     amount: chain.amount,
     deployment,
   });
-  const outcome = await advanceTx<CardState, never>(deps, {
-    record: checked.step === "tx" ? checked.txs[index] : undefined,
-    purpose: "approve",
-    call,
-    owner: checked.owner,
-    deployment,
-    guard: async (blockNumber) =>
-      approveGuard(deps.client, deployment, chain.currency, chain.amount, blockNumber),
-    evidence: approveEvidence(deployment, chain.currency, checked.owner),
-    commit: (record: TxRecord) => {
-      const txs = [...checked.txs.slice(0, index), record];
-      let step: CardState["step"];
-      if (record.phase === "confirmed") {
-        if (checked.operation.kind === "set-cap") {
-          step = "confirmed";
+  // `confirmed` re-checks the receipt of the set-cap approve (R-12); a confirmed
+  // API write record stays terminal — `advanceApiWrite` maps it to invalid-state.
+  const outcome = await (checked.step === "confirmed" ? recheckTx : advanceTx)<CardState, never>(
+    deps,
+    {
+      record: checked.txs[index],
+      purpose: "approve",
+      call,
+      owner: checked.owner,
+      deployment,
+      guard: async (at: VerifiedBlock) =>
+        approveGuard(deps.client, deployment, chain.currency, chain.amount, at),
+      evidence: approveEvidence(deployment, chain.currency, checked.owner),
+      commit: (record: TxRecord) => {
+        const txs = [...checked.txs.slice(0, index), record];
+        let step: CardState["step"];
+        if (record.phase === "confirmed") {
+          if (checked.operation.kind === "set-cap") {
+            step = "confirmed";
+          } else {
+            // A confirmed cap approve only unlocks the write — it runs on the
+            // next advance, never in the same one (§10.7).
+            step = "tx";
+            txs.push({ purpose: "main", phase: "ready" });
+          }
         } else {
-          // A confirmed cap approve only unlocks the write — it runs on the
-          // next advance, never in the same one (§10.7).
-          step = "tx";
-          txs.push({ purpose: "main", phase: "ready" });
+          step = stepFor(record);
         }
-      } else {
-        step =
-          record.phase === "failed" ? "failed" : record.phase === "not-sent" ? "not-sent" : "tx";
-      }
-      return freeze({ ...checked, step, txs });
+        return freeze({ ...checked, step, txs });
+      },
     },
-  });
+  );
   return outcome.state;
 }

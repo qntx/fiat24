@@ -2,7 +2,6 @@ import { getAddress, isAddress, isAddressEqual } from "viem";
 import type { Hash } from "viem";
 import * as z from "zod/mini";
 
-import { freeze } from "../api/schemas.ts";
 import { mintAccountCall, mintAccountWithEthCall } from "../calls/account.ts";
 import { approveCall } from "../calls/approve.ts";
 import { exchangeCall } from "../calls/exchange.ts";
@@ -12,6 +11,7 @@ import { transferCall, transferToAccountCall } from "../calls/transfer.ts";
 import { assertTokenId } from "../core/account-id.ts";
 import { Fiat24Error, fiat24ErrorCodes } from "../core/errors.ts";
 import type { Fiat24ErrorCode } from "../core/errors.ts";
+import { freeze } from "../core/freeze.ts";
 import type {
   TxPhase,
   CardState,
@@ -24,8 +24,12 @@ import type {
   TxRecord,
 } from "./types.ts";
 
-function invalidState(): never {
+export function invalidState(): never {
   throw new Fiat24Error("invalid-state", "invalid flow state");
+}
+
+export function invalidArgument(): never {
+  throw new Fiat24Error("invalid-argument", "invalid argument");
 }
 
 // §10.2 encoding: bigint fields persist as canonical decimal strings; the
@@ -62,9 +66,9 @@ const phaseField = z.enum([
   "not-sent",
 ]);
 const errorField = z.enum(fiat24ErrorCodes);
+const mismatchField = z.enum(["from", "nonce", "to", "input", "value"]);
 const text64 = z.string().check(z.maxLength(64));
 const textId = z.string().check(z.minLength(1)).check(z.maxLength(1024));
-const text1024 = z.string().check(z.maxLength(1024));
 
 const txRecordSchema = z.strictObject({
   purpose: z.enum(["approve", "main"]),
@@ -72,7 +76,7 @@ const txRecordSchema = z.strictObject({
   fromBlock: z.optional(bigintField),
   nonce: z.optional(nonceField),
   hash: z.optional(hashField),
-  blockNumber: z.optional(bigintField),
+  mismatch: z.optional(mismatchField),
   error: z.optional(errorField),
 });
 
@@ -126,7 +130,6 @@ const payoutSchema = z.strictObject({
   contactId: text64,
   purposeId: z.optional(bigintField),
   ref: z.optional(text64),
-  txid: z.optional(text1024),
 });
 
 const cardOperationSchema = z.discriminatedUnion("kind", [
@@ -236,7 +239,7 @@ const ACTIVE_PHASES: ReadonlySet<TxPhase> = new Set(["ready", "sending", "submit
 // §6 card API-write table: the `ready` error set a declined write may carry
 // (the write was not executed; retry is a new user action). card.ts shares it —
 // a write error with any other code is classified ambiguous instead.
-export const API_READY_ERRORS: ReadonlySet<Fiat24ErrorCode> = new Set([
+export const API_READY_ERRORS: ReadonlyArray<Fiat24ErrorCode> = /* @__PURE__ */ freeze([
   "unauthorized",
   "rate-limited",
   "http-error",
@@ -247,11 +250,11 @@ export const API_READY_ERRORS: ReadonlySet<Fiat24ErrorCode> = new Set([
 ]);
 
 function chainRecord(record: ParsedRecord): void {
-  const { fromBlock, nonce, hash, blockNumber, error } = record;
+  const { fromBlock, nonce, hash, mismatch, error } = record;
   const none = fromBlock === undefined && nonce === undefined && hash === undefined;
   switch (record.phase) {
     case "ready":
-      if (!none || blockNumber !== undefined) {
+      if (!none || mismatch !== undefined) {
         invalidState();
       }
       if (error !== undefined && error !== "signer-rejected") {
@@ -263,7 +266,7 @@ function chainRecord(record: ParsedRecord): void {
         fromBlock === undefined ||
         nonce === undefined ||
         hash !== undefined ||
-        blockNumber !== undefined ||
+        mismatch !== undefined ||
         error !== undefined
       ) {
         invalidState();
@@ -274,17 +277,19 @@ function chainRecord(record: ParsedRecord): void {
         fromBlock === undefined ||
         nonce === undefined ||
         hash === undefined ||
-        blockNumber !== undefined ||
+        mismatch !== undefined ||
         error !== undefined
       ) {
         invalidState();
       }
       return;
     case "unknown":
-      if (fromBlock === undefined || nonce === undefined || blockNumber !== undefined) {
+      if (fromBlock === undefined || nonce === undefined) {
         invalidState();
       }
-      if (error !== "unknown-outcome") {
+      // `mismatch` describes the mined transaction under `hash` — legal only while both
+      // the hash and the unknown-outcome marker are present.
+      if (error !== "unknown-outcome" || (mismatch !== undefined && hash === undefined)) {
         invalidState();
       }
       return;
@@ -293,7 +298,7 @@ function chainRecord(record: ParsedRecord): void {
         fromBlock === undefined ||
         nonce === undefined ||
         hash === undefined ||
-        blockNumber === undefined ||
+        mismatch !== undefined ||
         error !== undefined
       ) {
         invalidState();
@@ -304,14 +309,14 @@ function chainRecord(record: ParsedRecord): void {
         fromBlock === undefined ||
         nonce === undefined ||
         hash === undefined ||
-        blockNumber === undefined ||
+        mismatch !== undefined ||
         error !== "tx-reverted"
       ) {
         invalidState();
       }
       return;
     case "not-sent":
-      if (fromBlock === undefined || nonce === undefined || blockNumber !== undefined) {
+      if (fromBlock === undefined || nonce === undefined || mismatch !== undefined) {
         invalidState();
       }
       if (error !== undefined) {
@@ -321,18 +326,18 @@ function chainRecord(record: ParsedRecord): void {
 }
 
 function apiRecord(record: ParsedRecord): void {
-  const { fromBlock, nonce, hash, blockNumber, error } = record;
+  const { fromBlock, nonce, hash, mismatch, error } = record;
   if (
     fromBlock !== undefined ||
     nonce !== undefined ||
     hash !== undefined ||
-    blockNumber !== undefined
+    mismatch !== undefined
   ) {
     invalidState();
   }
   switch (record.phase) {
     case "ready":
-      if (error !== undefined && !API_READY_ERRORS.has(error)) {
+      if (error !== undefined && !API_READY_ERRORS.includes(error)) {
         invalidState();
       }
       return;
@@ -450,7 +455,7 @@ function normRecord(record: ParsedRecord): TxRecord {
     ...(record.fromBlock === undefined ? {} : { fromBlock: record.fromBlock }),
     ...(record.nonce === undefined ? {} : { nonce: record.nonce }),
     ...(record.hash === undefined ? {} : { hash: record.hash }),
-    ...(record.blockNumber === undefined ? {} : { blockNumber: record.blockNumber }),
+    ...(record.mismatch === undefined ? {} : { mismatch: record.mismatch }),
     ...(record.error === undefined ? {} : { error: record.error }),
   };
 }
@@ -576,9 +581,6 @@ function payoutSemantics(state: ParsedPayout): PayoutState {
     );
   }
   forbidApprove(state.txs);
-  if ((state.txid === undefined) !== (state.step !== "confirmed")) {
-    invalidState();
-  }
   switch (state.step) {
     case "verified":
       requireEmptyTxs(state.txs);
@@ -604,7 +606,6 @@ function payoutSemantics(state: ParsedPayout): PayoutState {
     contactId: state.contactId,
     ...(purposeId === undefined ? {} : { purposeId }),
     ...(ref === undefined ? {} : { ref }),
-    ...(state.txid === undefined ? {} : { txid: state.txid }),
   };
 }
 

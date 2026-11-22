@@ -79,7 +79,6 @@ const MAIN_READY: TopUpState = {
       fromBlock: B,
       nonce: 5,
       hash: TXID_1,
-      blockNumber: B + 1n,
     },
     { purpose: "main", phase: "ready" },
   ],
@@ -512,7 +511,6 @@ describe("advanceTopUp tx records", () => {
           fromBlock: B,
           nonce: 5,
           hash: TXID_1,
-          blockNumber: B + 1n,
         },
         { purpose: "main", phase: "submitted", fromBlock: B, nonce: 6, hash: TXID_1 },
       ],
@@ -556,7 +554,6 @@ describe("advanceTopUp tx records", () => {
           fromBlock: B,
           nonce: 5,
           hash: TXID_1,
-          blockNumber: B + 1n,
         },
         { purpose: "main", phase: "submitted", fromBlock: B, nonce: 6, hash: TXID_1 },
       ],
@@ -587,7 +584,7 @@ describe("advanceTopUp tx records", () => {
     expect(persisted).toHaveLength(0);
   });
 
-  test("terminal steps ⇒ invalid-state with no I/O", async () => {
+  test("confirmed re-checks the receipt — actual re-derived equal ⇒ the same state", async () => {
     const confirmed: TopUpState = {
       ...QUOTED,
       step: "confirmed",
@@ -599,15 +596,98 @@ describe("advanceTopUp tx records", () => {
           fromBlock: B,
           nonce: 5,
           hash: TXID_1,
-          blockNumber: B + 1n,
         },
       ],
     };
-    const stub = makeFlowStub({});
+    const stub = makeFlowStub({
+      receipts: {
+        [TXID_1]: receiptPayload({
+          transactionHash: TXID_1,
+          blockNumber: B + 1n,
+          status: "success",
+          logs: [topUpLog(USDC_AMOUNT, OUTPUT_AMOUNT)],
+        }),
+      },
+      transactions: {
+        [TXID_1]: txPayload({
+          hash: TXID_1,
+          from: OWNER,
+          to: DEPOSIT,
+          input: topUpData(),
+          value: 0n,
+          nonce: 5,
+          blockNumber: B + 1n,
+        }),
+      },
+    });
+    const { deps, persisted } = flowDeps(stub.client);
+    const next = await advanceTopUp(deps, confirmed);
+    expect(next).toStrictEqual(confirmed);
+    expect(persisted).toStrictEqual([next]);
+  });
+
+  test("confirmed re-check: a different receipt actual ⇒ invalid-state", async () => {
+    const confirmed: TopUpState = {
+      ...QUOTED,
+      step: "confirmed",
+      actual: { input: USDC_AMOUNT, output: OUTPUT_AMOUNT },
+      txs: [
+        {
+          purpose: "main",
+          phase: "confirmed",
+          fromBlock: B,
+          nonce: 5,
+          hash: TXID_1,
+        },
+      ],
+    };
+    const stub = makeFlowStub({
+      receipts: {
+        [TXID_1]: receiptPayload({
+          transactionHash: TXID_1,
+          blockNumber: B + 1n,
+          status: "success",
+          logs: [topUpLog(USDC_AMOUNT, 9n)],
+        }),
+      },
+      transactions: {
+        [TXID_1]: txPayload({
+          hash: TXID_1,
+          from: OWNER,
+          to: DEPOSIT,
+          input: topUpData(),
+          value: 0n,
+          nonce: 5,
+          blockNumber: B + 1n,
+        }),
+      },
+    });
     const { deps, persisted } = flowDeps(stub.client);
     await expectErrorAsync(async () => advanceTopUp(deps, confirmed), "invalid-state");
-    expect(stub.requests).toHaveLength(0);
     expect(persisted).toHaveLength(0);
+  });
+
+  test("confirmed re-check: receipt and tx gone, nonce consumed ⇒ back to tx{unknown}", async () => {
+    const confirmed: TopUpState = {
+      ...QUOTED,
+      step: "confirmed",
+      actual: { input: USDC_AMOUNT, output: OUTPUT_AMOUNT },
+      txs: [
+        {
+          purpose: "main",
+          phase: "confirmed",
+          fromBlock: B,
+          nonce: 5,
+          hash: TXID_1,
+        },
+      ],
+    };
+    const stub = makeFlowStub({ count: { latest: 6 }, logs: () => [] });
+    const { deps } = flowDeps(stub.client);
+    const next = await advanceTopUp(deps, confirmed);
+    expect(next.step).toBe("tx");
+    expect(next.actual).toBeUndefined();
+    expect(next.txs.at(-1)?.phase).toBe("unknown");
   });
 });
 

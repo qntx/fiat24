@@ -13,6 +13,7 @@ import {
   makeFlowStub,
   mergeCalls,
   OWNER,
+  proxyAdminEntry,
   RECIPIENT,
   SENDER_ID,
 } from "./stub.ts";
@@ -28,6 +29,7 @@ function loaded(view: AccountView): LoadedView {
 
 function table(party: Parameters<typeof accountEntries>[1]) {
   return mergeCalls(
+    proxyAdminEntry(),
     accountEntries(OWNER, party),
     balanceEntries(OWNER),
     allowanceEntries(OWNER),
@@ -38,7 +40,7 @@ function table(party: Parameters<typeof accountEntries>[1]) {
 describe("loadAccount", () => {
   test("no-account", async () => {
     const stub = makeFlowStub({
-      calls: accountEntries(OWNER, { historic: 0n, balance: 0n }),
+      calls: mergeCalls(proxyAdminEntry(), accountEntries(OWNER, { historic: 0n, balance: 0n })),
       storage: honestStorage(),
     });
     const view = await loadAccount({ client: stub.client }, { owner: OWNER });

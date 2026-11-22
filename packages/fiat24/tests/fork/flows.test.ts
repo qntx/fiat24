@@ -23,6 +23,7 @@ import {
   advanceTransfer,
   decodeFlowState,
   encodeFlowState,
+  loadPayoutSettlement,
   startCardSetup,
   startExchange,
   startOnboarding,
@@ -100,7 +101,6 @@ function makeDeps(
     deps: {
       client: fork.publicClient,
       signer,
-      now: Date.now,
       persist: async (state) => {
         decodeFlowState(encodeFlowState(state));
         persisted.push(state);
@@ -136,12 +136,14 @@ function quoteOf(state: FlowState): ExchangeQuote {
   return candidate.quote;
 }
 
-function confirmedBlockOf(state: FlowState): bigint {
+/** The block the last record's transaction was mined in — re-read from a fresh receipt. */
+async function confirmedBlockOf(fork: Fork, state: FlowState): Promise<bigint> {
   const record = state.txs.at(-1);
-  if (record?.phase !== "confirmed" || record.blockNumber === undefined) {
+  if (record?.phase !== "confirmed" || record.hash === undefined) {
     throw new Error("expected a confirmed record");
   }
-  return record.blockNumber;
+  const receipt = await fork.publicClient.getTransactionReceipt({ hash: record.hash });
+  return receipt.blockNumber;
 }
 
 function submittedHashOf(state: FlowState): Hash {
@@ -680,7 +682,9 @@ describe.skipIf(!FORK_ENABLED)("fork: flows", () => {
       expect(state.step).toBe("tx");
       state = await driveUntil(advancePayout, deps, state, isConfirmed);
       expect(state.step).toBe("confirmed");
-      expect(state.txid).toBe(`${LIVE_1}-${confirmedBlockOf(state)}`);
+      const mined = await confirmedBlockOf(fork, state);
+      const settlement = await loadPayoutSettlement({ client: fork.publicClient }, state);
+      expect(settlement.txid).toBe(`${LIVE_1}-${mined}`);
       expect(persisted.length).toBeGreaterThan(0);
       expectSignerShape(sign);
     });
@@ -727,7 +731,9 @@ describe.skipIf(!FORK_ENABLED)("fork: flows", () => {
       expect(sign.requests.at(-1)?.data).toBe(expected.data);
       state = await driveUntil(advancePayout, { ...deps, session }, state, isConfirmed);
       expect(state.step).toBe("confirmed");
-      expect(state.txid).toBe(`${LIVE_1}-${confirmedBlockOf(state)}`);
+      const mined = await confirmedBlockOf(fork, state);
+      const settlement = await loadPayoutSettlement({ client: fork.publicClient }, state);
+      expect(settlement.txid).toBe(`${LIVE_1}-${mined}`);
       expectSignerShape(sign);
     });
 
@@ -1025,7 +1031,7 @@ describe.skipIf(!FORK_ENABLED)("fork: flows", () => {
       await expect(erc20Allowance(fork, EUR24, owner1, DEPOSIT)).resolves.toBeGreaterThan(0n);
     });
 
-    test("crash after persist ⇒ unknown; nonce unused ⇒ stays unknown; self-tx ⇒ not-sent", async () => {
+    test("crash after persist ⇒ unknown; nonce unused ⇒ stays unknown; self-tx ⇒ unknown", async () => {
       const sign = forkSigner(fork, owner1, { kind: "throw-before-send" });
       const { deps } = makeDeps(fork, sign.signer);
       let state = startTransfer({
@@ -1043,7 +1049,9 @@ describe.skipIf(!FORK_ENABLED)("fork: flows", () => {
       // The recorded nonce is still unused ⇒ outcome stays unknown, never not-sent.
       state = await resumed(advanceTransfer, deps, state);
       expect(state.txs.at(-1)?.phase).toBe("unknown");
-      // A different tx consumes the nonce ⇒ the broadcast provably never happened.
+      // A wallet "cancel" self-transaction consumes the nonce but is not proof the
+      // broadcast never happened — it is not the rebuilt call, so the record stays
+      // `unknown` for the host to resolve, never `not-sent`.
       await fork.testClient.impersonateAccount({ address: owner1 });
       await fork.testClient.setBalance({ address: owner1, value: 10n ** 18n });
       const selfHash = await fork.walletClient.sendTransaction({
@@ -1055,7 +1063,8 @@ describe.skipIf(!FORK_ENABLED)("fork: flows", () => {
       });
       await fork.publicClient.waitForTransactionReceipt({ hash: selfHash });
       state = await resumed(advanceTransfer, deps, state);
-      expect(state.step).toBe("not-sent");
+      expect(state.step).toBe("tx");
+      expect(state.txs.at(-1)?.phase).toBe("unknown");
     });
 
     test("speed-up with identical bytes ⇒ submitted{other hash} ⇒ confirmed", async () => {

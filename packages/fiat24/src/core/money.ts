@@ -1,10 +1,11 @@
 import { Fiat24Error } from "./errors.ts";
+import { freeze } from "./freeze.ts";
 import type { Asset } from "./types.ts";
 
 // Token decimals of the pinned implementations: the four cash tokens are pure
 // `decimals() = 2` (Fiat24Token.sol:256-258), F24 `decimals() = 2`, Circle USDC
 // on Arbitrum `decimals() = 6` (SPEC §4.2).
-export const DECIMALS: Readonly<Record<Asset, number>> = Object.freeze({
+export const DECIMALS: Readonly<Record<Asset, number>> = /* @__PURE__ */ freeze({
   USD24: 2,
   EUR24: 2,
   CHF24: 2,

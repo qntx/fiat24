@@ -15,6 +15,7 @@ import {
   addressTopic,
   AMOUNT,
   B,
+  B_HEX,
   flowDeps,
   honestStorage,
   logPayload,
@@ -95,6 +96,28 @@ const onMethod =
 const atLatestTag = (reply: () => unknown) => (params: unknown) =>
   (params as [unknown, string])[1] === "pending" ? undefined : reply();
 
+/**
+ * Stub whose `eth_blockNumber` answers B, B+1, B+2, … per call and whose ledger sits at nonce 1 for
+ * block B and the pending tag but has moved to nonce 5 at any later block.
+ */
+const movingLedgerStub = () => {
+  let calls = 0;
+  return makeFlowStub({
+    onRequest: onMethod({
+      eth_blockNumber: () => {
+        const block = B + BigInt(calls);
+        calls += 1;
+        return `0x${block.toString(16)}`;
+      },
+      eth_getTransactionCount: (params) => {
+        const [, tag] = params as [unknown, string];
+        const counts: Record<string, number> = { pending: 1, [B_HEX]: 1 };
+        return `0x${(counts[tag] ?? 5).toString(16)}`;
+      },
+    }),
+  });
+};
+
 /** `sending` at nonce 1 — the reconcile input for every ledger-driven test. */
 const SENDING: TxRecord = { purpose: "main", phase: "sending", fromBlock: B, nonce: 1 };
 
@@ -104,6 +127,15 @@ const SUBMITTED: TxRecord = {
   fromBlock: B,
   nonce: 1,
   hash: TXID_1,
+};
+
+const UNKNOWN_HASHED: TxRecord = {
+  purpose: "main",
+  phase: "unknown",
+  fromBlock: B,
+  nonce: 1,
+  hash: TXID_1,
+  error: "unknown-outcome",
 };
 
 function bindingTx(hash: Hash, nonce = 1): Record<string, unknown> {
@@ -147,14 +179,12 @@ describe("advanceTx", () => {
     const stub = makeFlowStub({});
     const { deps } = flowDeps(stub.client);
     const terminals: TxRecord[] = [
-      { purpose: "main", phase: "confirmed", fromBlock: B, nonce: 1, hash: TXID_1, blockNumber: B },
       {
         purpose: "main",
         phase: "failed",
         fromBlock: B,
         nonce: 1,
         hash: TXID_1,
-        blockNumber: B,
         error: "tx-reverted",
       },
       { purpose: "main", phase: "not-sent", fromBlock: B, nonce: 1 },
@@ -168,7 +198,7 @@ describe("advanceTx", () => {
         return error.code;
       }),
     );
-    expect(codes).toStrictEqual(["invalid-state", "invalid-state", "invalid-state"]);
+    expect(codes).toStrictEqual(["invalid-state", "invalid-state"]);
     expect(stub.calls).toHaveLength(0);
   });
 
@@ -204,7 +234,7 @@ describe("advanceTx", () => {
     expect(outcome.record).toStrictEqual(SUBMITTED);
   });
 
-  test("receipt + non-binding transaction ⇒ unknown", async () => {
+  test("receipt + non-binding transaction ⇒ unknown{mismatch}", async () => {
     const stub = makeFlowStub({
       receipts: {
         [TXID_1.toLowerCase()]: receiptPayload({
@@ -219,6 +249,114 @@ describe("advanceTx", () => {
     const outcome = await advanceTx(deps, base(SUBMITTED));
     expect(outcome.record.phase).toBe("unknown");
     expect(outcome.record.error).toBe("unknown-outcome");
+    expect(outcome.record.mismatch).toBe("nonce");
+  });
+
+  // One mutation per binding field; `to: null` (contract creation) is also a `to` mismatch.
+  const MISMATCH_CASES: ReadonlyArray<{
+    readonly patch: Record<string, unknown>;
+    readonly mismatch: string;
+  }> = [
+    { patch: { from: RECIPIENT }, mismatch: "from" },
+    { patch: { nonce: 2 }, mismatch: "nonce" },
+    { patch: { to: RECIPIENT }, mismatch: "to" },
+    { patch: { to: null }, mismatch: "to" },
+    { patch: { input: "0xac9650d8" }, mismatch: "input" },
+    { patch: { value: 1n }, mismatch: "value" },
+  ];
+
+  test.each(MISMATCH_CASES)(
+    "submitted + mined tx mismatching ⇒ unknown{mismatch: $mismatch}",
+    async ({ patch, mismatch }) => {
+      const stub = makeFlowStub({
+        receipts: {
+          [TXID_1.toLowerCase()]: receiptPayload({
+            transactionHash: TXID_1,
+            blockNumber: B,
+            status: "success",
+          }),
+        },
+        transactions: { [TXID_1.toLowerCase()]: { ...bindingTx(TXID_1), ...patch } },
+      });
+      const { deps } = flowDeps(stub.client);
+      const outcome = await advanceTx(deps, base(SUBMITTED));
+      expect(outcome.record.phase).toBe("unknown");
+      expect(outcome.record.hash).toBe(TXID_1);
+      expect(outcome.record.mismatch).toBe(mismatch);
+      expect(outcome.record.error).toBe("unknown-outcome");
+    },
+  );
+
+  test.each(MISMATCH_CASES)(
+    "unknown{hash} + mined tx mismatching ⇒ unknown{mismatch: $mismatch}",
+    async ({ patch, mismatch }) => {
+      const stub = makeFlowStub({
+        receipts: {
+          [TXID_1.toLowerCase()]: receiptPayload({
+            transactionHash: TXID_1,
+            blockNumber: B,
+            status: "success",
+          }),
+        },
+        transactions: { [TXID_1.toLowerCase()]: { ...bindingTx(TXID_1), ...patch } },
+      });
+      const { deps } = flowDeps(stub.client);
+      const outcome = await advanceTx(deps, base(UNKNOWN_HASHED));
+      expect(outcome.record.phase).toBe("unknown");
+      expect(outcome.record.mismatch).toBe(mismatch);
+    },
+  );
+
+  test("unknown{hash} whose receipt binds ⇒ confirmed", async () => {
+    const stub = makeFlowStub({
+      receipts: {
+        [TXID_1.toLowerCase()]: receiptPayload({
+          transactionHash: TXID_1,
+          blockNumber: B,
+          status: "success",
+        }),
+      },
+      transactions: { [TXID_1.toLowerCase()]: bindingTx(TXID_1) },
+    });
+    const { deps } = flowDeps(stub.client);
+    const outcome = await advanceTx(deps, base(UNKNOWN_HASHED));
+    expect(outcome.record.phase).toBe("confirmed");
+    expect(outcome.record.hash).toBe(TXID_1);
+  });
+
+  test("hash-bearing record + reverted receipt ⇒ failed", async () => {
+    const stub = makeFlowStub({
+      receipts: {
+        [TXID_1.toLowerCase()]: receiptPayload({
+          transactionHash: TXID_1,
+          blockNumber: B,
+          status: "reverted",
+        }),
+      },
+      transactions: { [TXID_1.toLowerCase()]: bindingTx(TXID_1) },
+    });
+    const { deps } = flowDeps(stub.client);
+    const outcomes = await Promise.all(
+      [SUBMITTED, UNKNOWN_HASHED].map(async (record) => advanceTx(deps, base(record))),
+    );
+    for (const outcome of outcomes) {
+      expect(outcome.record.phase).toBe("failed");
+      expect(outcome.record.error).toBe("tx-reverted");
+      expect(outcome.record.hash).toBe(TXID_1);
+    }
+  });
+
+  test("a binding pending tx promotes unknown{hash} to submitted", async () => {
+    const stub = makeFlowStub({
+      transactions: {
+        [TXID_1.toLowerCase()]: { ...bindingTx(TXID_1), blockNumber: null, blockHash: null },
+      },
+    });
+    const { deps, persisted } = flowDeps(stub.client);
+    const outcome = await advanceTx(deps, base(UNKNOWN_HASHED));
+    expect(outcome.record.phase).toBe("submitted");
+    expect(outcome.record.hash).toBe(TXID_1);
+    expect(persisted).toHaveLength(1);
   });
 
   test("receipt found but transaction lookup fails ⇒ rpc-error", async () => {
@@ -320,7 +458,9 @@ describe("advanceTx", () => {
     expect(outcome.record.error).toBe("unknown-outcome");
   });
 
-  test("ledger past the nonce, no binding evidence ⇒ not-sent", async () => {
+  test("ledger past the nonce, no binding evidence ⇒ unknown", async () => {
+    // A consumed nonce that no own-hash receipt or log candidate explains is
+    // unknown{unknown-outcome} — never not-sent (R-13).
     const stub = makeFlowStub({
       count: { latest: 3 },
       logs: () => [
@@ -336,7 +476,8 @@ describe("advanceTx", () => {
     });
     const { deps } = flowDeps(stub.client);
     const outcome = await advanceTx(deps, base(SENDING, { evidence: TOKEN_EVIDENCE }));
-    expect(outcome.record.phase).toBe("not-sent");
+    expect(outcome.record.phase).toBe("unknown");
+    expect(outcome.record.error).toBe("unknown-outcome");
   });
 
   test("duplicate transactionHash candidates are inspected once", async () => {
@@ -397,6 +538,87 @@ describe("advanceTx", () => {
     const outcome = await advanceTx(deps, base(SENDING, { evidence: ERC20_EVIDENCE }));
     expect(outcome.record.phase).toBe("submitted");
     expect(outcome.record.hash).toBe(TXID_3);
+  });
+
+  describe("not-sent needs a two-block nonce proof (R-13)", () => {
+    /** Eth_blockNumber answers B on the first call, B+1 on the second (B1 then B2). */
+    const twoBlocks = () => {
+      let calls = 0;
+      return onMethod({
+        eth_blockNumber: () => {
+          const block = B + BigInt(calls);
+          calls += 1;
+          return `0x${block.toString(16)}`;
+        },
+      });
+    };
+
+    test("nonce unused at two different blocks + pending at nonce ⇒ not-sent", async () => {
+      const stub = makeFlowStub({
+        count: { latest: 1, pending: 1 },
+        onRequest: twoBlocks(),
+      });
+      const { deps } = flowDeps(stub.client);
+      const outcome = await advanceTx(deps, base(SENDING));
+      expect(outcome.record).toStrictEqual({
+        purpose: "main",
+        phase: "not-sent",
+        fromBlock: B,
+        nonce: 1,
+      });
+    });
+
+    test("not-sent keeps a recorded hash that never landed", async () => {
+      // unknown{hash} whose hash vanished from the node — the nonce proof still
+      // produces not-sent and the signer-returned hash stays on the record.
+      const stub = makeFlowStub({
+        count: { latest: 1, pending: 1 },
+        onRequest: twoBlocks(),
+      });
+      const { deps } = flowDeps(stub.client);
+      const outcome = await advanceTx(deps, base(UNKNOWN_HASHED));
+      expect(outcome.record).toStrictEqual({
+        purpose: "main",
+        phase: "not-sent",
+        fromBlock: B,
+        nonce: 1,
+        hash: TXID_1,
+      });
+    });
+
+    test("the same block twice ⇒ no decision", async () => {
+      // B2 == B1: `sending` degrades to unknown, `submitted`/`unknown` stay unchanged.
+      const stub = makeFlowStub({ count: { latest: 1, pending: 1 } });
+      const { deps } = flowDeps(stub.client);
+      const sending = await advanceTx(deps, base(SENDING));
+      expect(sending.record.phase).toBe("unknown");
+      expect(sending.record.error).toBe("unknown-outcome");
+      const submitted = await advanceTx(deps, base(SUBMITTED));
+      expect(submitted.record.phase).toBe("submitted");
+      const unknown = await advanceTx(deps, base(UNKNOWN_HASHED));
+      expect(unknown.record.phase).toBe("unknown");
+    });
+
+    test("the ledger moving at the second block ⇒ no decision", async () => {
+      // L1 <= N but L2 > N: the nonce was consumed between the two reads.
+      const sending = await advanceTx(flowDeps(movingLedgerStub().client).deps, base(SENDING));
+      expect(sending.record.phase).toBe("unknown");
+      const submitted = await advanceTx(flowDeps(movingLedgerStub().client).deps, base(SUBMITTED));
+      expect(submitted.record.phase).toBe("submitted");
+    });
+
+    test("the pending pool already past the nonce ⇒ no decision", async () => {
+      // L <= N at both blocks, but a node-visible pending transaction sits past it.
+      const stub = makeFlowStub({
+        count: { latest: 1, pending: 3 },
+        onRequest: twoBlocks(),
+      });
+      const { deps } = flowDeps(stub.client);
+      const sending = await advanceTx(deps, base(SENDING));
+      expect(sending.record.phase).toBe("unknown");
+      const submitted = await advanceTx(deps, base(SUBMITTED));
+      expect(submitted.record.phase).toBe("submitted");
+    });
   });
 
   test("erc20 evidence with malformed logs ⇒ malformed-log", async () => {

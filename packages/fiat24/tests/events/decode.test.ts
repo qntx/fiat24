@@ -224,6 +224,29 @@ describe("decodeFiat24Log", () => {
     });
   });
 
+  test("a string arg over 1024 UTF-8 bytes is malformed-log (M18)", () => {
+    // 400 × "€" = 1200 UTF-8 bytes but only 400 UTF-16 units — the cap is on bytes.
+    const topics = mustTopics(
+      encodeEventTopics({
+        abi: [mustEvent(tokenAbi, "CashPayout")],
+        args: {
+          senderAccountId: 123456n,
+          senderAddress: "0x1111111111111111111111111111111111111111",
+        },
+      }),
+    );
+    const raw = log({
+      address: arbitrum.tokens.EUR24.proxy,
+      topics,
+      data: encodeAbiParameters(
+        [{ type: "uint256" }, { type: "string" }, { type: "string" }],
+        [9104n, "€".repeat(400), "pacs.008"],
+      ),
+    });
+    expect.hasAssertions();
+    expectError(() => decodeFiat24Log(raw), "malformed-log");
+  });
+
   test("null position fields are malformed-log on a known pair", () => {
     const raw = erc20TransferLog(
       "0x1111111111111111111111111111111111111111",

@@ -1,3 +1,6 @@
+import { createServer } from "node:http";
+import type { Server } from "node:http";
+
 import { describe, expect, test } from "vite-plus/test";
 
 import { API_BASE_URL, createFiat24Api, sessionLabel } from "../../src/api/index.ts";
@@ -5,6 +8,7 @@ import type { Fiat24Error } from "../../src/core/index.ts";
 import { isFiat24Error } from "../../src/core/index.ts";
 import {
   caught,
+  caughtCode,
   expectApiError,
   clock,
   fixtureBody,
@@ -17,6 +21,50 @@ import {
 
 const TOKEN_ID = 690333n;
 const SERVER_MS = 1_795_328_524_822;
+
+const MIB = 1024 * 1024;
+const CHUNK = 64 * 1024;
+
+/** A pull-based stream of `total` zero bytes in 64 KiB chunks, reporting pulls and cancel(). */
+function countingStream(total: number): {
+  stream: ReadableStream<Uint8Array>;
+  counter: { pulled: number; cancelled: boolean };
+} {
+  const counter = { pulled: 0, cancelled: false };
+  const chunk = new Uint8Array(CHUNK).fill(48);
+  let served = 0;
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (served < total) {
+        served += CHUNK;
+        counter.pulled += CHUNK;
+        controller.enqueue(chunk);
+      } else {
+        controller.close();
+      }
+    },
+    cancel() {
+      counter.cancelled = true;
+    },
+  });
+  return { stream, counter };
+}
+
+/** A pull-based stream serving `bytes` in `chunkSize` slices. */
+function streamOf(bytes: Uint8Array, chunkSize: number): ReadableStream<Uint8Array> {
+  let offset = 0;
+  return new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (offset >= bytes.byteLength) {
+        controller.close();
+        return;
+      }
+      const slice = bytes.subarray(offset, offset + chunkSize);
+      offset += slice.byteLength;
+      controller.enqueue(slice);
+    },
+  });
+}
 
 function publicApi(routes: Record<string, ReturnType<typeof json>>) {
   const stub = stubFetch(routes);
@@ -194,6 +242,8 @@ describe("api transport", () => {
     const stub = stubFetch({
       "/timestamp": () => {
         const response = new Response("{}", { status: 200 });
+        // `body: null` routes the read through text() (the no-stream fallback).
+        Object.defineProperty(response, "body", { value: null });
         Object.defineProperty(response, "text", {
           value: async () => Promise.reject(new Error("stream failed")),
         });
@@ -201,6 +251,21 @@ describe("api transport", () => {
       },
     });
     const api = createFiat24Api({ fetch: stub.fetch, now: () => SERVER_MS });
+    await expectApiError(async () => api.timestamp(), "network-error", "GET /timestamp");
+  });
+
+  test("a failing stream reader => network-error", async () => {
+    expect.hasAssertions();
+    const stream = new ReadableStream<Uint8Array>({
+      pull() {
+        throw new Error("stream failed");
+      },
+    });
+    const fetchFn = (async (): Promise<Response> =>
+      Promise.resolve(
+        new Response(stream, { status: 200, headers: { "content-type": "application/json" } }),
+      )) as typeof fetch;
+    const api = createFiat24Api({ fetch: fetchFn, now: () => SERVER_MS });
     await expectApiError(async () => api.timestamp(), "network-error", "GET /timestamp");
   });
 
@@ -261,17 +326,25 @@ describe("api transport", () => {
     await expectApiError(async () => other.api.timestamp(), "invalid-response", "GET /timestamp");
   });
 
-  test("content-length over cap => invalid-response and text() never called", async () => {
-    let textCalled = false;
+  test("content-length over cap => invalid-response and the body is never read", async () => {
+    let bodyRead = false;
     const stub = stubFetch({
       "/timestamp": () => {
         const response = new Response("{}", {
           status: 200,
           headers: { "content-length": "2097152" },
         });
+        Object.defineProperty(response, "body", {
+          value: {
+            getReader: () => {
+              bodyRead = true;
+              throw new Error("read attempted");
+            },
+          },
+        });
         Object.defineProperty(response, "text", {
           value: async () => {
-            textCalled = true;
+            bodyRead = true;
             return Promise.resolve("{}");
           },
         });
@@ -280,7 +353,7 @@ describe("api transport", () => {
     });
     const api = createFiat24Api({ fetch: stub.fetch, now: () => SERVER_MS });
     await expectApiError(async () => api.timestamp(), "invalid-response", "GET /timestamp");
-    expect(textCalled).toBe(false);
+    expect(bodyRead).toBe(false);
   });
 
   test("2 MiB body => invalid-response", async () => {
@@ -324,6 +397,120 @@ describe("api transport", () => {
     await expectApiError(async () => api.timestamp(), "invalid-response", "GET /timestamp");
   });
 
+  test("every request is sent with redirect: error", async () => {
+    const { session, calls } = sessionApi({
+      "/br": json(fixtureBody("secured/br.json")),
+      "/card": json(fixtureBody("secured/write-ok.json")),
+      "/card-currency": json(fixtureBody("secured/write-ok.json")),
+    });
+    await session.profile();
+    await session.createCard();
+    await session.setCardCurrency({ externalId: "123456", currency: "EUR" });
+    const pub = publicApi({ "/countries": json(fixtureBody("public/countries.json")) });
+    await pub.api.countries();
+    for (const call of [...calls, ...pub.calls]) {
+      expect(call.init.redirect).toBe("error");
+    }
+  });
+
+  // A spec fetch rejects on redirect (network-error); these cases cover an injected fetch that
+  // ignores `redirect: "error"` — a 3xx status, a followed redirect (`redirected`), or a
+  // resolved `url` other than the request's.
+  test.each([
+    {
+      name: "302 status",
+      make: () =>
+        new Response("{}", { status: 302, headers: { location: "https://evil.example/" } }),
+    },
+    {
+      name: "redirected: true",
+      make: () => {
+        const response = new Response("{}", { status: 200 });
+        Object.defineProperty(response, "redirected", { value: true });
+        return response;
+      },
+    },
+    {
+      name: "url differs from the request",
+      make: () => {
+        const response = new Response("{}", { status: 200 });
+        Object.defineProperty(response, "url", { value: "https://evil.example/timestamp" });
+        return response;
+      },
+    },
+    {
+      name: "url on a lookalike origin",
+      make: () => {
+        const response = new Response("{}", { status: 200 });
+        Object.defineProperty(response, "url", {
+          value: "https://api.fiat24.com.evil.example/timestamp",
+        });
+        return response;
+      },
+    },
+  ])(
+    "a redirect-shaped response ($name) is invalid-response and the body is never read",
+    async ({ make }) => {
+      let bodyRead = false;
+      const stub = stubFetch({
+        "/timestamp": () => {
+          const response = make();
+          // `body: null` routes the read through `text()` under either body strategy.
+          Object.defineProperty(response, "body", { value: null });
+          Object.defineProperty(response, "text", {
+            value: async () => {
+              bodyRead = true;
+              return Promise.resolve("{}");
+            },
+          });
+          return response;
+        },
+      });
+      const api = createFiat24Api({ fetch: stub.fetch, now: () => SERVER_MS });
+      await expectApiError(async () => api.timestamp(), "invalid-response", "GET /timestamp");
+      expect(bodyRead, "the body was read").toBe(false);
+    },
+  );
+
+  test("a same-origin response.url rewritten by URL parsing is accepted", async () => {
+    // An injected WHATWG fetch reports the resolved url after parsing, which percent-encodes
+    // characters our request path keeps literal — `'` in /verify?sp= becomes %27 — without any
+    // redirect having happened.
+    const request = {
+      account: "LI7830174502999200012",
+      bankName: "D'Angelo SA",
+      bic: "SAHHCHZ2",
+      purpose: 2n,
+      creditor: "BR" as const,
+    };
+    const path = `/verify?sp=${encodeURIComponent(
+      JSON.stringify({
+        account: request.account,
+        bankName: request.bankName,
+        bic: request.bic,
+        purpose: 2,
+        creditor: "BR",
+      }),
+    )}`;
+    const stub = stubFetch({
+      "/timestamp": timestampRoute(SERVER_MS),
+      [path]: json(fixtureBody("secured/verify-sp.json")),
+    });
+    const fetchFn = (async (input: unknown, init?: RequestInit) => {
+      const response = await stub.fetch(input as never, init);
+      Object.defineProperty(response, "url", { value: new URL(String(input)).href });
+      return response;
+    }) as typeof fetch;
+    const api = createFiat24Api({ fetch: fetchFn, now: () => SERVER_MS });
+    const session = api.openSession({ tokenId: TOKEN_ID, signer: testSigner() });
+    const verified = await session.verifyBankPayment(request);
+    expect(verified.contactId).toBe("EA-123456");
+    // Premise: the resolved url really differed from the literal request string.
+    const requested = String(stub.calls[1]?.url);
+    expect(requested).toContain("'");
+    expect(new URL(requested).href).not.toBe(requested);
+  });
+
   test("error detail never carries the concrete path or query", async () => {
     const { api } = publicApi({ "/status-kyc?id=9102": json("{}", 500) });
     const error = await caught(async () => api.kycStatus(9102n));
@@ -332,5 +519,137 @@ describe("api transport", () => {
     expect(fiat24Error.message).toBe("GET /status-kyc failed");
     expect(JSON.stringify(fiat24Error.detail)).not.toContain("9102");
     expect(JSON.stringify(fiat24Error.detail)).not.toContain("?id=");
+  });
+});
+
+describe("redirected answers (R-02)", () => {
+  async function listen(server: Server): Promise<number> {
+    return new Promise((resolve) => {
+      server.listen(0, "127.0.0.1", () => {
+        const address = server.address();
+        resolve(typeof address === "object" && address !== null ? address.port : 0);
+      });
+    });
+  }
+
+  // Server A answers /timestamp then `code` for the write with Location at server B, which
+  // records every request that reaches it. A spec fetch rejects with `redirect: "error"` (an
+  // opaque TypeError the SDK cannot tell from any other rejection => network-error); a fetch
+  // that resolves the 3xx hits the response-side check (=> invalid-response).
+  async function redirectPair(code: number): Promise<{
+    portA: number;
+    receivedB: string[];
+    close: () => Promise<void>;
+  }> {
+    const receivedB: string[] = [];
+    const serverB = createServer((req, res) => {
+      receivedB.push(`${req.method} ${req.url}`);
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end("{}");
+    });
+    const portB = await listen(serverB);
+    const serverA = createServer((req, res) => {
+      if (req.url === "/timestamp") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ timestamp: SERVER_MS }));
+        return;
+      }
+      res.writeHead(code, { location: `http://127.0.0.1:${portB}/card` });
+      res.end();
+    });
+    const portA = await listen(serverA);
+    const close = async (): Promise<void> => {
+      await new Promise((resolve) => {
+        serverA.close(resolve);
+      });
+      await new Promise((resolve) => {
+        serverB.close(resolve);
+      });
+    };
+    return { portA, receivedB, close };
+  }
+
+  test.each([307, 308])(
+    "a POST answered %i forwards no grant headers to the redirect target",
+    async (code) => {
+      const pair = await redirectPair(code);
+      try {
+        // The real fetch with only the base URL rewritten; init is passed through unchanged.
+        const fetchFn = (async (input: unknown, init?: RequestInit): Promise<Response> => {
+          const url = String(input).replace(API_BASE_URL, `http://127.0.0.1:${pair.portA}`);
+          return globalThis.fetch(url, init);
+        }) as typeof fetch;
+        const api = createFiat24Api({ fetch: fetchFn, now: () => SERVER_MS });
+        const session = api.openSession({ tokenId: TOKEN_ID, signer: testSigner() });
+        const outcome = await caughtCode(async () => session.createCard());
+        expect(["network-error", "invalid-response"]).toContain(outcome);
+        expect(pair.receivedB).toStrictEqual([]);
+      } finally {
+        await pair.close();
+      }
+    },
+  );
+});
+
+describe("response body cap (R-03)", () => {
+  test("a 16 MiB stream without content-length is cut at the 1 MiB cap while reading", async () => {
+    const { stream, counter } = countingStream(16 * MIB);
+    const fetchFn = (async (): Promise<Response> =>
+      Promise.resolve(
+        new Response(stream, { status: 200, headers: { "content-type": "application/json" } }),
+      )) as typeof fetch;
+    const api = createFiat24Api({ fetch: fetchFn, now: () => SERVER_MS });
+    await expectApiError(async () => api.countries(), "invalid-response", "GET /countries");
+    // At most the cap plus the in-flight pull is served; buffered-before-cap would pull all 16.
+    expect(counter.pulled).toBeLessThanOrEqual(MIB + 2 * CHUNK);
+    expect(counter.cancelled).toBe(true);
+  });
+
+  test("/banks is cut at the 8 MiB cap while reading", async () => {
+    const { stream, counter } = countingStream(16 * MIB);
+    const fetchFn = (async (): Promise<Response> =>
+      Promise.resolve(
+        new Response(stream, { status: 200, headers: { "content-type": "application/json" } }),
+      )) as typeof fetch;
+    const api = createFiat24Api({ fetch: fetchFn, now: () => SERVER_MS });
+    await expectApiError(async () => api.banks(), "invalid-response", "GET /banks");
+    expect(counter.pulled).toBeLessThanOrEqual(8 * MIB + 2 * CHUNK);
+    expect(counter.cancelled).toBe(true);
+  });
+
+  test("a streamed body exactly at the cap succeeds", async () => {
+    const prefix = `{"timestamp":${SERVER_MS},"pad":"`;
+    const body = `${prefix}${"a".repeat(MIB - prefix.length - 2)}"}`;
+    expect(body).toHaveLength(MIB);
+    const bytes = new TextEncoder().encode(body);
+    const fetchFn = (async (): Promise<Response> =>
+      Promise.resolve(
+        new Response(streamOf(bytes, CHUNK), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      )) as typeof fetch;
+    const api = createFiat24Api({ fetch: fetchFn, now: () => SERVER_MS });
+    await expect(api.timestamp()).resolves.toBe(BigInt(SERVER_MS));
+  });
+
+  test("a response without a stream still applies the cap after text()", async () => {
+    expect.hasAssertions();
+    // The whatwg-fetch (React Native) shape: `body` is null and only text() exists — the body is
+    // buffered by fetch and the cap applies to the decoded string.
+    const stub = stubFetch({
+      "/timestamp": () =>
+        ({
+          status: 200,
+          type: "basic",
+          redirected: false,
+          url: "",
+          headers: new Headers({ "content-type": "application/json" }),
+          body: null,
+          text: async () => Promise.resolve(`{"x":"${"a".repeat(2 * MIB)}"}`),
+        }) as unknown as Response,
+    });
+    const api = createFiat24Api({ fetch: stub.fetch, now: () => SERVER_MS });
+    await expectApiError(async () => api.timestamp(), "invalid-response", "GET /timestamp");
   });
 });

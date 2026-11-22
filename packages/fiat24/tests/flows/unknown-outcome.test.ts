@@ -59,6 +59,14 @@ const UNKNOWN: TransferState = state({
   nonce: NONCE,
   error: "unknown-outcome",
 });
+const UNKNOWN_HASHED: TransferState = state({
+  purpose: "main",
+  phase: "unknown",
+  fromBlock: B,
+  nonce: NONCE,
+  hash: TXID_1,
+  error: "unknown-outcome",
+});
 const SUBMITTED: TransferState = state({
   purpose: "main",
   phase: "submitted",
@@ -110,6 +118,90 @@ function honestTx(hash: Hash, nonce = NONCE, blockNumber = B + 1n) {
   });
 }
 
+// A 7702/smart-account batching wallet wrapped our call: same hash, from and nonce, but `to` is
+// the owner's own account and the input is some execute-style payload, not our transfer bytes.
+const WRAPPED_INPUT: Hex = "0xac9650d8";
+const WRAPPED_TX = txPayload({
+  hash: TXID_1,
+  from: OWNER,
+  to: OWNER,
+  input: WRAPPED_INPUT,
+  value: 0n,
+  nonce: NONCE,
+  blockNumber: B + 1n,
+});
+
+/** The success receipt of TXID_1 at B+1 containing the real Transfer(OWNER→RECIPIENT, AMOUNT). */
+function ownReceipt() {
+  return receiptPayload({
+    transactionHash: TXID_1,
+    blockNumber: B + 1n,
+    status: "success",
+    logs: [
+      transferLog({
+        token: TOKEN,
+        from: OWNER,
+        to: RECIPIENT,
+        amount: AMOUNT,
+        blockNumber: B + 1n,
+        transactionHash: TXID_1,
+      }),
+    ],
+  });
+}
+
+/** The ledger stub: nonce consumed, our Transfer log under TXID_1, the non-binding wrapped tx. */
+function ledgerStub() {
+  return makeFlowStub({
+    count: { latest: NONCE + 1 },
+    logs: () => [
+      transferLog({
+        token: TOKEN,
+        from: OWNER,
+        to: RECIPIENT,
+        amount: AMOUNT,
+        blockNumber: B + 1n,
+        transactionHash: TXID_1,
+      }),
+    ],
+    transactions: { [TXID_1]: WRAPPED_TX },
+    receipts: { [TXID_1]: ownReceipt() },
+  });
+}
+
+describe("reconcile by the recorded hash's receipt first (R-01)", () => {
+  test("a mined wrapped tx under our hash ⇒ unknown{mismatch}, never not-sent", async () => {
+    const { signer, requests } = makeSigner(OWNER);
+    const first = makeFlowStub({
+      receipts: { [TXID_1]: ownReceipt() },
+      transactions: { [TXID_1]: WRAPPED_TX },
+    });
+    const { deps } = flowDeps(first.client, { signer });
+    const unbound = await advanceTransfer(deps, SUBMITTED);
+    expect(unbound.txs[0]?.phase).toBe("unknown");
+    expect(unbound.txs[0]?.mismatch).toBe("to");
+    expect(unbound.txs[0]?.error).toBe("unknown-outcome");
+
+    const ledger = ledgerStub();
+    const { deps: deps2 } = flowDeps(ledger.client, { signer });
+    const next = await advanceTransfer(deps2, unbound);
+    expect(next.step).toBe("tx");
+    expect(next.txs[0]?.phase).toBe("unknown");
+    expect(next.txs[0]?.mismatch).toBe("to");
+    expect(requests).toHaveLength(0);
+  });
+
+  test("unknown{hash} reconciles by the hash receipt, not the nonce", async () => {
+    const ledger = ledgerStub();
+    const { deps } = flowDeps(ledger.client);
+    const next = await advanceTransfer(deps, UNKNOWN_HASHED);
+    expect(next.step).toBe("tx");
+    expect(next.txs[0]?.phase).toBe("unknown");
+    expect(next.txs[0]?.mismatch).toBe("to");
+    expect(next.step).not.toBe("not-sent");
+  });
+});
+
 describe("unknown outcome", () => {
   test("crash between persist and send", async () => {
     // A `sending` record means the signer was never reached; the nonce is still
@@ -142,18 +234,44 @@ describe("unknown outcome", () => {
     expect(persisted).toHaveLength(2);
   });
 
-  test("replaced nonce ⇒ not-sent", async () => {
-    // L > N (the nonce was consumed) but the evidence range holds nothing of ours.
+  test("consumed nonce, empty evidence ⇒ unknown{unknown-outcome}", async () => {
+    // L > N (the nonce was consumed) but the evidence range holds nothing of ours —
+    // a consumed nonce with no own receipt is unknown, never not-sent (R-13).
     const stub = makeFlowStub({
       count: { latest: NONCE + 3 },
       logs: () => [],
     });
     const { deps } = flowDeps(stub.client);
     const next = await advanceTransfer(deps, SENDING);
-    expect(next.step).toBe("not-sent");
-    expect(next.txs[0]?.phase).toBe("not-sent");
+    expect(next.step).toBe("tx");
+    expect(next.txs[0]?.phase).toBe("unknown");
+    expect(next.txs[0]?.error).toBe("unknown-outcome");
     const logCalls = stub.requests.filter((r) => r.method === "eth_getLogs");
     expect(logCalls.length).toBeGreaterThan(0);
+  });
+
+  test("a wallet cancel at the recorded nonce ⇒ unknown", async () => {
+    // The wallet cancelled the send with a self-transaction at nonce N: the ledger moved past
+    // it, the tx is retrievable, but it emits no watched log — corroboration only, so unknown.
+    const cancelTx = txPayload({
+      hash: TXID_2,
+      from: OWNER,
+      to: OWNER,
+      input: "0x",
+      value: 0n,
+      nonce: NONCE,
+      blockNumber: B + 1n,
+    });
+    const stub = makeFlowStub({
+      count: { latest: NONCE + 1 },
+      logs: () => [],
+      transactions: { [TXID_2]: cancelTx },
+    });
+    const { deps } = flowDeps(stub.client);
+    const next = await advanceTransfer(deps, SENDING);
+    expect(next.step).toBe("tx");
+    expect(next.txs[0]?.phase).toBe("unknown");
+    expect(next.txs[0]?.error).toBe("unknown-outcome");
   });
 
   test("same transfer from another device is not evidence", async () => {
@@ -174,7 +292,8 @@ describe("unknown outcome", () => {
     });
     const { deps } = flowDeps(stub.client);
     const next = await advanceTransfer(deps, UNKNOWN);
-    expect(next.step).toBe("not-sent");
+    expect(next.step).toBe("tx");
+    expect(next.txs[0]?.phase).toBe("unknown");
   });
 
   test("speed-up with identical bytes ⇒ submitted{other hash} ⇒ confirmed", async () => {
@@ -220,9 +339,9 @@ describe("unknown outcome", () => {
     expect(confirmed.txs[0]?.hash).toBe(TXID_2);
   });
 
-  test("L <= N ⇒ never not-sent", async () => {
-    // An unrelated transfer at a different nonce must not even be consulted:
-    // with L <= N the nonce is provably unused, so the record stays unknown.
+  test("L <= N at a single block ⇒ no decision", async () => {
+    // An unrelated transfer at a different nonce must not even be consulted, and one block's
+    // reading is no proof — the record stays unknown (B2 == B1 gives no second point).
     const stub = makeFlowStub({
       count: { latest: NONCE },
       logs: () => {
@@ -264,7 +383,8 @@ describe("unknown outcome", () => {
         });
         const { deps } = flowDeps(stub.client);
         const next = await advanceTransfer(deps, UNKNOWN);
-        expect(next.step).toBe("not-sent");
+        expect(next.step).toBe("tx");
+        expect(next.txs[0]?.phase).toBe("unknown");
       }),
     );
   });
@@ -357,5 +477,112 @@ describe("unknown outcome", () => {
     expect(next.txs[0]?.phase).toBe("submitted");
     expect(storage.calls()).toBe(2);
     expect(persisted).toHaveLength(2);
+  });
+});
+
+describe("a failed persist after send can never resend", () => {
+  /** `eth_blockNumber` answers B, B+1, … per call — enough for the two-block nonce proof. */
+  const risingBlocks = () => {
+    let calls = 0;
+    return (method: string): unknown => {
+      const block = method === "eth_blockNumber" ? B + BigInt(calls) : undefined;
+      calls += method === "eth_blockNumber" ? 1 : 0;
+      return block === undefined ? undefined : `0x${block.toString(16)}`;
+    };
+  };
+
+  /** The mined-with-log world: nonce consumed, our Transfer under TXID_1, a binding tx. */
+  const minedStub = () =>
+    makeFlowStub({
+      count: { latest: NONCE + 1 },
+      logs: () => [
+        transferLog({
+          token: TOKEN,
+          from: OWNER,
+          to: RECIPIENT,
+          amount: AMOUNT,
+          blockNumber: B + 1n,
+          transactionHash: TXID_1,
+        }),
+      ],
+      transactions: { [TXID_1]: honestTx(TXID_1) },
+      receipts: {
+        [TXID_1]: receiptPayload({
+          transactionHash: TXID_1,
+          blockNumber: B + 1n,
+          status: "success",
+        }),
+      },
+    });
+
+  test("last persisted `sending` reconciles every outcome; the signer is never re-called", async () => {
+    const { signer, requests } = makeSigner(OWNER);
+    const storage = failingPersist(2, new Error("storage full"));
+    const { deps, persisted } = readyStub({ signer, persist: storage.persist });
+    const returned = await advanceTransfer(deps, READY);
+    expect(returned.txs[0]?.phase).toBe("submitted");
+    expect(returned.txs[0]?.hash).toBe(TXID_1);
+    expect(requests).toHaveLength(1);
+
+    // The host's last durable write is persisted[0] — `sending{nonce}`, hash unknown.
+    const last = persisted[0] as TransferState;
+    expect(last.txs[0]?.phase).toBe("sending");
+    expect(last.txs[0]?.hash).toBeUndefined();
+
+    // Mined + evidence ⇒ submitted{hash}; the signer stays at one call.
+    const reconciled = await advanceTransfer(flowDeps(minedStub().client, { signer }).deps, last);
+    expect(reconciled.txs[0]?.phase).toBe("submitted");
+    expect(reconciled.txs[0]?.hash).toBe(TXID_1);
+
+    // Mined with silent logs ⇒ unknown{unknown-outcome}, never not-sent.
+    const silent = makeFlowStub({ count: { latest: NONCE + 1 }, logs: () => [] });
+    const unknown = await advanceTransfer(flowDeps(silent.client, { signer }).deps, last);
+    expect(unknown.txs[0]?.phase).toBe("unknown");
+    expect(unknown.txs[0]?.error).toBe("unknown-outcome");
+
+    // Nonce provably unused at two different blocks ⇒ not-sent.
+    const unused = makeFlowStub({
+      count: { latest: NONCE, pending: NONCE },
+      onRequest: risingBlocks(),
+    });
+    const notSent = await advanceTransfer(flowDeps(unused.client, { signer }).deps, last);
+    expect(notSent.step).toBe("not-sent");
+
+    // Across every reconciliation the signer was never invoked a second time.
+    expect(requests).toHaveLength(1);
+  });
+
+  test("the in-memory `submitted{hash}` confirms on the next advance", async () => {
+    const { signer, requests } = makeSigner(OWNER);
+    const storage = failingPersist(2, new Error("storage full"));
+    const { deps } = readyStub({ signer, persist: storage.persist });
+    const returned = await advanceTransfer(deps, READY);
+    expect(returned.txs[0]?.phase).toBe("submitted");
+
+    // Advancing the returned (unpersisted) state reconciles by its own hash receipt.
+    const confirmed = await advanceTransfer(
+      flowDeps(minedStub().client, { signer }).deps,
+      returned,
+    );
+    expect(confirmed.step).toBe("confirmed");
+    expect(confirmed.txs[0]?.hash).toBe(TXID_1);
+    expect(requests).toHaveLength(1);
+  });
+
+  test("signer throws + post-call persist fails ⇒ last persisted `sending` still reconciles", async () => {
+    const { signer, requests } = makeSigner(OWNER, async () =>
+      Promise.reject(new Error("wallet blew up")),
+    );
+    const storage = failingPersist(2, new Error("storage full"));
+    const { deps, persisted } = readyStub({ signer, persist: storage.persist });
+    const returned = await advanceTransfer(deps, READY);
+    expect(returned.txs[0]?.phase).toBe("unknown");
+    expect(requests).toHaveLength(1);
+
+    const last = persisted[0] as TransferState;
+    expect(last.txs[0]?.phase).toBe("sending");
+    const reconciled = await advanceTransfer(flowDeps(minedStub().client, { signer }).deps, last);
+    expect(reconciled.txs[0]?.phase).toBe("submitted");
+    expect(requests).toHaveLength(1);
   });
 });

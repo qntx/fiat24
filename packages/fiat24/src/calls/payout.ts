@@ -3,6 +3,7 @@ import { encodeFunctionData } from "viem";
 import { tokenAbi } from "../abi/index.ts";
 import { assertTokenId } from "../core/account-id.ts";
 import { Fiat24Error } from "../core/errors.ts";
+import { freeze } from "../core/freeze.ts";
 import { isValidContactId, isValidPayoutRef } from "../core/payout-grammar.ts";
 import type { PayoutCurrency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
@@ -10,13 +11,16 @@ import { checkedAmount, checkedDeployment, freezeCall } from "./types.ts";
 import type { Fiat24Call } from "./types.ts";
 
 /** The only currencies with a Fiat24 payout rail (§6.1). */
-export const PAYOUT_CURRENCIES: ReadonlyArray<PayoutCurrency> = Object.freeze(["EUR24", "CHF24"]);
+export const PAYOUT_CURRENCIES: ReadonlyArray<PayoutCurrency> = /* @__PURE__ */ freeze([
+  "EUR24",
+  "CHF24",
+]);
 
 // The §6.2 grammars live in core so api can run the §10.6 /verify bindings without a
 // `core -> calls` or `api -> calls` edge; the calls public surface re-exports them unchanged.
 export { isValidContactId, isValidPayoutRef } from "../core/payout-grammar.ts";
 
-function checkedPayoutCurrency(currency: unknown): PayoutCurrency {
+export function checkedPayoutCurrency(currency: unknown): PayoutCurrency {
   if (currency !== "EUR24" && currency !== "CHF24") {
     throw new Fiat24Error("unsupported-currency", "unsupported currency");
   }

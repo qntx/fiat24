@@ -59,6 +59,9 @@ describe("isValidPayoutRef", () => {
   test("refusals (§6.2)", () => {
     expect(isValidPayoutRef(uuid, 109549n)).toBe(false); // bare uuidv4
     expect(isValidPayoutRef(`109548-${uuid}`, 109549n)).toBe(false); // foreign prefix
+    // foreign prefix `9-` (same length as `1-`) while the uuid itself contains `1-` —
+    // the prefix must be anchored (startsWith), not merely present (includes).
+    expect(isValidPayoutRef("9-50fb0941-4f59-4a91-8735-dd78ba7d53a3", 1n)).toBe(false);
     expect(isValidPayoutRef(`109549-${uuid.toUpperCase()}`, 109549n)).toBe(false); // uppercase
     // one uppercase hex char in each of the five uuid groups, in turn
     for (const upper of [

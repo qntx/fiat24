@@ -16,7 +16,13 @@ import type {
 import { topic0Of } from "../../src/chain/context.ts";
 import { Fiat24Error } from "../../src/core/errors.ts";
 import { arbitrum as C } from "../../src/deployments/index.ts";
-import { advanceCard, advancePayout, encodeFlowState, startPayout } from "../../src/flows/index.ts";
+import {
+  advanceCard,
+  advancePayout,
+  encodeFlowState,
+  loadPayoutSettlement,
+  startPayout,
+} from "../../src/flows/index.ts";
 import type { CardState, FlowState, PayoutDraft } from "../../src/flows/index.ts";
 import {
   DOC_QR,
@@ -386,6 +392,7 @@ describe("flow PII invariants", () => {
 
       // The verified bank payout drives the full chain leg: submitted then confirmed.
       const txStub = makeFlowStub({
+        blockNumber: B + 10n,
         calls: payoutChainTable(SP_REF),
         storage: honestStorage(),
         count: { pending: 5 },
@@ -412,6 +419,7 @@ describe("flow PII invariants", () => {
             blockNumber: B + 1n,
           }),
         },
+        logs: () => [],
       });
       const { deps: txBase } = flowDeps(txStub.client, { signer });
       const txDeps = { ...txBase, persist };
@@ -419,7 +427,9 @@ describe("flow PII invariants", () => {
       expect(submitted.step).toBe("tx");
       const confirmed = await advancePayout(txDeps, submitted);
       expect(confirmed.step).toBe("confirmed");
-      expect(confirmed.txid).toBe("pacs.008-pii");
+      // The txid is never persisted — loadPayoutSettlement re-derives it from a fresh receipt.
+      const settlement = await loadPayoutSettlement({ client: txStub.client }, confirmed);
+      expect(settlement.txid).toBe("pacs.008-pii");
 
       // Hostile verified responses whose bindings carry sentinels fail api-mismatch.
       const hostileBank: VerifiedPayout = {

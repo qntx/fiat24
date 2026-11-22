@@ -85,7 +85,7 @@
     "dev": "vp pack --watch",
     "test": "vp test --coverage && bun scripts/size-check.ts",
     "test:fork": "FIAT24_FORK=1 vp test",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.src.json",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.src.json && tsc --noEmit -p tests/readme",
     "smoke:hermes": "bun scripts/hermes-smoke.ts",
     "check:pkg": "vp pack && bun ../../scripts/check-dist-deps.ts . && bun ../../scripts/check-api.ts . && publint && attw --pack . --profile esm-only",
     "prepublishOnly": "vp run build"

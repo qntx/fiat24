@@ -9,7 +9,8 @@ import type { RawLog } from "../../src/events/index.ts";
 import { errorCodeStrings, expectError, loadVector, required } from "../helpers.ts";
 
 const vector = loadVector("vectors/events/decode.json", "events.decode");
-const { cases } = vector;
+const synthetic = loadVector("vectors/events/decode-synthetic.json", "events.decode-synthetic");
+const cases = [...vector.cases, ...synthetic.cases];
 const DECODED_CASES = cases.filter((c) => "output" in c && c["output"] !== null);
 
 // §3.5/§7.1 mapping, authored from SPEC (never from the decoder): raw ABI arg
@@ -234,11 +235,14 @@ function expectedFields(
   }
 }
 
-describe("vectors/events/decode.json", () => {
-  test("envelope", () => {
+describe("vectors/events/decode.json + decode-synthetic.json", () => {
+  test("envelopes", () => {
     expect(vector.schema).toBe(1);
     expect(vector.capability).toBe("events.decode");
-    expect(cases.length).toBeGreaterThan(0);
+    expect(vector.cases.length).toBeGreaterThan(0);
+    expect(synthetic.schema).toBe(1);
+    expect(synthetic.capability).toBe("events.decode-synthetic");
+    expect(synthetic.cases.length).toBeGreaterThan(0);
   });
 
   test("every failure code is a Fiat24ErrorCode", () => {

@@ -102,7 +102,6 @@ const MAIN_READY: ExchangeState = {
       fromBlock: B,
       nonce: 5,
       hash: TXID_1,
-      blockNumber: B + 1n,
     },
     { purpose: "main", phase: "ready" },
   ],
@@ -528,7 +527,6 @@ describe("advanceExchange tx records", () => {
         fromBlock: B,
         nonce: 5,
         hash: TXID_1,
-        blockNumber: B + 1n,
       },
       { purpose: "main", phase: "ready" },
     ]);
@@ -601,7 +599,6 @@ describe("advanceExchange tx records", () => {
           fromBlock: B,
           nonce: 5,
           hash: TXID_1,
-          blockNumber: B + 1n,
         },
         { purpose: "main", phase: "ready" },
       ],
@@ -629,7 +626,6 @@ describe("advanceExchange tx records", () => {
           fromBlock: B,
           nonce: 5,
           hash: TXID_1,
-          blockNumber: B + 1n,
         },
         { purpose: "main", phase: "ready" },
       ],
@@ -668,7 +664,6 @@ describe("advanceExchange tx records", () => {
           fromBlock: B,
           nonce: 5,
           hash: TXID_1,
-          blockNumber: B + 1n,
         },
         {
           purpose: "main",
@@ -719,7 +714,6 @@ describe("advanceExchange tx records", () => {
           fromBlock: B,
           nonce: 5,
           hash: TXID_1,
-          blockNumber: B + 1n,
         },
         {
           purpose: "main",
@@ -759,7 +753,7 @@ describe("advanceExchange tx records", () => {
     expect(persisted).toHaveLength(0);
   });
 
-  test("terminal steps ⇒ invalid-state with no I/O", async () => {
+  test("confirmed re-checks the receipt — actual re-derived equal ⇒ the same state", async () => {
     const confirmed: ExchangeState = {
       ...QUOTED,
       step: "confirmed",
@@ -771,15 +765,105 @@ describe("advanceExchange tx records", () => {
           fromBlock: B,
           nonce: 5,
           hash: TXID_1,
-          blockNumber: B + 1n,
         },
       ],
     };
-    const stub = makeFlowStub({});
+    const stub = makeFlowStub({
+      receipts: {
+        [TXID_1]: receiptPayload({
+          transactionHash: TXID_1,
+          blockNumber: B + 1n,
+          status: "success",
+          logs: [exchangeLog(INPUT, OUTPUT)],
+        }),
+      },
+      transactions: {
+        [TXID_1]: txPayload({
+          hash: TXID_1,
+          from: OWNER,
+          to: DEPOSIT,
+          input: exchangeData(),
+          value: 0n,
+          nonce: 5,
+          blockNumber: B + 1n,
+        }),
+      },
+    });
+    const { deps, persisted } = flowDeps(stub.client);
+    const next = await advanceExchange(deps, confirmed);
+    expect(next).toStrictEqual(confirmed);
+    expect(persisted).toStrictEqual([next]);
+  });
+
+  test("confirmed re-check: a different receipt actual ⇒ invalid-state", async () => {
+    const confirmed: ExchangeState = {
+      ...QUOTED,
+      step: "confirmed",
+      actual: { input: INPUT, output: OUTPUT },
+      txs: [
+        {
+          purpose: "main",
+          phase: "confirmed",
+          fromBlock: B,
+          nonce: 5,
+          hash: TXID_1,
+        },
+      ],
+    };
+    const stub = makeFlowStub({
+      receipts: {
+        [TXID_1]: receiptPayload({
+          transactionHash: TXID_1,
+          blockNumber: B + 1n,
+          status: "success",
+          logs: [exchangeLog(INPUT, 110n)],
+        }),
+      },
+      transactions: {
+        [TXID_1]: txPayload({
+          hash: TXID_1,
+          from: OWNER,
+          to: DEPOSIT,
+          input: exchangeData(),
+          value: 0n,
+          nonce: 5,
+          blockNumber: B + 1n,
+        }),
+      },
+    });
     const { deps, persisted } = flowDeps(stub.client);
     await expectErrorAsync(async () => advanceExchange(deps, confirmed), "invalid-state");
-    expect(stub.requests).toHaveLength(0);
     expect(persisted).toHaveLength(0);
+  });
+
+  test("confirmed re-check: receipt and tx gone, nonce consumed ⇒ back to tx{unknown}", async () => {
+    const confirmed: ExchangeState = {
+      ...QUOTED,
+      step: "confirmed",
+      actual: { input: INPUT, output: OUTPUT },
+      txs: [
+        {
+          purpose: "main",
+          phase: "confirmed",
+          fromBlock: B,
+          nonce: 5,
+          hash: TXID_1,
+        },
+      ],
+    };
+    const stub = makeFlowStub({ count: { latest: 6 }, logs: () => [] });
+    const { deps } = flowDeps(stub.client);
+    const next = await advanceExchange(deps, confirmed);
+    expect(next.step).toBe("tx");
+    expect(next.actual).toBeUndefined();
+    expect(next.txs.at(-1)).toStrictEqual({
+      purpose: "main",
+      phase: "unknown",
+      fromBlock: B,
+      nonce: 5,
+      hash: TXID_1,
+      error: "unknown-outcome",
+    });
   });
 });
 

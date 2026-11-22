@@ -1,11 +1,13 @@
 import { isAddressEqual } from "viem";
-import type { Address, Client, Hex, TransactionReceipt } from "viem";
+import type { Address, Client, Hex, Transaction, TransactionReceipt } from "viem";
+import { getTransaction, getTransactionReceipt } from "viem/actions";
 
 import { apiError } from "../api/http.ts";
 import { freeze } from "../api/schemas.ts";
 import { parseSwissQr } from "../api/swiss-qr.ts";
 import type { Fiat24Session, VerifiedPayout } from "../api/types.ts";
 import { isValidContactId, isValidPayoutRef, payoutCall, payoutRefCall } from "../calls/payout.ts";
+import type { Fiat24Call } from "../calls/types.ts";
 import { checkedAmount } from "../calls/types.ts";
 import { getAvailability } from "../chain/availability.ts";
 import {
@@ -13,11 +15,13 @@ import {
   checkedAddress,
   checkedPayoutCurrency,
   contractTarget,
+  mapViemError,
   readAt,
   resolveDeployment,
   topic0Of,
 } from "../chain/context.ts";
-import { getPayoutMinimum } from "../chain/payout.ts";
+import { getPayoutMinimum, getPayoutSettlement } from "../chain/payout.ts";
+import type { PayoutSettlement } from "../chain/payout.ts";
 import { assertTokenId } from "../core/account-id.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import type { PayoutCurrency } from "../core/types.ts";
@@ -25,7 +29,7 @@ import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
 import { assertUnpaused, checkedSigner, deskOwner, legAllowed, senderLive } from "./guards.ts";
 import { checkedState } from "./state.ts";
-import { advanceTx } from "./tx.ts";
+import { advanceTx, errorNamed, mismatchOf, recheckTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
 import type { FlowDeps, PayoutDraft, PayoutState, PayoutTarget, TxRecord } from "./types.ts";
 
@@ -283,6 +287,26 @@ const stepFor = (record: TxRecord): PayoutState["step"] =>
         ? "not-sent"
         : "tx";
 
+/** The payout call the state describes — rebuilt from its intent fields (I20). */
+function payoutCallOf(state: PayoutState, deployment: Deployment): Fiat24Call {
+  return state.ref === undefined || state.purposeId === undefined
+    ? payoutCall({
+        currency: state.currency,
+        amount: state.amount,
+        contactId: state.contactId,
+        deployment,
+      })
+    : payoutRefCall({
+        currency: state.currency,
+        amount: state.amount,
+        contactId: state.contactId,
+        purposeId: state.purposeId,
+        ref: state.ref,
+        tokenId: state.tokenId,
+        deployment,
+      });
+}
+
 /**
  * §10.6. A `draft` is validated as `startPayout` does (plus the signer check), verified — `contact`
  * locally, `bank`/`swiss-qr` through `GET /verify` with the I3 bindings re-checked in flow
@@ -327,7 +351,6 @@ export async function advancePayout(
   checkedSigner(deps.signer, checked.owner);
   const deployment = resolveDeployment(deps.client, deps.deployment);
   switch (checked.step) {
-    case "confirmed":
     case "failed":
     case "not-sent":
       return invalidState();
@@ -335,43 +358,85 @@ export async function advancePayout(
       break;
   }
   const index = checked.step === "verified" ? checked.txs.length : checked.txs.length - 1;
-  const call =
-    checked.ref === undefined || checked.purposeId === undefined
-      ? payoutCall({
-          currency: checked.currency,
-          amount: checked.amount,
-          contactId: checked.contactId,
-          deployment,
-        })
-      : payoutRefCall({
-          currency: checked.currency,
-          amount: checked.amount,
-          contactId: checked.contactId,
-          purposeId: checked.purposeId,
-          ref: checked.ref,
-          tokenId: checked.tokenId,
-          deployment,
-        });
-  let txid: string | undefined;
-  const outcome = await advanceTx<PayoutState, string>(deps, {
-    record: checked.txs[index],
-    purpose: "main",
-    call,
-    owner: checked.owner,
-    deployment,
-    guard: async (blockNumber) => mainGuard(deps.client, deployment, checked, blockNumber),
-    evidence: payoutEvidence(deployment, checked),
-    onConfirmed: (receipt: TransactionReceipt) => {
-      txid = extractTxid(receipt, checked, deployment);
-      return txid;
+  const call = payoutCallOf(checked, deployment);
+  // `confirmed` re-checks the receipt of its last transaction (R-12); `onConfirmed`
+  // still validates the payout event is present, but nothing is persisted from it.
+  const outcome = await (checked.step === "confirmed" ? recheckTx : advanceTx)<PayoutState, string>(
+    deps,
+    {
+      record: checked.txs[index],
+      purpose: "main",
+      call,
+      owner: checked.owner,
+      deployment,
+      guard: async (blockNumber) => mainGuard(deps.client, deployment, checked, blockNumber),
+      evidence: payoutEvidence(deployment, checked),
+      onConfirmed: (receipt: TransactionReceipt) => extractTxid(receipt, checked, deployment),
+      commit: (record: TxRecord) =>
+        freeze({
+          ...checked,
+          step: stepFor(record),
+          txs: [...checked.txs.slice(0, index), record],
+        }),
     },
-    commit: (record: TxRecord) =>
-      freeze({
-        ...checked,
-        step: stepFor(record),
-        txs: [...checked.txs.slice(0, index), record],
-        ...(txid === undefined ? {} : { txid }),
-      }),
-  });
+  );
   return outcome.state;
+}
+
+/**
+ * §8.2 settlement for a confirmed payout. Validates the state and reads the LAST record's receipt
+ * fresh: the receipt missing means the transaction is back in doubt — `invalid-state` (advance the
+ * flow, which returns it to reconciliation); a receipt whose transaction no longer binds the
+ * rebuilt call, or a reverted one, is `invalid-state` too. The settlement lookup key (`txid`) and
+ * the log window's start block both come from that fresh receipt — nothing persisted depends on the
+ * block the receipt was first seen in.
+ */
+export async function loadPayoutSettlement(
+  deps: { readonly client: Client; readonly deployment?: Deployment },
+  state: PayoutState,
+): Promise<PayoutSettlement & { readonly txid: string }> {
+  const checked = checkedState(state, "payout");
+  const last = checked.step === "confirmed" ? checked.txs.at(-1) : undefined;
+  const hash = last?.hash;
+  if (checked.step !== "confirmed" || last === undefined || hash === undefined) {
+    return invalidState();
+  }
+  const deployment = resolveDeployment(deps.client, deps.deployment);
+  let receipt: TransactionReceipt;
+  try {
+    receipt = await getTransactionReceipt(deps.client, { hash });
+  } catch (error) {
+    if (errorNamed(error, "TransactionReceiptNotFoundError")) {
+      return invalidState();
+    }
+    return mapViemError(error);
+  }
+  const call = payoutCallOf(checked, deployment);
+  const { nonce } = last;
+  let tx: Transaction;
+  try {
+    tx = await getTransaction(deps.client, { hash });
+  } catch (error) {
+    if (errorNamed(error, "TransactionNotFoundError")) {
+      return invalidState();
+    }
+    return mapViemError(error);
+  }
+  if (
+    receipt.status === "reverted" ||
+    nonce === undefined ||
+    mismatchOf(tx, { owner: checked.owner, call, nonce }) !== undefined
+  ) {
+    return invalidState();
+  }
+  const txid = extractTxid(receipt, checked, deployment);
+  const settlement = await getPayoutSettlement(deps.client, {
+    deployment,
+    currency: checked.currency,
+    tokenId: checked.tokenId,
+    contactId: checked.contactId,
+    txid,
+    fromBlock: receipt.blockNumber,
+  });
+  return freeze({ ...settlement, txid });
 }

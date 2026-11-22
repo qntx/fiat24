@@ -85,7 +85,6 @@ const TOURIST: OnboardingState = {
       fromBlock: B,
       nonce: 6,
       hash: TXID_1,
-      blockNumber: B + 1n,
     },
   ],
   step: "tourist",

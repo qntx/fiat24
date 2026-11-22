@@ -75,8 +75,9 @@ function invalidState(): never {
 }
 
 // Walks the `cause` chain (cycle-safe) for a `name` match — viem nests the
-// concrete error under transport wrappers.
-function errorNamed(error: unknown, name: string): boolean {
+// concrete error under transport wrappers. Exported for the other flow files'
+// own receipt/transaction lookups (payout settlement).
+export function errorNamed(error: unknown, name: string): boolean {
   const seen = new Set<unknown>();
   let cursor: unknown = error;
   while (typeof cursor === "object" && cursor !== null && !seen.has(cursor)) {
@@ -334,7 +335,6 @@ async function byHash<S extends FlowState, R>(
       fromBlock,
       nonce,
       hash,
-      blockNumber: receipt.blockNumber,
       error: "tx-reverted",
     };
     const state = args.commit(next);
@@ -348,7 +348,6 @@ async function byHash<S extends FlowState, R>(
     fromBlock,
     nonce,
     hash,
-    blockNumber: receipt.blockNumber,
   };
   const state = args.commit(next);
   await deps.persist(state);
@@ -550,6 +549,23 @@ async function byNonce<S extends FlowState, R>(
     return { record: next, state, result: undefined };
   };
   return inspect(0);
+}
+
+/**
+ * R-12 re-check entry for a `confirmed` state: `byHash` on the last record — the receipt still
+ * there, binding and successful ⇒ `confirmed` again; anything else is the record's normal reconcile
+ * result. No guards, no deployment assertion, no send can happen — a `confirmed` record that no
+ * longer reconciles goes back to `tx` (or `failed`/`not-sent`) through the flow's commit.
+ */
+export async function recheckTx<S extends FlowState, R>(
+  deps: FlowDeps,
+  args: TxArgs<S, R>,
+): Promise<TxOutcome<S, R>> {
+  const { record } = args;
+  if (record === undefined || record.phase !== "confirmed" || record.hash === undefined) {
+    return invalidState();
+  }
+  return byHash(deps, args, record);
 }
 
 /**

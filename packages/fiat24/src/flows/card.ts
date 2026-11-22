@@ -20,7 +20,7 @@ import type { Currency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { assertPath, assertUnpaused, checkedSigner, supplyBound } from "./guards.ts";
 import { API_READY_ERRORS, checkedState } from "./state.ts";
-import { advanceTx, persistSwallow } from "./tx.ts";
+import { advanceTx, persistSwallow, recheckTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
 import type { CardOperation, CardState, FlowDeps, TxRecord } from "./types.ts";
 
@@ -394,7 +394,6 @@ export async function advanceCard(deps: FlowDeps, state: CardState): Promise<Car
   checkedSigner(deps.signer, checked.owner);
   const deployment = resolveDeployment(deps.client, deps.deployment);
   switch (checked.step) {
-    case "confirmed":
     case "failed":
     case "not-sent":
       return invalidState();
@@ -404,9 +403,9 @@ export async function advanceCard(deps: FlowDeps, state: CardState): Promise<Car
   const chain = chainAmount(checked);
   let index: number;
   let purpose: "approve" | "main";
-  if (checked.step === "tx") {
+  if (checked.step === "tx" || checked.step === "confirmed") {
     const last = checked.txs.at(-1);
-    if (last === undefined) {
+    if (last === undefined || (checked.step === "confirmed" && last.phase !== "confirmed")) {
       return invalidState();
     }
     index = checked.txs.length - 1;
@@ -445,12 +444,7 @@ export async function advanceCard(deps: FlowDeps, state: CardState): Promise<Car
     }
   }
   if (purpose === "main") {
-    return advanceApiWrite(
-      deps,
-      checked,
-      checked.step === "tx" ? checked.txs[index] : undefined,
-      index,
-    );
+    return advanceApiWrite(deps, checked, checked.txs[index], index);
   }
   if (chain === undefined) {
     return invalidState();
@@ -461,33 +455,38 @@ export async function advanceCard(deps: FlowDeps, state: CardState): Promise<Car
     amount: chain.amount,
     deployment,
   });
-  const outcome = await advanceTx<CardState, never>(deps, {
-    record: checked.step === "tx" ? checked.txs[index] : undefined,
-    purpose: "approve",
-    call,
-    owner: checked.owner,
-    deployment,
-    guard: async (blockNumber) =>
-      approveGuard(deps.client, deployment, chain.currency, chain.amount, blockNumber),
-    evidence: approveEvidence(deployment, chain.currency, checked.owner),
-    commit: (record: TxRecord) => {
-      const txs = [...checked.txs.slice(0, index), record];
-      let step: CardState["step"];
-      if (record.phase === "confirmed") {
-        if (checked.operation.kind === "set-cap") {
-          step = "confirmed";
+  // `confirmed` re-checks the receipt of the set-cap approve (R-12); a confirmed
+  // API write record stays terminal — `advanceApiWrite` maps it to invalid-state.
+  const outcome = await (checked.step === "confirmed" ? recheckTx : advanceTx)<CardState, never>(
+    deps,
+    {
+      record: checked.txs[index],
+      purpose: "approve",
+      call,
+      owner: checked.owner,
+      deployment,
+      guard: async (blockNumber) =>
+        approveGuard(deps.client, deployment, chain.currency, chain.amount, blockNumber),
+      evidence: approveEvidence(deployment, chain.currency, checked.owner),
+      commit: (record: TxRecord) => {
+        const txs = [...checked.txs.slice(0, index), record];
+        let step: CardState["step"];
+        if (record.phase === "confirmed") {
+          if (checked.operation.kind === "set-cap") {
+            step = "confirmed";
+          } else {
+            // A confirmed cap approve only unlocks the write — it runs on the
+            // next advance, never in the same one (§10.7).
+            step = "tx";
+            txs.push({ purpose: "main", phase: "ready" });
+          }
         } else {
-          // A confirmed cap approve only unlocks the write — it runs on the
-          // next advance, never in the same one (§10.7).
-          step = "tx";
-          txs.push({ purpose: "main", phase: "ready" });
+          step =
+            record.phase === "failed" ? "failed" : record.phase === "not-sent" ? "not-sent" : "tx";
         }
-      } else {
-        step =
-          record.phase === "failed" ? "failed" : record.phase === "not-sent" ? "not-sent" : "tx";
-      }
-      return freeze({ ...checked, step, txs });
+        return freeze({ ...checked, step, txs });
+      },
     },
-  });
+  );
   return outcome.state;
 }

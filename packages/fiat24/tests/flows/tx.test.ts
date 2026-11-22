@@ -179,14 +179,12 @@ describe("advanceTx", () => {
     const stub = makeFlowStub({});
     const { deps } = flowDeps(stub.client);
     const terminals: TxRecord[] = [
-      { purpose: "main", phase: "confirmed", fromBlock: B, nonce: 1, hash: TXID_1, blockNumber: B },
       {
         purpose: "main",
         phase: "failed",
         fromBlock: B,
         nonce: 1,
         hash: TXID_1,
-        blockNumber: B,
         error: "tx-reverted",
       },
       { purpose: "main", phase: "not-sent", fromBlock: B, nonce: 1 },
@@ -200,7 +198,7 @@ describe("advanceTx", () => {
         return error.code;
       }),
     );
-    expect(codes).toStrictEqual(["invalid-state", "invalid-state", "invalid-state"]);
+    expect(codes).toStrictEqual(["invalid-state", "invalid-state"]);
     expect(stub.calls).toHaveLength(0);
   });
 

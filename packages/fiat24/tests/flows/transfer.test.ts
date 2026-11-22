@@ -424,7 +424,6 @@ describe("advanceTransfer send path", () => {
       fromBlock: B,
       nonce: 5,
       hash: TXID_1,
-      blockNumber: B + 1n,
     });
     expect(persisted).toHaveLength(1);
     expect(persisted[0]).toStrictEqual(next);
@@ -458,23 +457,98 @@ describe("advanceTransfer send path", () => {
     expect(next.txs[0]?.error).toBe("tx-reverted");
   });
 
+  test("confirmed re-checks the receipt — still there ⇒ the same state, persisted once", async () => {
+    const confirmed: TransferState = {
+      ...DRAFT,
+      step: "confirmed",
+      txs: [{ purpose: "main", phase: "confirmed", fromBlock: B, nonce: 5, hash: TXID_1 }],
+    };
+    const stub = makeFlowStub({
+      receipts: {
+        [TXID_1]: receiptPayload({
+          transactionHash: TXID_1,
+          blockNumber: B + 1n,
+          status: "success",
+          logs: [
+            transferLog({
+              token: TOKEN,
+              from: OWNER,
+              to: RECIPIENT,
+              amount: AMOUNT,
+              blockNumber: B + 1n,
+              transactionHash: TXID_1,
+            }),
+          ],
+        }),
+      },
+      transactions: {
+        [TXID_1]: txPayload({
+          hash: TXID_1,
+          from: OWNER,
+          to: TOKEN,
+          input: transferData(RECIPIENT, AMOUNT),
+          value: 0n,
+          nonce: 5,
+          blockNumber: B + 1n,
+        }),
+      },
+    });
+    const { deps, persisted } = flowDeps(stub.client);
+    const next = await advanceTransfer(deps, confirmed);
+    expect(next).toStrictEqual(confirmed);
+    expect(persisted).toStrictEqual([next]);
+  });
+
+  test("confirmed re-check: receipt and tx gone, nonce consumed ⇒ back to tx{unknown}", async () => {
+    const confirmed: TransferState = {
+      ...DRAFT,
+      step: "confirmed",
+      txs: [{ purpose: "main", phase: "confirmed", fromBlock: B, nonce: 5, hash: TXID_1 }],
+    };
+    const stub = makeFlowStub({ count: { latest: 6 }, logs: () => [] });
+    const { deps, persisted } = flowDeps(stub.client);
+    const next = await advanceTransfer(deps, confirmed);
+    expect(next.step).toBe("tx");
+    expect(next.txs[0]).toStrictEqual({
+      purpose: "main",
+      phase: "unknown",
+      fromBlock: B,
+      nonce: 5,
+      hash: TXID_1,
+      error: "unknown-outcome",
+    });
+    expect(persisted).toStrictEqual([next]);
+  });
+
+  test("confirmed re-check: receipt gone but the tx is pending ⇒ tx{submitted}", async () => {
+    const confirmed: TransferState = {
+      ...DRAFT,
+      step: "confirmed",
+      txs: [{ purpose: "main", phase: "confirmed", fromBlock: B, nonce: 5, hash: TXID_1 }],
+    };
+    const stub = makeFlowStub({
+      transactions: {
+        [TXID_1]: txPayload({
+          hash: TXID_1,
+          from: OWNER,
+          to: TOKEN,
+          input: transferData(RECIPIENT, AMOUNT),
+          value: 0n,
+          nonce: 5,
+          pending: true,
+        }),
+      },
+    });
+    const { deps } = flowDeps(stub.client);
+    const next = await advanceTransfer(deps, confirmed);
+    expect(next.step).toBe("tx");
+    expect(next.txs[0]?.phase).toBe("submitted");
+    expect(next.txs[0]?.hash).toBe(TXID_1);
+  });
+
   test("terminal advance ⇒ invalid-state with no I/O", async () => {
     const hash: Hash = `0x${"ef".repeat(32)}`;
     const terminals: ReadonlyArray<TransferState> = [
-      {
-        ...DRAFT,
-        step: "confirmed",
-        txs: [
-          {
-            purpose: "main",
-            phase: "confirmed",
-            fromBlock: B,
-            nonce: 5,
-            hash,
-            blockNumber: B + 1n,
-          },
-        ],
-      },
       {
         ...DRAFT,
         step: "failed",
@@ -485,7 +559,6 @@ describe("advanceTransfer send path", () => {
             fromBlock: B,
             nonce: 5,
             hash,
-            blockNumber: B + 1n,
             error: "tx-reverted",
           },
         ],

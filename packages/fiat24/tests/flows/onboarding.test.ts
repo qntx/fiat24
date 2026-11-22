@@ -75,7 +75,6 @@ const CONFIRMED_MAIN = {
   fromBlock: B,
   nonce: 6,
   hash: TXID_1,
-  blockNumber: B + 1n,
 };
 
 const TOURIST: OnboardingState = {
@@ -106,7 +105,6 @@ const MAIN_READY_F24: OnboardingState = {
       fromBlock: B,
       nonce: 5,
       hash: TXID_1,
-      blockNumber: B + 1n,
     },
     { purpose: "main", phase: "ready" },
   ],

@@ -409,7 +409,6 @@ describe("advanceCard chain part", () => {
         fromBlock: B,
         nonce: 3,
         hash: TXID_1,
-        blockNumber: B + 1n,
       },
       { purpose: "main", phase: "ready" },
     ]);
@@ -714,9 +713,7 @@ describe("advanceCard API write", () => {
     expect(mismatch).toBeInstanceOf(Fiat24Error);
   });
 
-  test("terminal steps ⇒ invalid-state with no I/O", async () => {
-    const stub = makeFlowStub({});
-    const { deps } = flowDeps(stub.client);
+  test("a confirmed set-cap approve re-checks the receipt — still there ⇒ the same state", async () => {
     const confirmed: CardState = {
       ...SET_CAP,
       step: "confirmed",
@@ -727,11 +724,52 @@ describe("advanceCard API write", () => {
           fromBlock: B,
           nonce: 1,
           hash: TXID_1,
-          blockNumber: B + 1n,
         },
       ],
     };
-    const error = await expectErrorAsync(async () => advanceCard(deps, confirmed), "invalid-state");
+    const stub = makeFlowStub({
+      receipts: {
+        [TXID_1]: receiptPayload({
+          transactionHash: TXID_1,
+          blockNumber: B + 1n,
+          status: "success",
+        }),
+      },
+      transactions: {
+        [TXID_1]: txPayload({
+          hash: TXID_1,
+          from: OWNER,
+          to: EUR24,
+          input: encodeFunctionData({
+            abi: tokenAbi,
+            functionName: "approve",
+            args: [CARD, CAP_AMOUNT],
+          }),
+          value: 0n,
+          nonce: 1,
+          blockNumber: B + 1n,
+        }),
+      },
+    });
+    const { deps, persisted } = flowDeps(stub.client);
+    const next = await advanceCard(deps, confirmed);
+    expect(next).toStrictEqual(confirmed);
+    expect(persisted).toStrictEqual([next]);
+  });
+
+  test("a confirmed API write record stays terminal ⇒ invalid-state", async () => {
+    const stub = makeFlowStub({});
+    const { deps } = flowDeps(stub.client);
+    const { session } = cardSession();
+    const confirmed: CardState = {
+      ...CREATE,
+      step: "confirmed",
+      txs: [{ purpose: "main", phase: "confirmed" }],
+    };
+    const error = await expectErrorAsync(
+      async () => advanceCard({ ...deps, session }, confirmed),
+      "invalid-state",
+    );
     expect(error).toBeInstanceOf(Fiat24Error);
   });
 });

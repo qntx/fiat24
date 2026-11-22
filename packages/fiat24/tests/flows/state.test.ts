@@ -89,7 +89,14 @@ describe("flow state codec", () => {
         step: "tx",
         txs: [{ purpose: "main", phase: "submitted", fromBlock: "1", nonce: 5 }],
       },
-      // confirmed without blockNumber.
+      // confirmed without its hash — the phase table requires it.
+      {
+        ...DRAFT_JSON,
+        step: "confirmed",
+        txs: [{ purpose: "main", phase: "confirmed", fromBlock: "1", nonce: 5 }],
+      },
+      // a record may not carry blockNumber — nothing persisted depends on the
+      // block a receipt was first seen in.
       {
         ...DRAFT_JSON,
         step: "confirmed",
@@ -100,6 +107,50 @@ describe("flow state codec", () => {
             fromBlock: "1",
             nonce: 5,
             hash: HASH,
+            blockNumber: "2",
+          },
+        ],
+      },
+      // mismatch is legal only on unknown{hash, unknown-outcome}.
+      {
+        ...DRAFT_JSON,
+        step: "tx",
+        txs: [
+          {
+            purpose: "main",
+            phase: "submitted",
+            fromBlock: "1",
+            nonce: 5,
+            hash: HASH,
+            mismatch: "to",
+          },
+        ],
+      },
+      {
+        ...DRAFT_JSON,
+        step: "tx",
+        txs: [
+          {
+            purpose: "main",
+            phase: "unknown",
+            fromBlock: "1",
+            nonce: 5,
+            error: "unknown-outcome",
+            mismatch: "to",
+          },
+        ],
+      },
+      {
+        ...DRAFT_JSON,
+        step: "tx",
+        txs: [
+          {
+            purpose: "main",
+            phase: "unknown",
+            fromBlock: "1",
+            nonce: 5,
+            hash: HASH,
+            mismatch: "not-a-field",
           },
         ],
       },
@@ -155,7 +206,6 @@ describe("flow state codec", () => {
             fromBlock: "1",
             nonce: 4,
             hash: HASH,
-            blockNumber: "2",
           },
           {
             purpose: "main",
@@ -163,7 +213,6 @@ describe("flow state codec", () => {
             fromBlock: "1",
             nonce: 5,
             hash: HASH,
-            blockNumber: "2",
           },
           { purpose: "main", phase: "ready" },
         ],
@@ -179,7 +228,6 @@ describe("flow state codec", () => {
             fromBlock: "1",
             nonce: 4,
             hash: HASH,
-            blockNumber: "2",
           },
           { purpose: "approve", phase: "ready" },
         ],
@@ -428,10 +476,9 @@ describe("flow state codec", () => {
 describe("per-flow semantics", () => {
   const HASH2: Hash = `0x${"cd".repeat(32)}`;
   const FB = "526365924";
-  const BN2 = "526365925";
 
   function confirmed(purpose: "approve" | "main", nonce = 1, hash: Hash = HASH) {
-    return { purpose, phase: "confirmed", fromBlock: FB, nonce, hash, blockNumber: BN2 };
+    return { purpose, phase: "confirmed", fromBlock: FB, nonce, hash };
   }
   function submitted(purpose: "approve" | "main", nonce = 2, hash: Hash = HASH2) {
     return { purpose, phase: "submitted", fromBlock: FB, nonce, hash };
@@ -442,7 +489,6 @@ describe("per-flow semantics", () => {
     fromBlock: FB,
     nonce: 2,
     hash: HASH2,
-    blockNumber: BN2,
     error: "tx-reverted",
   };
   const QUOTE = { input: "100", output: "105", rate: "2", spread: "1", blockNumber: FB };
@@ -524,7 +570,8 @@ describe("per-flow semantics", () => {
       quote: QUOTE,
       txs: [{ purpose: "main", phase: "not-sent", fromBlock: FB, nonce: 2, hash: HASH2 }],
     },
-    // payout: sending main; confirmed with txid and a confirmed main.
+    // payout: sending main; confirmed with a confirmed main — the settlement
+    // txid is derived from a fresh receipt by loadPayoutSettlement, never persisted.
     {
       flow: "payout",
       version: 1,
@@ -547,7 +594,6 @@ describe("per-flow semantics", () => {
       contactId: "AB-12",
       purposeId: "42",
       ref: VALID_REF,
-      txid: "tx-123",
       txs: [confirmed("main", 2, HASH2)],
     },
     {
@@ -753,7 +799,6 @@ describe("per-flow semantics", () => {
           fromBlock: FB,
           nonce: 1,
           hash: HASH,
-          blockNumber: BN2,
           error: "tx-reverted",
         },
       ],
@@ -795,7 +840,6 @@ describe("per-flow semantics", () => {
           fromBlock: FB,
           nonce: 1,
           hash: HASH,
-          blockNumber: BN2,
           error: "tx-reverted",
         },
       ],
@@ -823,7 +867,6 @@ describe("per-flow semantics", () => {
           fromBlock: FB,
           nonce: 1,
           hash: HASH,
-          blockNumber: BN2,
           error: "tx-reverted",
         },
       ],
@@ -930,9 +973,7 @@ describe("per-flow semantics", () => {
     ]),
     transferTx([{ purpose: "main", phase: "unknown", fromBlock: FB, nonce: 1 }]),
     transferTx([{ ...confirmed("main"), error: "rpc-error" }]),
-    transferTx([
-      { purpose: "main", phase: "failed", fromBlock: FB, nonce: 1, hash: HASH, blockNumber: BN2 },
-    ]),
+    transferTx([]),
     transferTx([
       {
         purpose: "main",
@@ -940,7 +981,6 @@ describe("per-flow semantics", () => {
         fromBlock: FB,
         nonce: 1,
         hash: HASH,
-        blockNumber: BN2,
         error: "unknown-outcome",
       },
     ]),
@@ -1079,16 +1119,6 @@ describe("per-flow semantics", () => {
       amount: "100",
       contactId: "QRCH",
       txs: [submitted("approve")],
-    },
-    {
-      ...BASE,
-      flow: "payout",
-      step: "confirmed",
-      tokenId: "350273",
-      currency: "EUR24",
-      amount: "100",
-      contactId: "QRCH",
-      txs: [confirmed("main")],
     },
     {
       ...BASE,

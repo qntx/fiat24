@@ -25,7 +25,7 @@ import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
 import { assertPath, checkedSigner, deskOwner, legAllowed, supplyBound } from "./guards.ts";
 import { checkedState } from "./state.ts";
-import { advanceTx } from "./tx.ts";
+import { advanceTx, recheckTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
 import type { FlowDeps, TopUpState, TxRecord } from "./types.ts";
 
@@ -266,7 +266,6 @@ export async function advanceTopUp(deps: FlowDeps, state: TopUpState): Promise<T
   checkedSigner(deps.signer, checked.owner);
   const deployment = resolveDeployment(deps.client, deps.deployment);
   switch (checked.step) {
-    case "confirmed":
     case "failed":
     case "not-sent":
     case "unavailable":
@@ -366,56 +365,69 @@ export async function advanceTopUp(deps: FlowDeps, state: TopUpState): Promise<T
         deployment,
       });
   let actual: { readonly input: bigint; readonly output: bigint } | undefined;
-  const outcome = await advanceTx<TopUpState, { readonly input: bigint; readonly output: bigint }>(
-    deps,
-    {
-      record: checked.step === "tx" ? checked.txs[index] : undefined,
-      purpose,
-      call,
-      owner: checked.owner,
-      deployment,
-      guard: async (blockNumber) =>
-        isApprove
-          ? approveGuard(deps.client, deployment, checked, blockNumber)
-          : mainGuard(deps.client, deployment, checked, blockNumber),
-      evidence: isApprove
-        ? approveEvidence(deployment, checked)
-        : mainEvidence(deployment, checked),
-      // `onConfirmed` is omitted entirely for the approve record —
-      // exactOptionalPropertyTypes forbids an explicit `undefined`.
-      ...(isApprove
-        ? {}
-        : {
-            onConfirmed: (receipt: TransactionReceipt) => {
-              actual = extractActual(receipt, checked, deployment);
-              return actual;
-            },
-          }),
-      commit: (record: TxRecord) => {
-        const txs = [...checked.txs.slice(0, index), record];
-        const step: TopUpState["step"] =
-          record.phase === "confirmed"
-            ? isApprove
-              ? "tx"
-              : "confirmed"
-            : record.phase === "failed"
-              ? "failed"
-              : record.phase === "not-sent"
-                ? "not-sent"
-                : "tx";
-        // Same rule as exchange: the confirmed approve unlocks `main{ready}`;
-        // the main is sent on the next advance (§10.8).
-        if (isApprove && record.phase === "confirmed") {
-          txs.push({ purpose: "main", phase: "ready" });
-        }
-        return freeze({
-          ...checked,
-          step,
-          txs,
-          ...(actual === undefined ? {} : { actual }),
-        });
-      },
+  // A `confirmed` state re-checks the receipt of its last transaction (R-12) — the
+  // fresh `actual` from that receipt must equal the persisted one; everything else
+  // advances the sub-machine.
+  const outcome = await (checked.step === "confirmed" ? recheckTx : advanceTx)<
+    TopUpState,
+    { readonly input: bigint; readonly output: bigint }
+  >(deps, {
+    record: checked.step === "quoted" ? undefined : checked.txs[index],
+    purpose,
+    call,
+    owner: checked.owner,
+    deployment,
+    guard: async (blockNumber) =>
+      isApprove
+        ? approveGuard(deps.client, deployment, checked, blockNumber)
+        : mainGuard(deps.client, deployment, checked, blockNumber),
+    evidence: isApprove ? approveEvidence(deployment, checked) : mainEvidence(deployment, checked),
+    // `onConfirmed` is omitted entirely for the approve record —
+    // exactOptionalPropertyTypes forbids an explicit `undefined`.
+    ...(isApprove
+      ? {}
+      : {
+          onConfirmed: (receipt: TransactionReceipt) => {
+            actual = extractActual(receipt, checked, deployment);
+            return actual;
+          },
+        }),
+    commit: (record: TxRecord) => {
+      const { actual: persisted, ...rest } = checked;
+      const txs = [...checked.txs.slice(0, index), record];
+      const step: TopUpState["step"] =
+        record.phase === "confirmed"
+          ? isApprove
+            ? "tx"
+            : "confirmed"
+          : record.phase === "failed"
+            ? "failed"
+            : record.phase === "not-sent"
+              ? "not-sent"
+              : "tx";
+      // Same rule as exchange: the confirmed approve unlocks `main{ready}`;
+      // the main is sent on the next advance (§10.8).
+      if (isApprove && record.phase === "confirmed") {
+        txs.push({ purpose: "main", phase: "ready" });
+      }
+      // Re-checking a confirmed main: the receipt's re-derived `actual` must
+      // equal the persisted one — a different read means the state lies.
+      if (
+        step === "confirmed" &&
+        persisted !== undefined &&
+        (actual === undefined ||
+          actual.input !== persisted.input ||
+          actual.output !== persisted.output)
+      ) {
+        return invalidState();
+      }
+      return freeze({
+        ...rest,
+        step,
+        txs,
+        ...(actual === undefined ? {} : { actual }),
+      });
     },
-  );
+  });
   return outcome.state;
 }

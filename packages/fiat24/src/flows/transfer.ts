@@ -17,7 +17,7 @@ import type { Currency, Recipient } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { assertPath, assertUnpaused, checkedSigner } from "./guards.ts";
 import { checkedState } from "./state.ts";
-import { advanceTx } from "./tx.ts";
+import { advanceTx, recheckTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
 import type { FlowDeps, TransferState, TxRecord } from "./types.ts";
 
@@ -160,7 +160,6 @@ export async function advanceTransfer(
   checkedSigner(deps.signer, checked.owner);
   const deployment = resolveDeployment(deps.client, deps.deployment);
   switch (checked.step) {
-    case "confirmed":
     case "failed":
     case "not-sent":
       return invalidState();
@@ -175,7 +174,12 @@ export async function advanceTransfer(
     default: {
       const call = buildCall(checked, deployment);
       const index = checked.txs.length === 0 ? 0 : checked.txs.length - 1;
-      const outcome = await advanceTx<TransferState, undefined>(deps, {
+      // `confirmed` re-checks the receipt of its last transaction (R-12); every
+      // other in-flight step advances the sub-machine.
+      const outcome = await (checked.step === "confirmed" ? recheckTx : advanceTx)<
+        TransferState,
+        undefined
+      >(deps, {
         record: checked.txs[index],
         purpose: "main",
         call,

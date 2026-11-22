@@ -37,7 +37,9 @@ export type TxMismatch = "from" | "nonce" | "to" | "input" | "value";
  * SPEC §10.1. The call is never stored — it is rebuilt from the flow's intent fields each advance
  * (I20); `nonce` is chosen by the SDK and passed to the signer, which must sign with exactly that
  * nonce or throw (§10.9). `mismatch` is legal only on `unknown{hash, unknown-outcome}`: the mined
- * transaction under that hash is not ours — the field says where it diverged.
+ * transaction under that hash is not ours — the field says where it diverged. Nothing persisted may
+ * depend on the L2 block a receipt was first seen in — a `confirmed` record is re-checked against a
+ * fresh receipt on every advance (R-12).
  */
 export type TxRecord = {
   readonly purpose: "approve" | "main";
@@ -45,7 +47,6 @@ export type TxRecord = {
   readonly fromBlock?: bigint;
   readonly nonce?: number;
   readonly hash?: Hash;
-  readonly blockNumber?: bigint;
   readonly mismatch?: TxMismatch;
   readonly error?: Fiat24ErrorCode;
 };
@@ -107,7 +108,6 @@ export type PayoutState = Common & {
   readonly contactId: string;
   readonly purposeId?: bigint;
   readonly ref?: string;
-  readonly txid?: string;
 };
 
 export type CardCurrency = "EUR" | "USD" | "CHF" | "CNH";

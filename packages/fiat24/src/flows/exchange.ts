@@ -31,7 +31,7 @@ import {
   supplyBound,
 } from "./guards.ts";
 import { checkedState } from "./state.ts";
-import { advanceTx } from "./tx.ts";
+import { advanceTx, recheckTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
 import type { ExchangeState, FlowDeps, TxRecord } from "./types.ts";
 
@@ -278,7 +278,6 @@ export async function advanceExchange(
   checkedSigner(deps.signer, checked.owner);
   const deployment = resolveDeployment(deps.client, deps.deployment);
   switch (checked.step) {
-    case "confirmed":
     case "failed":
     case "not-sent":
       return invalidState();
@@ -375,11 +374,14 @@ export async function advanceExchange(
         deployment,
       });
   let actual: { readonly input: bigint; readonly output: bigint } | undefined;
-  const outcome = await advanceTx<
+  // A `confirmed` state re-checks the receipt of its last transaction (R-12) — the
+  // fresh `actual` from that receipt must equal the persisted one; everything else
+  // advances the sub-machine.
+  const outcome = await (checked.step === "confirmed" ? recheckTx : advanceTx)<
     ExchangeState,
     { readonly input: bigint; readonly output: bigint }
   >(deps, {
-    record: checked.step === "tx" ? checked.txs[index] : undefined,
+    record: checked.step === "quoted" ? undefined : checked.txs[index],
     purpose,
     call,
     owner: checked.owner,
@@ -400,6 +402,7 @@ export async function advanceExchange(
           },
         }),
     commit: (record: TxRecord) => {
+      const { actual: persisted, ...rest } = checked;
       const txs = [...checked.txs.slice(0, index), record];
       // A confirmed approve only unlocks the main record — the main is sent
       // on the next advance, never in the same one (§10.5).
@@ -416,8 +419,19 @@ export async function advanceExchange(
       if (isApprove && record.phase === "confirmed") {
         txs.push({ purpose: "main", phase: "ready" });
       }
+      // Re-checking a confirmed main: the receipt's re-derived `actual` must
+      // equal the persisted one — a different read means the state lies.
+      if (
+        step === "confirmed" &&
+        persisted !== undefined &&
+        (actual === undefined ||
+          actual.input !== persisted.input ||
+          actual.output !== persisted.output)
+      ) {
+        return invalidState();
+      }
       return freeze({
-        ...checked,
+        ...rest,
         step,
         txs,
         ...(actual === undefined ? {} : { actual }),

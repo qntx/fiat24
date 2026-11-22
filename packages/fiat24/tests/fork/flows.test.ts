@@ -23,6 +23,7 @@ import {
   advanceTransfer,
   decodeFlowState,
   encodeFlowState,
+  loadPayoutSettlement,
   startCardSetup,
   startExchange,
   startOnboarding,
@@ -136,12 +137,14 @@ function quoteOf(state: FlowState): ExchangeQuote {
   return candidate.quote;
 }
 
-function confirmedBlockOf(state: FlowState): bigint {
+/** The block the last record's transaction was mined in — re-read from a fresh receipt. */
+async function confirmedBlockOf(fork: Fork, state: FlowState): Promise<bigint> {
   const record = state.txs.at(-1);
-  if (record?.phase !== "confirmed" || record.blockNumber === undefined) {
+  if (record?.phase !== "confirmed" || record.hash === undefined) {
     throw new Error("expected a confirmed record");
   }
-  return record.blockNumber;
+  const receipt = await fork.publicClient.getTransactionReceipt({ hash: record.hash });
+  return receipt.blockNumber;
 }
 
 function submittedHashOf(state: FlowState): Hash {
@@ -680,7 +683,9 @@ describe.skipIf(!FORK_ENABLED)("fork: flows", () => {
       expect(state.step).toBe("tx");
       state = await driveUntil(advancePayout, deps, state, isConfirmed);
       expect(state.step).toBe("confirmed");
-      expect(state.txid).toBe(`${LIVE_1}-${confirmedBlockOf(state)}`);
+      const mined = await confirmedBlockOf(fork, state);
+      const settlement = await loadPayoutSettlement({ client: fork.publicClient }, state);
+      expect(settlement.txid).toBe(`${LIVE_1}-${mined}`);
       expect(persisted.length).toBeGreaterThan(0);
       expectSignerShape(sign);
     });
@@ -727,7 +732,9 @@ describe.skipIf(!FORK_ENABLED)("fork: flows", () => {
       expect(sign.requests.at(-1)?.data).toBe(expected.data);
       state = await driveUntil(advancePayout, { ...deps, session }, state, isConfirmed);
       expect(state.step).toBe("confirmed");
-      expect(state.txid).toBe(`${LIVE_1}-${confirmedBlockOf(state)}`);
+      const mined = await confirmedBlockOf(fork, state);
+      const settlement = await loadPayoutSettlement({ client: fork.publicClient }, state);
+      expect(settlement.txid).toBe(`${LIVE_1}-${mined}`);
       expectSignerShape(sign);
     });
 

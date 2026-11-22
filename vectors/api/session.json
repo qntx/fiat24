@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "capability": "api.session",
+  "source": {
+    "kind": "reference",
+    "name": "cast",
+    "version": "1.10.0",
+    "evidence": "SPEC §9.2 table; digest via `cast keccak`, EIP-191 hash via `cast hash-message`, row-1 signature via `cast wallet sign` (public anvil test key 0)",
+    "generator": "packages/fiat24/scripts/vectors/session.ts"
+  },
+  "cases": [
+    {
+      "args": {
+        "chainId": "42161",
+        "tokenId": "123456",
+        "deadline": "1795278000"
+      },
+      "label": "fiat24-session-v1:42161:123456:1795278000",
+      "preimage": "fiat24-session-v1:42161:123456:17952780001795278000",
+      "digest": "0x7aa5d53d52ac69271847fc6b9385c9080a249f9d3c2aff9f721ca821a8109025",
+      "message": "I agree to access my profile. 0x7aa5d53d52ac69271847fc6b9385c9080a249f9d3c2aff9f721ca821a8109025",
+      "eip191Hash": "0x42e71571afdd4e74672f74c8bddc84e45a6f637fae50032640edb54588efcdfa",
+      "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "signature": "0x09410c3f5d15d8022f6baa8e556eeeee446164f864e33c9e6ff30fc63d7c45996719e723721bef79e3daebade7979538306b14039290d25338f19b74fe8cb0031c"
+    },
+    {
+      "args": {
+        "chainId": "42161",
+        "tokenId": "1",
+        "deadline": "1795305600"
+      },
+      "label": "fiat24-session-v1:42161:1:1795305600",
+      "preimage": "fiat24-session-v1:42161:1:17953056001795305600",
+      "digest": "0x5d7df61b38b749bb4f56ed475606a771754b12494427b00c7e1df9a200ac2202",
+      "message": "I agree to access my profile. 0x5d7df61b38b749bb4f56ed475606a771754b12494427b00c7e1df9a200ac2202",
+      "eip191Hash": "0x385c99758dfbd01204bcd980b990c73dd91e5bd25ff07cad5c6a8e5d43eaab64"
+    },
+    {
+      "args": {
+        "chainId": "42161",
+        "tokenId": "9007199254740993",
+        "deadline": "4102444800"
+      },
+      "label": "fiat24-session-v1:42161:9007199254740993:4102444800",
+      "preimage": "fiat24-session-v1:42161:9007199254740993:41024448004102444800",
+      "digest": "0x2357270ce0d4f3fa5a9a51eafbf0580ebb8dad931e4008b30ba274e83dacdb2b",
+      "message": "I agree to access my profile. 0x2357270ce0d4f3fa5a9a51eafbf0580ebb8dad931e4008b30ba274e83dacdb2b",
+      "eip191Hash": "0xe66787ac443bd91d65cc73499568ad74cba295b0790b11315333c8a75b26bc2e"
+    },
+    {
+      "args": {
+        "chainId": "1",
+        "tokenId": "123456",
+        "deadline": "1795278000"
+      },
+      "error": "unsupported-chain"
+    },
+    {
+      "args": {
+        "chainId": "42161",
+        "tokenId": "0",
+        "deadline": "1795278000"
+      },
+      "error": "invalid-account-id"
+    },
+    {
+      "args": {
+        "chainId": "42161",
+        "tokenId": "123456",
+        "deadline": "0"
+      },
+      "error": "invalid-argument"
+    }
+  ]
+}

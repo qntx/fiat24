@@ -1,0 +1,1134 @@
+{
+  "schema": 1,
+  "capability": "calls.calldata",
+  "source": {
+    "kind": "reference",
+    "name": "cast",
+    "version": "1.10.0",
+    "evidence": "expected data via `cast calldata`; the NUL-padded payoutRef case carries the recorded input of tx 0xbe87afca37b50fc68a3dd9ea5b18c6377b50f7491085f3989c6f04131439dea3 (raw/payout-ref-tx.json); contracts lists from SPEC §6.1",
+    "generator": "packages/fiat24/scripts/vectors/calls.ts"
+  },
+  "cases": [
+    {
+      "op": "transferCall",
+      "args": {
+        "currency": "USD24",
+        "to": "0x1111111111111111111111111111111111111111",
+        "amount": "12345"
+      },
+      "output": {
+        "to": "0xbE00f3db78688d9704BCb4e0a827aea3a9Cc0D62",
+        "data": "0xa9059cbb00000000000000000000000011111111111111111111111111111111111111110000000000000000000000000000000000000000000000000000000000003039",
+        "value": "0",
+        "contracts": [
+          "USD24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "transferCall",
+      "args": {
+        "currency": "EUR24",
+        "to": "0x1111111111111111111111111111111111111111",
+        "amount": "12345"
+      },
+      "output": {
+        "to": "0x2c5d06f591D0d8cd43Ac232c2B654475a142c7DA",
+        "data": "0xa9059cbb00000000000000000000000011111111111111111111111111111111111111110000000000000000000000000000000000000000000000000000000000003039",
+        "value": "0",
+        "contracts": [
+          "EUR24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "transferCall",
+      "args": {
+        "currency": "CHF24",
+        "to": "0x1111111111111111111111111111111111111111",
+        "amount": "12345"
+      },
+      "output": {
+        "to": "0xd41F1f0cf89fD239ca4c1F8E8ADA46345c86b0a4",
+        "data": "0xa9059cbb00000000000000000000000011111111111111111111111111111111111111110000000000000000000000000000000000000000000000000000000000003039",
+        "value": "0",
+        "contracts": [
+          "CHF24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "transferCall",
+      "args": {
+        "currency": "CNH24",
+        "to": "0x1111111111111111111111111111111111111111",
+        "amount": "12345"
+      },
+      "output": {
+        "to": "0x7288Ac74d211735374A23707D1518DCbbc0144fd",
+        "data": "0xa9059cbb00000000000000000000000011111111111111111111111111111111111111110000000000000000000000000000000000000000000000000000000000003039",
+        "value": "0",
+        "contracts": [
+          "CNH24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "transferToAccountCall",
+      "args": {
+        "currency": "USD24",
+        "tokenId": "123456",
+        "amount": "100"
+      },
+      "output": {
+        "to": "0xbE00f3db78688d9704BCb4e0a827aea3a9Cc0D62",
+        "data": "0xe89082b3000000000000000000000000000000000000000000000000000000000001e2400000000000000000000000000000000000000000000000000000000000000064",
+        "value": "0",
+        "contracts": [
+          "USD24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "transferToAccountCall",
+      "args": {
+        "currency": "EUR24",
+        "tokenId": "123456",
+        "amount": "100"
+      },
+      "output": {
+        "to": "0x2c5d06f591D0d8cd43Ac232c2B654475a142c7DA",
+        "data": "0xe89082b3000000000000000000000000000000000000000000000000000000000001e2400000000000000000000000000000000000000000000000000000000000000064",
+        "value": "0",
+        "contracts": [
+          "EUR24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "transferToAccountCall",
+      "args": {
+        "currency": "CHF24",
+        "tokenId": "123456",
+        "amount": "100"
+      },
+      "output": {
+        "to": "0xd41F1f0cf89fD239ca4c1F8E8ADA46345c86b0a4",
+        "data": "0xe89082b3000000000000000000000000000000000000000000000000000000000001e2400000000000000000000000000000000000000000000000000000000000000064",
+        "value": "0",
+        "contracts": [
+          "CHF24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "transferToAccountCall",
+      "args": {
+        "currency": "CNH24",
+        "tokenId": "123456",
+        "amount": "100"
+      },
+      "output": {
+        "to": "0x7288Ac74d211735374A23707D1518DCbbc0144fd",
+        "data": "0xe89082b3000000000000000000000000000000000000000000000000000000000001e2400000000000000000000000000000000000000000000000000000000000000064",
+        "value": "0",
+        "contracts": [
+          "CNH24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "transferToAccountCall",
+      "args": {
+        "currency": "EUR24",
+        "tokenId": "9099",
+        "amount": "1"
+      },
+      "output": {
+        "to": "0x2c5d06f591D0d8cd43Ac232c2B654475a142c7DA",
+        "data": "0xe89082b3000000000000000000000000000000000000000000000000000000000000238b0000000000000000000000000000000000000000000000000000000000000001",
+        "value": "0",
+        "contracts": [
+          "EUR24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "transferToAccountCall",
+      "args": {
+        "currency": "EUR24",
+        "tokenId": "9300",
+        "amount": "1"
+      },
+      "output": {
+        "to": "0x2c5d06f591D0d8cd43Ac232c2B654475a142c7DA",
+        "data": "0xe89082b300000000000000000000000000000000000000000000000000000000000024540000000000000000000000000000000000000000000000000000000000000001",
+        "value": "0",
+        "contracts": [
+          "EUR24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "exchangeCall",
+      "args": {
+        "side": "exact-in",
+        "from": "USD24",
+        "to": "EUR24",
+        "amount": "123456"
+      },
+      "output": {
+        "to": "0x4582f67698843Dfb6A9F195C0dDee05B0A8C973F",
+        "data": "0x72a023fa000000000000000000000000be00f3db78688d9704bcb4e0a827aea3a9cc0d620000000000000000000000002c5d06f591d0d8cd43ac232c2b654475a142c7da000000000000000000000000000000000000000000000000000000000001e240",
+        "value": "0",
+        "contracts": [
+          "deposit",
+          "USD24",
+          "EUR24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "exchangeCall",
+      "args": {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "CHF24",
+        "amount": "123456"
+      },
+      "output": {
+        "to": "0x4582f67698843Dfb6A9F195C0dDee05B0A8C973F",
+        "data": "0x72a023fa0000000000000000000000002c5d06f591d0d8cd43ac232c2b654475a142c7da000000000000000000000000d41f1f0cf89fd239ca4c1f8e8ada46345c86b0a4000000000000000000000000000000000000000000000000000000000001e240",
+        "value": "0",
+        "contracts": [
+          "deposit",
+          "EUR24",
+          "CHF24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "exchangeCall",
+      "args": {
+        "side": "exact-in",
+        "from": "CHF24",
+        "to": "CNH24",
+        "amount": "123456"
+      },
+      "output": {
+        "to": "0x4582f67698843Dfb6A9F195C0dDee05B0A8C973F",
+        "data": "0x72a023fa000000000000000000000000d41f1f0cf89fd239ca4c1f8e8ada46345c86b0a40000000000000000000000007288ac74d211735374a23707d1518dcbbc0144fd000000000000000000000000000000000000000000000000000000000001e240",
+        "value": "0",
+        "contracts": [
+          "deposit",
+          "CHF24",
+          "CNH24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "exchangeCall",
+      "args": {
+        "side": "exact-in",
+        "from": "CNH24",
+        "to": "USD24",
+        "amount": "123456"
+      },
+      "output": {
+        "to": "0x4582f67698843Dfb6A9F195C0dDee05B0A8C973F",
+        "data": "0x72a023fa0000000000000000000000007288ac74d211735374a23707d1518dcbbc0144fd000000000000000000000000be00f3db78688d9704bcb4e0a827aea3a9cc0d62000000000000000000000000000000000000000000000000000000000001e240",
+        "value": "0",
+        "contracts": [
+          "deposit",
+          "CNH24",
+          "USD24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "exchangeCall",
+      "args": {
+        "side": "exact-out",
+        "from": "USD24",
+        "to": "EUR24",
+        "amount": "123456"
+      },
+      "output": {
+        "to": "0x4582f67698843Dfb6A9F195C0dDee05B0A8C973F",
+        "data": "0x8f28f584000000000000000000000000be00f3db78688d9704bcb4e0a827aea3a9cc0d620000000000000000000000002c5d06f591d0d8cd43ac232c2b654475a142c7da000000000000000000000000000000000000000000000000000000000001e240",
+        "value": "0",
+        "contracts": [
+          "deposit",
+          "USD24",
+          "EUR24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "exchangeCall",
+      "args": {
+        "side": "exact-out",
+        "from": "EUR24",
+        "to": "CHF24",
+        "amount": "123456"
+      },
+      "output": {
+        "to": "0x4582f67698843Dfb6A9F195C0dDee05B0A8C973F",
+        "data": "0x8f28f5840000000000000000000000002c5d06f591d0d8cd43ac232c2b654475a142c7da000000000000000000000000d41f1f0cf89fd239ca4c1f8e8ada46345c86b0a4000000000000000000000000000000000000000000000000000000000001e240",
+        "value": "0",
+        "contracts": [
+          "deposit",
+          "EUR24",
+          "CHF24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "exchangeCall",
+      "args": {
+        "side": "exact-out",
+        "from": "CHF24",
+        "to": "CNH24",
+        "amount": "123456"
+      },
+      "output": {
+        "to": "0x4582f67698843Dfb6A9F195C0dDee05B0A8C973F",
+        "data": "0x8f28f584000000000000000000000000d41f1f0cf89fd239ca4c1f8e8ada46345c86b0a40000000000000000000000007288ac74d211735374a23707d1518dcbbc0144fd000000000000000000000000000000000000000000000000000000000001e240",
+        "value": "0",
+        "contracts": [
+          "deposit",
+          "CHF24",
+          "CNH24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "exchangeCall",
+      "args": {
+        "side": "exact-out",
+        "from": "CNH24",
+        "to": "USD24",
+        "amount": "123456"
+      },
+      "output": {
+        "to": "0x4582f67698843Dfb6A9F195C0dDee05B0A8C973F",
+        "data": "0x8f28f5840000000000000000000000007288ac74d211735374a23707d1518dcbbc0144fd000000000000000000000000be00f3db78688d9704bcb4e0a827aea3a9cc0d62000000000000000000000000000000000000000000000000000000000001e240",
+        "value": "0",
+        "contracts": [
+          "deposit",
+          "CNH24",
+          "USD24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "payoutCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "5000",
+        "contactId": "SP"
+      },
+      "output": {
+        "to": "0x2c5d06f591D0d8cd43Ac232c2B654475a142c7DA",
+        "data": "0x48f6adef0000000000000000000000000000000000000000000000000000000000001388000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000025350000000000000000000000000000000000000000000000000000000000000",
+        "value": "0",
+        "contracts": [
+          "EUR24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "payoutCall",
+      "args": {
+        "currency": "CHF24",
+        "amount": "5000",
+        "contactId": "EA-00000738"
+      },
+      "output": {
+        "to": "0xd41F1f0cf89fD239ca4c1F8E8ADA46345c86b0a4",
+        "data": "0x48f6adef00000000000000000000000000000000000000000000000000000000000013880000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000b45412d3030303030373338000000000000000000000000000000000000000000",
+        "value": "0",
+        "contracts": [
+          "CHF24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "payoutRefCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "1000",
+        "contactId": "SP",
+        "purposeId": "0",
+        "ref": "109549-854ee1ef-6fc3-4009-a10e-7c3be268e52c",
+        "tokenId": "109549"
+      },
+      "output": {
+        "to": "0x2c5d06f591D0d8cd43Ac232c2B654475a142c7DA",
+        "data": "0xeb6d2d7100000000000000000000000000000000000000000000000000000000000003e80000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000000025350000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002b3130393534392d38353465653165662d366663332d343030392d613130652d376333626532363865353263000000000000000000000000000000000000000000",
+        "value": "0",
+        "contracts": [
+          "EUR24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "payoutRefCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "4129",
+        "contactId": "EA-00001156",
+        "purposeId": "8",
+        "ref": "690333-50fb0941-4f59-4a89-8735-dd78ba7d53a3\u0000\u0000",
+        "tokenId": "690333"
+      },
+      "output": {
+        "to": "0x2c5d06f591D0d8cd43Ac232c2B654475a142c7DA",
+        "data": "0xeb6d2d7100000000000000000000000000000000000000000000000000000000000010210000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000000b45412d3030303031313536000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002d3639303333332d35306662303934312d346635392d346138392d383733352d646437386261376435336133000000000000000000000000000000000000000000",
+        "value": "0",
+        "contracts": [
+          "EUR24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "USD24",
+        "spender": "card",
+        "amount": "25000"
+      },
+      "output": {
+        "to": "0xbE00f3db78688d9704BCb4e0a827aea3a9Cc0D62",
+        "data": "0x095ea7b3000000000000000000000000e2e3b88b9893e18d0867c08f9ca93f8ab5935b1400000000000000000000000000000000000000000000000000000000000061a8",
+        "value": "0",
+        "contracts": [
+          "USD24",
+          "card"
+        ]
+      }
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "USD24",
+        "spender": "deposit",
+        "amount": "25000"
+      },
+      "output": {
+        "to": "0xbE00f3db78688d9704BCb4e0a827aea3a9Cc0D62",
+        "data": "0x095ea7b30000000000000000000000004582f67698843dfb6a9f195c0ddee05b0a8c973f00000000000000000000000000000000000000000000000000000000000061a8",
+        "value": "0",
+        "contracts": [
+          "USD24",
+          "deposit"
+        ]
+      }
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "EUR24",
+        "spender": "card",
+        "amount": "25000"
+      },
+      "output": {
+        "to": "0x2c5d06f591D0d8cd43Ac232c2B654475a142c7DA",
+        "data": "0x095ea7b3000000000000000000000000e2e3b88b9893e18d0867c08f9ca93f8ab5935b1400000000000000000000000000000000000000000000000000000000000061a8",
+        "value": "0",
+        "contracts": [
+          "EUR24",
+          "card"
+        ]
+      }
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "EUR24",
+        "spender": "deposit",
+        "amount": "25000"
+      },
+      "output": {
+        "to": "0x2c5d06f591D0d8cd43Ac232c2B654475a142c7DA",
+        "data": "0x095ea7b30000000000000000000000004582f67698843dfb6a9f195c0ddee05b0a8c973f00000000000000000000000000000000000000000000000000000000000061a8",
+        "value": "0",
+        "contracts": [
+          "EUR24",
+          "deposit"
+        ]
+      }
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "CHF24",
+        "spender": "card",
+        "amount": "25000"
+      },
+      "output": {
+        "to": "0xd41F1f0cf89fD239ca4c1F8E8ADA46345c86b0a4",
+        "data": "0x095ea7b3000000000000000000000000e2e3b88b9893e18d0867c08f9ca93f8ab5935b1400000000000000000000000000000000000000000000000000000000000061a8",
+        "value": "0",
+        "contracts": [
+          "CHF24",
+          "card"
+        ]
+      }
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "CHF24",
+        "spender": "deposit",
+        "amount": "25000"
+      },
+      "output": {
+        "to": "0xd41F1f0cf89fD239ca4c1F8E8ADA46345c86b0a4",
+        "data": "0x095ea7b30000000000000000000000004582f67698843dfb6a9f195c0ddee05b0a8c973f00000000000000000000000000000000000000000000000000000000000061a8",
+        "value": "0",
+        "contracts": [
+          "CHF24",
+          "deposit"
+        ]
+      }
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "CNH24",
+        "spender": "card",
+        "amount": "25000"
+      },
+      "output": {
+        "to": "0x7288Ac74d211735374A23707D1518DCbbc0144fd",
+        "data": "0x095ea7b3000000000000000000000000e2e3b88b9893e18d0867c08f9ca93f8ab5935b1400000000000000000000000000000000000000000000000000000000000061a8",
+        "value": "0",
+        "contracts": [
+          "CNH24",
+          "card"
+        ]
+      }
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "CNH24",
+        "spender": "deposit",
+        "amount": "25000"
+      },
+      "output": {
+        "to": "0x7288Ac74d211735374A23707D1518DCbbc0144fd",
+        "data": "0x095ea7b30000000000000000000000004582f67698843dfb6a9f195c0ddee05b0a8c973f00000000000000000000000000000000000000000000000000000000000061a8",
+        "value": "0",
+        "contracts": [
+          "CNH24",
+          "deposit"
+        ]
+      }
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "USDC",
+        "spender": "deposit",
+        "amount": "25000"
+      },
+      "output": {
+        "to": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+        "data": "0x095ea7b30000000000000000000000004582f67698843dfb6a9f195c0ddee05b0a8c973f00000000000000000000000000000000000000000000000000000000000061a8",
+        "value": "0",
+        "contracts": [
+          "deposit"
+        ]
+      }
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "F24",
+        "spender": "account",
+        "amount": "25000"
+      },
+      "output": {
+        "to": "0x22043fDdF353308B4F2e7dA2e5284E4D087449e1",
+        "data": "0x095ea7b3000000000000000000000000133caeeca096ca54889db71956c7f75862ead7a000000000000000000000000000000000000000000000000000000000000061a8",
+        "value": "0",
+        "contracts": [
+          "f24",
+          "account"
+        ]
+      }
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "EUR24",
+        "spender": "deposit",
+        "amount": "0"
+      },
+      "output": {
+        "to": "0x2c5d06f591D0d8cd43Ac232c2B654475a142c7DA",
+        "data": "0x095ea7b30000000000000000000000004582f67698843dfb6a9f195c0ddee05b0a8c973f0000000000000000000000000000000000000000000000000000000000000000",
+        "value": "0",
+        "contracts": [
+          "EUR24",
+          "deposit"
+        ]
+      }
+    },
+    {
+      "op": "mintAccountCall",
+      "args": {
+        "tokenId": "123456"
+      },
+      "output": {
+        "to": "0x133CAEecA096cA54889db71956c7f75862Ead7A0",
+        "data": "0x592b2051000000000000000000000000000000000000000000000000000000000001e240",
+        "value": "0",
+        "contracts": [
+          "account",
+          "priceList",
+          "f24"
+        ]
+      }
+    },
+    {
+      "op": "mintAccountWithEthCall",
+      "args": {
+        "tokenId": "123456",
+        "value": "10000000000000000"
+      },
+      "output": {
+        "to": "0x133CAEecA096cA54889db71956c7f75862Ead7A0",
+        "data": "0x6abd75c3000000000000000000000000000000000000000000000000000000000001e240",
+        "value": "10000000000000000",
+        "contracts": [
+          "account",
+          "priceList",
+          "f24",
+          "f24Sales"
+        ]
+      }
+    },
+    {
+      "op": "topUpCall",
+      "args": {
+        "output": "USD24",
+        "usdcAmount": "2000000"
+      },
+      "output": {
+        "to": "0x4582f67698843Dfb6A9F195C0dDee05B0A8C973F",
+        "data": "0xb461e299000000000000000000000000af88d065e77c8cc2239327c5edb3a432268e5831000000000000000000000000be00f3db78688d9704bcb4e0a827aea3a9cc0d6200000000000000000000000000000000000000000000000000000000001e8480",
+        "value": "0",
+        "contracts": [
+          "deposit",
+          "account",
+          "USD24"
+        ]
+      }
+    },
+    {
+      "op": "topUpCall",
+      "args": {
+        "output": "EUR24",
+        "usdcAmount": "2000000"
+      },
+      "output": {
+        "to": "0x4582f67698843Dfb6A9F195C0dDee05B0A8C973F",
+        "data": "0xb461e299000000000000000000000000af88d065e77c8cc2239327c5edb3a432268e58310000000000000000000000002c5d06f591d0d8cd43ac232c2b654475a142c7da00000000000000000000000000000000000000000000000000000000001e8480",
+        "value": "0",
+        "contracts": [
+          "deposit",
+          "account",
+          "EUR24",
+          "USD24"
+        ]
+      }
+    },
+    {
+      "op": "topUpCall",
+      "args": {
+        "output": "CHF24",
+        "usdcAmount": "2000000"
+      },
+      "output": {
+        "to": "0x4582f67698843Dfb6A9F195C0dDee05B0A8C973F",
+        "data": "0xb461e299000000000000000000000000af88d065e77c8cc2239327c5edb3a432268e5831000000000000000000000000d41f1f0cf89fd239ca4c1f8e8ada46345c86b0a400000000000000000000000000000000000000000000000000000000001e8480",
+        "value": "0",
+        "contracts": [
+          "deposit",
+          "account",
+          "CHF24",
+          "USD24"
+        ]
+      }
+    },
+    {
+      "op": "topUpCall",
+      "args": {
+        "output": "CNH24",
+        "usdcAmount": "2000000"
+      },
+      "output": {
+        "to": "0x4582f67698843Dfb6A9F195C0dDee05B0A8C973F",
+        "data": "0xb461e299000000000000000000000000af88d065e77c8cc2239327c5edb3a432268e58310000000000000000000000007288ac74d211735374a23707d1518dcbbc0144fd00000000000000000000000000000000000000000000000000000000001e8480",
+        "value": "0",
+        "contracts": [
+          "deposit",
+          "account",
+          "CNH24",
+          "USD24"
+        ]
+      }
+    },
+    {
+      "op": "transferCall",
+      "args": {
+        "currency": "EUR24",
+        "to": "0x0000000000000000000000000000000000000000",
+        "amount": "1"
+      },
+      "error": "invalid-address"
+    },
+    {
+      "op": "transferCall",
+      "args": {
+        "currency": "EUR24",
+        "to": "0x133CAEecA096cA54889db71956c7f75862Ead7A0",
+        "amount": "1"
+      },
+      "error": "invalid-address"
+    },
+    {
+      "op": "transferCall",
+      "args": {
+        "currency": "EUR24",
+        "to": "0x2c5d06f591d0d8cd43ac232c2b654475a142c7da",
+        "amount": "1"
+      },
+      "error": "invalid-address"
+    },
+    {
+      "op": "transferCall",
+      "args": {
+        "currency": "EUR24",
+        "to": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+        "amount": "1"
+      },
+      "error": "invalid-address"
+    },
+    {
+      "op": "transferCall",
+      "args": {
+        "currency": "EUR24",
+        "to": "0x111111111111111111111111111111111111De11",
+        "amount": "1"
+      },
+      "error": "invalid-address"
+    },
+    {
+      "op": "transferCall",
+      "args": {
+        "currency": "EUR24",
+        "to": "0x123",
+        "amount": "1"
+      },
+      "error": "invalid-address"
+    },
+    {
+      "op": "transferCall",
+      "args": {
+        "currency": "EUR24",
+        "to": "0x1111111111111111111111111111111111111111",
+        "amount": "0"
+      },
+      "error": "invalid-amount"
+    },
+    {
+      "op": "transferCall",
+      "args": {
+        "currency": "EUR24",
+        "to": "0x1111111111111111111111111111111111111111",
+        "amount": "1000000000000000000"
+      },
+      "error": "amount-out-of-range"
+    },
+    {
+      "op": "transferCall",
+      "args": {
+        "currency": "DOGE",
+        "to": "0x1111111111111111111111111111111111111111",
+        "amount": "1"
+      },
+      "error": "unsupported-currency"
+    },
+    {
+      "op": "transferCall",
+      "args": {
+        "currency": "EUR24",
+        "to": "0x1111111111111111111111111111111111111111",
+        "amount": "1",
+        "chainId": "1"
+      },
+      "error": "unsupported-chain"
+    },
+    {
+      "op": "transferToAccountCall",
+      "args": {
+        "currency": "EUR24",
+        "tokenId": "9100",
+        "amount": "1"
+      },
+      "error": "internal-account"
+    },
+    {
+      "op": "transferToAccountCall",
+      "args": {
+        "currency": "EUR24",
+        "tokenId": "9299",
+        "amount": "1"
+      },
+      "error": "internal-account"
+    },
+    {
+      "op": "transferToAccountCall",
+      "args": {
+        "currency": "EUR24",
+        "tokenId": "0",
+        "amount": "1"
+      },
+      "error": "invalid-account-id"
+    },
+    {
+      "op": "transferToAccountCall",
+      "args": {
+        "currency": "EUR24",
+        "tokenId": "123456",
+        "amount": "0"
+      },
+      "error": "invalid-amount"
+    },
+    {
+      "op": "exchangeCall",
+      "args": {
+        "side": "exact-in",
+        "from": "EUR24",
+        "to": "EUR24",
+        "amount": "1"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "exchangeCall",
+      "args": {
+        "side": "market",
+        "from": "EUR24",
+        "to": "USD24",
+        "amount": "1"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutCall",
+      "args": {
+        "currency": "USD24",
+        "amount": "5000",
+        "contactId": "SP"
+      },
+      "error": "unsupported-currency"
+    },
+    {
+      "op": "payoutCall",
+      "args": {
+        "currency": "CNH24",
+        "amount": "5000",
+        "contactId": "SP"
+      },
+      "error": "unsupported-currency"
+    },
+    {
+      "op": "payoutCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "5000",
+        "contactId": "sp"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "5000",
+        "contactId": "TOOLONGGGGG"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "5000",
+        "contactId": "EA-"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "5000",
+        "contactId": "EA-12345678901234567"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutRefCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "1",
+        "contactId": "SP",
+        "purposeId": "1000001",
+        "ref": "109549-854ee1ef-6fc3-4009-a10e-7c3be268e52c",
+        "tokenId": "109549"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutRefCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "1",
+        "contactId": "SP",
+        "purposeId": "0",
+        "ref": "854ee1ef-6fc3-4009-a10e-7c3be268e52c",
+        "tokenId": "109549"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutRefCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "1",
+        "contactId": "SP",
+        "purposeId": "0",
+        "ref": "109548-854ee1ef-6fc3-4009-a10e-7c3be268e52c",
+        "tokenId": "109549"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutRefCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "1",
+        "contactId": "SP",
+        "purposeId": "0",
+        "ref": "109549-854EE1EF-6FC3-4009-A10E-7C3BE268E52C",
+        "tokenId": "109549"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutRefCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "1",
+        "contactId": "SP",
+        "purposeId": "0",
+        "ref": "109549-854ee1ef-6fc3-4009-a10e-7c3be268e52c\u0000",
+        "tokenId": "109549"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutRefCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "1",
+        "contactId": "SP",
+        "purposeId": "0",
+        "ref": "109549-854ee1ef-6fc3-4009-a10e-7c3be268e52c\u0000\u0000\u0000",
+        "tokenId": "109549"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutRefCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "1",
+        "contactId": "SP",
+        "purposeId": "0",
+        "ref": "109549-854ee1ef-6fc3-4009-a10e-7c3be268e52\u0000",
+        "tokenId": "109549"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutRefCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "1",
+        "contactId": "SP",
+        "purposeId": "0",
+        "ref": "123456789-854ee1ef-6fc3-4009-a10e-7c3be268e52\u0000",
+        "tokenId": "123456789"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutRefCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "1",
+        "contactId": "SP",
+        "purposeId": "0",
+        "ref": "109549-854ee1ef-6fc3-4009-a10e-7c3be268e52c",
+        "tokenId": "0"
+      },
+      "error": "invalid-account-id"
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "EUR24",
+        "spender": "deposit",
+        "amount": "1000000000000000000"
+      },
+      "error": "unlimited-approval"
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "EUR24",
+        "spender": "account",
+        "amount": "1"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "USDC",
+        "spender": "card",
+        "amount": "1"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "USDC",
+        "spender": "account",
+        "amount": "1"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "F24",
+        "spender": "card",
+        "amount": "1"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "F24",
+        "spender": "deposit",
+        "amount": "1"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "DOGE",
+        "spender": "deposit",
+        "amount": "1"
+      },
+      "error": "unsupported-currency"
+    },
+    {
+      "op": "approveCall",
+      "args": {
+        "asset": "EUR24",
+        "spender": "owner",
+        "amount": "1"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "mintAccountCall",
+      "args": {
+        "tokenId": "99999"
+      },
+      "error": "invalid-account-id"
+    },
+    {
+      "op": "mintAccountCall",
+      "args": {
+        "tokenId": "800000"
+      },
+      "error": "invalid-account-id"
+    },
+    {
+      "op": "mintAccountCall",
+      "args": {
+        "tokenId": "900000"
+      },
+      "error": "invalid-account-id"
+    },
+    {
+      "op": "mintAccountWithEthCall",
+      "args": {
+        "tokenId": "123456",
+        "value": "0"
+      },
+      "error": "invalid-amount"
+    },
+    {
+      "op": "topUpCall",
+      "args": {
+        "output": "DOGE",
+        "usdcAmount": "2000000"
+      },
+      "error": "unsupported-currency"
+    },
+    {
+      "op": "topUpCall",
+      "args": {
+        "output": "EUR24",
+        "usdcAmount": "0"
+      },
+      "error": "invalid-amount"
+    }
+  ]
+}

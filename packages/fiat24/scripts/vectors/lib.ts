@@ -56,3 +56,29 @@ export function finish(): void {
     console.log("vectors up to date");
   }
 }
+
+// The repo does not depend on @types/bun; declare the used surface (same
+// pattern as packages/fiat24/scripts/hermes-smoke.ts).
+declare const Bun: {
+  spawnSync: (
+    cmd: ReadonlyArray<string>,
+    options: { stdout: "pipe"; stderr: "pipe" },
+  ) => {
+    exitCode: number;
+    stdout: { toString: () => string };
+    stderr: { toString: () => string };
+  };
+};
+
+/**
+ * The vector oracle (§11.1): `cast` 1.x run synchronously. Expected values are produced by foundry
+ * tooling or recorded bytes, never by SDK code; check mode re-runs the same commands and never
+ * touches the network.
+ */
+export function cast(args: ReadonlyArray<string>): string {
+  const out = Bun.spawnSync(["cast", ...args], { stdout: "pipe", stderr: "pipe" });
+  if (out.exitCode !== 0) {
+    throw new Error(`cast ${args.join(" ")} failed: ${out.stderr.toString().trim()}`);
+  }
+  return out.stdout.toString().trim();
+}

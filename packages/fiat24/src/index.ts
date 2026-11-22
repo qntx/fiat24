@@ -36,3 +36,5 @@ export type {
 export { arbitrum } from "./deployments/data.ts";
 export { contractAddress, contractOf, getDeployment } from "./deployments/deployment.ts";
 export type { Deployment, PinnedProxy } from "./deployments/deployment.ts";
+export type { Fiat24Call } from "./calls/types.ts";
+export type { Fiat24Event, RawLog } from "./events/types.ts";

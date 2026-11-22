@@ -4,6 +4,19 @@
 
 ```ts
 
+// @public (undocumented)
+type SessionArgs = {
+    chainId: 42161;
+    tokenId: bigint;
+    deadline: bigint;
+};
+
+// @public
+export function sessionLabel(args: SessionArgs): string;
+
+// @public
+export function sessionMessage(args: SessionArgs): string;
+
 // (No @packageDocumentation comment for this package)
 
 ```

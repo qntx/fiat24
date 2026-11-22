@@ -14,7 +14,7 @@
 
 The SDK never holds keys and never signs: every signature goes through an injected signer. Writes are data first — builders return `{ to, data, value }` plus a typed intent; nothing broadcasts except through the injected signer. Paused or maintenance-mode features are implemented, fork-tested, and report a typed `unavailable` state from on-chain facts at run time; they are never hidden behind build-time flags.
 
-Landed so far: the `abi` layer (generated from `data/`), the `core` layer (errors, money, account ids, IBAN, status, revert decoding, signer and shared types) and the `deployments` layer (generated `arbitrum` pin plus lookups). `calls`, `events`, `chain`, `api` and `flows` are still empty subpaths.
+Landed so far: the `abi` layer (generated from `data/`), the `core` layer (errors, money, account ids, IBAN, status, revert decoding, signer and shared types), the `deployments` layer (generated `arbitrum` pin plus lookups), the `calls` layer (the nine §6.1 builders plus the §6.2 grammars), the `events` layer (`decodeFiat24Log(s)` over the §7.1 set), and `api`'s session helpers (`sessionLabel`/`sessionMessage`, §9.2). `chain` and `flows` are still empty subpaths.
 
 ## Source data
 

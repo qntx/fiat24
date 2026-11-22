@@ -123,3 +123,37 @@ export function messagesAreFixed(
 ): boolean {
   return a === undefined || b === undefined || a.code !== b.code || a.message === b.message;
 }
+
+/** Narrows `T | undefined` for `expect(...).toStrictEqual(...)` when undefined means test failure. */
+export function required<T>(value: T | undefined): T {
+  if (value === undefined) {
+    expect.unreachable("expected a defined value");
+  }
+  return value;
+}
+
+/**
+ * The invariant whitelist for `sendTransaction` (I1): it may appear only as the `Fiat24Signer`
+ * member type in `core/signer.ts` or as a property access on a value named `signer`.
+ */
+export function sendTransactionAllowed(path: string, before: string): boolean {
+  return (
+    path.endsWith("core/signer.ts") ||
+    path.endsWith(String.raw`core\signer.ts`) ||
+    /\bsigner\s*\.\s*$/.test(before)
+  );
+}
+
+/** Asserts the deep-freeze contract of a builder result: call, intent, contracts, nested Recipient. */
+export function expectFrozenCall(call: {
+  readonly intent: Readonly<Record<string, unknown>>;
+  readonly contracts: ReadonlyArray<unknown>;
+}): void {
+  expect(Object.isFrozen(call)).toBe(true);
+  expect(Object.isFrozen(call.intent)).toBe(true);
+  expect(Object.isFrozen(call.contracts)).toBe(true);
+  const recipient = call.intent["to"];
+  if (typeof recipient === "object" && recipient !== null) {
+    expect(Object.isFrozen(recipient)).toBe(true);
+  }
+}

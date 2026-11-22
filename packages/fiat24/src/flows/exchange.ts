@@ -30,7 +30,7 @@ import {
   senderLive,
   supplyBound,
 } from "./guards.ts";
-import { checkedState } from "./state.ts";
+import { checkedState, invalidState } from "./state.ts";
 import { advanceTx, recheckTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
 import type { ExchangeState, FlowDeps, TxRecord } from "./types.ts";
@@ -39,10 +39,6 @@ import type { ExchangeState, FlowDeps, TxRecord } from "./types.ts";
 // leg goes crypto desk → owner.
 const TREASURY_DESK = 9100n;
 const CRYPTO_DESK = 9105n;
-
-function invalidState(): never {
-  throw new Fiat24Error("invalid-state", "invalid flow state");
-}
 
 function quoteChanged(): never {
   throw new Fiat24Error("quote-changed", "quote changed");

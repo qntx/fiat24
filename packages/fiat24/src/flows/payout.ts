@@ -1,6 +1,5 @@
 import { isAddressEqual } from "viem";
-import type { Address, Client, Hex, Transaction, TransactionReceipt } from "viem";
-import { getTransaction, getTransactionReceipt } from "viem/actions";
+import type { Address, Client, Hex, TransactionReceipt } from "viem";
 
 import { apiError } from "../api/http.ts";
 import { freeze } from "../api/schemas.ts";
@@ -15,7 +14,6 @@ import {
   checkedAddress,
   checkedPayoutCurrency,
   contractTarget,
-  mapViemError,
   readAt,
   resolveDeployment,
   topic0Of,
@@ -28,8 +26,8 @@ import type { PayoutCurrency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
 import { assertUnpaused, checkedSigner, deskOwner, legAllowed, senderLive } from "./guards.ts";
-import { checkedState } from "./state.ts";
-import { advanceTx, errorNamed, mismatchOf, recheckTx } from "./tx.ts";
+import { checkedState, invalidState, invalidArgument } from "./state.ts";
+import { advanceTx, fetchTx, getReceipt, mismatchOf, recheckTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
 import type { FlowDeps, PayoutDraft, PayoutState, PayoutTarget, TxRecord } from "./types.ts";
 
@@ -37,14 +35,6 @@ import type { FlowDeps, PayoutDraft, PayoutState, PayoutTarget, TxRecord } from 
 const PAYOUT_DESK = 9102n;
 
 const PAYOUT_TARGET_KINDS: ReadonlySet<string> = new Set(["contact", "bank", "swiss-qr"]);
-
-function invalidState(): never {
-  throw new Fiat24Error("invalid-state", "invalid flow state");
-}
-
-function invalidArgument(): never {
-  throw new Fiat24Error("invalid-argument", "invalid argument");
-}
 
 // A /verify binding miss is the api layer's own verdict shape (§9.5, I3).
 function apiMismatch(): never {
@@ -402,27 +392,15 @@ export async function loadPayoutSettlement(
     return invalidState();
   }
   const deployment = resolveDeployment(deps.client, deps.deployment);
-  let receipt: TransactionReceipt;
-  try {
-    receipt = await getTransactionReceipt(deps.client, { hash });
-  } catch (error) {
-    if (errorNamed(error, "TransactionReceiptNotFoundError")) {
-      return invalidState();
-    }
-    return mapViemError(error);
+  const receipt = await getReceipt(deps, hash);
+  if (receipt === undefined) {
+    return invalidState();
   }
   const call = payoutCallOf(checked, deployment);
   const { nonce } = last;
-  let tx: Transaction;
-  try {
-    tx = await getTransaction(deps.client, { hash });
-  } catch (error) {
-    if (errorNamed(error, "TransactionNotFoundError")) {
-      return invalidState();
-    }
-    return mapViemError(error);
-  }
+  const tx = await fetchTx(deps, hash);
   if (
+    tx === undefined ||
     receipt.status === "reverted" ||
     nonce === undefined ||
     mismatchOf(tx, { owner: checked.owner, call, nonce }) !== undefined

@@ -24,17 +24,13 @@ import type { ContractName, Currency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
 import { assertPath, checkedSigner, deskOwner, legAllowed, supplyBound } from "./guards.ts";
-import { checkedState } from "./state.ts";
+import { checkedState, invalidState } from "./state.ts";
 import { advanceTx, recheckTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
 import type { FlowDeps, TopUpState, TxRecord } from "./types.ts";
 
 // The output leg is paid out of the crypto desk (§10.8).
 const CRYPTO_DESK = 9105n;
-
-function invalidState(): never {
-  throw new Fiat24Error("invalid-state", "invalid flow state");
-}
 
 /**
  * §10.8: owner checked, `topUpCall` carries the output/usdcAmount validation. No chain reads;

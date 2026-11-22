@@ -24,8 +24,12 @@ import type {
   TxRecord,
 } from "./types.ts";
 
-function invalidState(): never {
+export function invalidState(): never {
   throw new Fiat24Error("invalid-state", "invalid flow state");
+}
+
+export function invalidArgument(): never {
+  throw new Fiat24Error("invalid-argument", "invalid argument");
 }
 
 // §10.2 encoding: bigint fields persist as canonical decimal strings; the

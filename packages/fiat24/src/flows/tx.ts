@@ -1,9 +1,15 @@
 import { decodeEventLog, erc20Abi, getAddress, isAddress, isAddressEqual, isHash } from "viem";
-import type { Address, Hash, Transaction, TransactionReceipt } from "viem";
+import type { Address, Client, Hash, Transaction, TransactionReceipt } from "viem";
 import { getTransaction, getTransactionCount, getTransactionReceipt } from "viem/actions";
 
 import type { Fiat24Call } from "../calls/types.ts";
-import { getLogsChunked, invalidResponse, mapViemError, snapshot } from "../chain/context.ts";
+import {
+  errorChain,
+  getLogsChunked,
+  invalidResponse,
+  mapViemError,
+  snapshot,
+} from "../chain/context.ts";
 import type { LogFilter } from "../chain/context.ts";
 import { assertDeployment } from "../chain/deployment.ts";
 import { simulateCall } from "../chain/simulate.ts";
@@ -12,6 +18,7 @@ import { CHAIN_ID } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
 import type { Fiat24Event, RawLog } from "../events/types.ts";
+import { invalidState } from "./state.ts";
 import type { FlowDeps, FlowState, TxMismatch, TxRecord } from "./types.ts";
 
 // SPEC §7.2: arb1's eth_getLogs window limit for an address/topic-array filter is
@@ -70,24 +77,10 @@ export type TxOutcome<S extends FlowState, R> = {
   readonly result: R | undefined;
 };
 
-function invalidState(): never {
-  throw new Fiat24Error("invalid-state", "invalid flow state");
-}
-
-// Walks the `cause` chain (cycle-safe) for a `name` match — viem nests the
-// concrete error under transport wrappers. Exported for the other flow files'
-// own receipt/transaction lookups (payout settlement).
+// `name`-matching over the error's cause chain; exported for the other flow
+// files' own receipt/transaction lookups (payout settlement).
 export function errorNamed(error: unknown, name: string): boolean {
-  const seen = new Set<unknown>();
-  let cursor: unknown = error;
-  while (typeof cursor === "object" && cursor !== null && !seen.has(cursor)) {
-    seen.add(cursor);
-    if ("name" in cursor && cursor.name === name) {
-      return true;
-    }
-    cursor = "cause" in cursor ? cursor.cause : undefined;
-  }
-  return false;
+  return errorChain(error).some((node) => node["name"] === name);
 }
 
 /**
@@ -98,19 +91,9 @@ function isRejection(error: unknown): boolean {
   if (error instanceof Fiat24Error) {
     return error.code === "signer-rejected";
   }
-  const seen = new Set<unknown>();
-  let cursor: unknown = error;
-  while (typeof cursor === "object" && cursor !== null && !seen.has(cursor)) {
-    seen.add(cursor);
-    if (
-      ("code" in cursor && cursor.code === 4001) ||
-      ("name" in cursor && cursor.name === "UserRejectedRequestError")
-    ) {
-      return true;
-    }
-    cursor = "cause" in cursor ? cursor.cause : undefined;
-  }
-  return false;
+  return errorChain(error).some(
+    (node) => node["code"] === 4001 || node["name"] === "UserRejectedRequestError",
+  );
 }
 
 /**
@@ -157,6 +140,18 @@ export async function persistSwallow(deps: FlowDeps, state: FlowState): Promise<
   }
 }
 
+// Every transition commits the record into the flow state and persists once (§3.5).
+async function commitRecord<S extends FlowState, R>(
+  deps: FlowDeps,
+  args: TxArgs<S, R>,
+  next: TxRecord,
+  result: R | undefined,
+): Promise<TxOutcome<S, R>> {
+  const state = args.commit(next);
+  await deps.persist(state);
+  return { record: next, state, result };
+}
+
 /** §4 `ready`: assert → guard → simulate → persist `sending` → signer → record the outcome. */
 async function readyPhase<S extends FlowState, R>(
   deps: FlowDeps,
@@ -176,20 +171,7 @@ async function readyPhase<S extends FlowState, R>(
     from: args.owner,
     blockNumber,
   });
-  let nonce: number;
-  try {
-    nonce = checkedCount(
-      await getTransactionCount(deps.client, {
-        address: args.owner,
-        blockTag: "pending",
-      }),
-    );
-  } catch (error) {
-    if (error instanceof Fiat24Error) {
-      throw error;
-    }
-    return mapViemError(error);
-  }
+  const nonce = await countAt(deps, args.owner, { pending: true });
   const sending: TxRecord = {
     purpose: args.purpose,
     phase: "sending",
@@ -254,14 +236,9 @@ async function pendingOrVanished<S extends FlowState, R>(
   nonce: number,
   fromBlock: bigint,
 ): Promise<TxOutcome<S, R>> {
-  let tx: Transaction;
-  try {
-    tx = await getTransaction(deps.client, { hash });
-  } catch (error) {
-    if (errorNamed(error, "TransactionNotFoundError")) {
-      return byNonce(deps, args, record);
-    }
-    return mapViemError(error);
+  const tx = await fetchTx(deps, hash);
+  if (tx === undefined) {
+    return byNonce(deps, args, record);
   }
   const mismatch = mismatchOf(tx, { owner: args.owner, call: args.call, nonce });
   if (mismatch !== undefined) {
@@ -274,16 +251,12 @@ async function pendingOrVanished<S extends FlowState, R>(
       error: "unknown-outcome",
       mismatch,
     };
-    const state = args.commit(next);
-    await deps.persist(state);
-    return { record: next, state, result: undefined };
+    return commitRecord(deps, args, next, undefined);
   }
   // Binding and pending (or mined without a receipt yet): `submitted` — an `unknown` record is
   // promoted, a `submitted` stays; persisted once either way (§3.5).
   const next: TxRecord = { purpose: args.purpose, phase: "submitted", fromBlock, nonce, hash };
-  const state = args.commit(next);
-  await deps.persist(state);
-  return { record: next, state, result: undefined };
+  return commitRecord(deps, args, next, undefined);
 }
 
 /**
@@ -303,14 +276,9 @@ async function byHash<S extends FlowState, R>(
   if (hash === undefined || nonce === undefined || fromBlock === undefined) {
     return invalidState();
   }
-  let receipt: TransactionReceipt;
-  try {
-    receipt = await getTransactionReceipt(deps.client, { hash });
-  } catch (error) {
-    if (errorNamed(error, "TransactionReceiptNotFoundError")) {
-      return pendingOrVanished(deps, args, record, hash, nonce, fromBlock);
-    }
-    return mapViemError(error);
+  const receipt = await getReceipt(deps, hash);
+  if (receipt === undefined) {
+    return pendingOrVanished(deps, args, record, hash, nonce, fromBlock);
   }
   const tx = await getTx(deps, hash);
   const mismatch = mismatchOf(tx, { owner: args.owner, call: args.call, nonce });
@@ -324,9 +292,7 @@ async function byHash<S extends FlowState, R>(
       error: "unknown-outcome",
       mismatch,
     };
-    const state = args.commit(next);
-    await deps.persist(state);
-    return { record: next, state, result: undefined };
+    return commitRecord(deps, args, next, undefined);
   }
   if (receipt.status === "reverted") {
     const next: TxRecord = {
@@ -337,9 +303,7 @@ async function byHash<S extends FlowState, R>(
       hash,
       error: "tx-reverted",
     };
-    const state = args.commit(next);
-    await deps.persist(state);
-    return { record: next, state, result: undefined };
+    return commitRecord(deps, args, next, undefined);
   }
   const result = args.onConfirmed === undefined ? undefined : args.onConfirmed(receipt);
   const next: TxRecord = {
@@ -349,15 +313,43 @@ async function byHash<S extends FlowState, R>(
     nonce,
     hash,
   };
-  const state = args.commit(next);
-  await deps.persist(state);
-  return { record: next, state, result };
+  return commitRecord(deps, args, next, result);
 }
 
 async function getTx(deps: FlowDeps, hash: Hash): Promise<Transaction> {
   try {
     return await getTransaction(deps.client, { hash });
   } catch (error) {
+    return mapViemError(error);
+  }
+}
+
+// `undefined` = the node knows no transaction/receipt for the hash; every other failure maps to
+// `rpc-error`.
+export async function fetchTx(
+  deps: { readonly client: Client },
+  hash: Hash,
+): Promise<Transaction | undefined> {
+  try {
+    return await getTransaction(deps.client, { hash });
+  } catch (error) {
+    if (errorNamed(error, "TransactionNotFoundError")) {
+      return undefined;
+    }
+    return mapViemError(error);
+  }
+}
+
+export async function getReceipt(
+  deps: { readonly client: Client },
+  hash: Hash,
+): Promise<TransactionReceipt | undefined> {
+  try {
+    return await getTransactionReceipt(deps.client, { hash });
+  } catch (error) {
+    if (errorNamed(error, "TransactionReceiptNotFoundError")) {
+      return undefined;
+    }
     return mapViemError(error);
   }
 }
@@ -480,9 +472,7 @@ async function byNonce<S extends FlowState, R>(
           // A signer-returned hash that never landed stays on the record.
           ...(record.hash === undefined ? {} : { hash: record.hash }),
         };
-        const state = args.commit(next);
-        await deps.persist(state);
-        return { record: next, state, result: undefined };
+        return commitRecord(deps, args, next, undefined);
       }
     }
     if (record.phase === "sending") {
@@ -493,14 +483,10 @@ async function byNonce<S extends FlowState, R>(
         nonce,
         error: "unknown-outcome",
       };
-      const state = args.commit(next);
-      await deps.persist(state);
-      return { record: next, state, result: undefined };
+      return commitRecord(deps, args, next, undefined);
     }
     // `submitted`/`unknown`: unchanged, persisted once (§3.5).
-    const state = args.commit(record);
-    await deps.persist(state);
-    return { record, state, result: undefined };
+    return commitRecord(deps, args, record, undefined);
   }
   const logs = await getLogsChunked(deps.client, {
     filters: args.evidence.filters,
@@ -544,9 +530,7 @@ async function byNonce<S extends FlowState, R>(
             ...(record.hash === undefined ? {} : { hash: record.hash }),
           }
         : { purpose: args.purpose, phase: "submitted", fromBlock, nonce, hash: txid };
-    const state = args.commit(next);
-    await deps.persist(state);
-    return { record: next, state, result: undefined };
+    return commitRecord(deps, args, next, undefined);
   };
   return inspect(0);
 }

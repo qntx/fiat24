@@ -16,14 +16,10 @@ import { Fiat24Error } from "../core/errors.ts";
 import type { Currency, Recipient } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { assertPath, assertUnpaused, checkedSigner } from "./guards.ts";
-import { checkedState } from "./state.ts";
+import { checkedState, invalidState } from "./state.ts";
 import { advanceTx, recheckTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
 import type { FlowDeps, TransferState, TxRecord } from "./types.ts";
-
-function invalidState(): never {
-  throw new Fiat24Error("invalid-state", "invalid flow state");
-}
 
 function buildCall(state: TransferState, deployment: Deployment): ReturnType<typeof transferCall> {
   return "address" in state.to

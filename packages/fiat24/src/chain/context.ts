@@ -161,7 +161,7 @@ export function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 // Walks the error's `cause` chain, collecting every object for inspection.
-function errorChain(error: unknown): Array<Record<string, unknown>> {
+export function errorChain(error: unknown): Array<Record<string, unknown>> {
   const chain: Array<Record<string, unknown>> = [];
   let current: unknown = error;
   const seen = new Set<unknown>();

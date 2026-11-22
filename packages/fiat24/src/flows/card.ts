@@ -19,18 +19,10 @@ import type { Fiat24ErrorCode } from "../core/errors.ts";
 import type { Currency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { assertPath, assertUnpaused, checkedSigner, supplyBound } from "./guards.ts";
-import { API_READY_ERRORS, checkedState } from "./state.ts";
+import { API_READY_ERRORS, checkedState, invalidState, invalidArgument } from "./state.ts";
 import { advanceTx, persistSwallow, recheckTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
 import type { CardOperation, CardState, FlowDeps, TxRecord } from "./types.ts";
-
-function invalidState(): never {
-  throw new Fiat24Error("invalid-state", "invalid flow state");
-}
-
-function invalidArgument(): never {
-  throw new Fiat24Error("invalid-argument", "invalid argument");
-}
 
 const CARD_OPERATION_KINDS: ReadonlySet<string> = new Set([
   "create",

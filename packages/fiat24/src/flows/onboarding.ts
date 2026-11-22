@@ -23,18 +23,10 @@ import { Fiat24Error } from "../core/errors.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
 import { assertPath, checkedSigner, supplyBound } from "./guards.ts";
-import { checkedState } from "./state.ts";
+import { checkedState, invalidState, invalidArgument } from "./state.ts";
 import { advanceTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
 import type { FlowDeps, OnboardingState, TxRecord } from "./types.ts";
-
-function invalidState(): never {
-  throw new Fiat24Error("invalid-state", "invalid flow state");
-}
-
-function invalidArgument(): never {
-  throw new Fiat24Error("invalid-argument", "invalid argument");
-}
 
 function quoteChanged(): never {
   throw new Fiat24Error("quote-changed", "quote changed");

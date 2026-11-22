@@ -80,15 +80,15 @@ export async function getAllowance(
   client: Client,
   args: ChainArgs & { owner: Address; asset: Asset; spender: ApprovalSpender },
 ): Promise<bigint> {
-  resolveDeployment(client, args.deployment);
+  const deployment = resolveDeployment(client, args.deployment);
   const owner = checkedAddress(args.owner);
   const asset = checkedAsset(args.asset);
   const { spender } = args;
   if (typeof spender !== "string" || !SPENDERS.has(spender)) {
     throw new Fiat24Error("invalid-argument", "invalid argument");
   }
-  const { deployment, blockNumber: B } = await snapshot(client, args);
   const target = allowanceTarget(deployment, asset, spender);
+  const { blockNumber: B } = await snapshot(client, args);
   return asBigint(
     await readAt(client, B, {
       address: target.address,

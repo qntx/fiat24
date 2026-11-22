@@ -1,5 +1,5 @@
-import type { Abi, Address, Client, Hex } from "viem";
-import { getAddress, isAddress, numberToHex } from "viem";
+import type { Abi, AbiEvent, Address, Client, Hex } from "viem";
+import { getAddress, isAddress, numberToHex, toEventSelector } from "viem";
 import { getBlockNumber, getStorageAt, readContract } from "viem/actions";
 
 import { Fiat24Error } from "../core/errors.ts";
@@ -144,7 +144,7 @@ export async function snapshot(client: Client, args: ChainArgs): Promise<Snapsho
 }
 
 export function isHexData(value: unknown): value is Hex {
-  return typeof value === "string" && /^0x[0-9a-fA-F]*$/.test(value);
+  return typeof value === "string" && HEX_RE.test(value);
 }
 
 export function isObject(value: unknown): value is Record<string, unknown> {
@@ -405,6 +405,17 @@ export function packedAddress(word: Hex, lo: number, hi: number): Address {
     return invalidResponse();
   }
   return getAddress(`0x${slice}`);
+}
+
+// Topic0 selectors are derived from the ABIs at call time (§4.4, never hand-typed).
+export function topic0Of(abi: Abi, name: string): Hex {
+  const event = abi.find(
+    (entry): entry is AbiEvent => entry.type === "event" && entry.name === name,
+  );
+  if (event === undefined) {
+    throw new Fiat24Error("invalid-rpc-response", "invalid rpc response");
+  }
+  return toEventSelector(event);
 }
 
 const LOG_INDEX_RE = /^0x[0-9a-fA-F]+$/;

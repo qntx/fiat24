@@ -2,7 +2,6 @@ import type { Client } from "viem";
 
 import { accountAbi, f24SalesAbi, priceListAbi } from "../abi/index.ts";
 import { mintAccountWithEthCall } from "../calls/account.ts";
-import { isStandardMintId } from "../core/account-id.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import type { ChainArgs } from "./context.ts";
 import {
@@ -59,9 +58,7 @@ export async function getMintQuote(
 ): Promise<MintQuote> {
   const deployment = resolveDeployment(client, args.deployment);
   const { tokenId } = args;
-  if (typeof tokenId !== "bigint" || !isStandardMintId(tokenId)) {
-    throw new Fiat24Error("invalid-account-id", "invalid account id");
-  }
+  // The builder's checkedMintId is the §8.2 `!isStandardMintId ⇒ invalid-account-id` refusal, before any I/O.
   const call = mintAccountWithEthCall({ tokenId, value: 1n, deployment });
   const { blockNumber: B } = await snapshot(client, args);
   await assertDeployment(client, {

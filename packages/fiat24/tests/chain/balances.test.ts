@@ -173,6 +173,15 @@ describe("getAllowance", () => {
     expect(stub.requests).toStrictEqual([]);
   });
 
+  test("a non-§6.1 pair also rejects before eth_blockNumber (§8.1 input before I/O)", async () => {
+    const stub = makeStub({ blockNumber: B });
+    await expectErrorAsync(
+      async () => getAllowance(stub.client, { owner: OWNER, asset: "USDC", spender: "card" }),
+      "invalid-argument",
+    );
+    expect(stub.requests).toStrictEqual([]);
+  });
+
   test("unknown asset is unsupported-currency; unknown spender is invalid-argument", async () => {
     expect.hasAssertions();
     const stub = makeStub({ blockNumber: B });

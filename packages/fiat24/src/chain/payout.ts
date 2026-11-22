@@ -1,4 +1,4 @@
-import { numberToHex, toEventSelector } from "viem";
+import { numberToHex } from "viem";
 import type { Client } from "viem";
 
 import { tokenAbi } from "../abi/index.ts";
@@ -18,6 +18,7 @@ import {
   readAt,
   resolveDeployment,
   snapshot,
+  topic0Of,
 } from "./context.ts";
 
 /** SPEC §3.6. */
@@ -26,18 +27,6 @@ export type PayoutSettlement = {
   readonly event?: Fiat24Event;
   readonly blockNumber: bigint;
 };
-
-// Topic0 is derived from the ABI at call time (never hand-typed, §4.4).
-function cashPayoutTopic0(): `0x${string}` {
-  const event = tokenAbi.find(
-    (entry): entry is Extract<(typeof tokenAbi)[number], { type: "event" }> =>
-      entry.type === "event" && entry.name === "CashPayout",
-  );
-  if (event === undefined) {
-    return invalidResponse();
-  }
-  return toEventSelector(event);
-}
 
 /** `minimalPayoutAmount()` on the payout token, at B (SPEC §8.2). */
 export async function getPayoutMinimum(
@@ -100,7 +89,7 @@ export async function getPayoutSettlement(
     filters: [
       {
         address: deployment.tokens[currency].proxy,
-        topics: [cashPayoutTopic0(), numberToHex(args.tokenId, { size: 32 })],
+        topics: [topic0Of(tokenAbi, "CashPayout"), numberToHex(args.tokenId, { size: 32 })],
       },
     ],
     fromBlock: args.fromBlock,

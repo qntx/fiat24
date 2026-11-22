@@ -73,9 +73,6 @@ export async function getAvailability(client: Client, args: ChainArgs = {}): Pro
     storageAt(client, B, deployment.account.proxy, PRICELIST_SLOT),
   ]);
 
-  if (typeof slot359 !== "string") {
-    invalidResponse();
-  }
   const f24ActiveByte = slotByte(slot359, 20);
   if (f24ActiveByte !== 0 && f24ActiveByte !== 1) {
     invalidResponse();

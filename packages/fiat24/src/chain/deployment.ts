@@ -192,8 +192,7 @@ export async function verifyDeployment(
     }
   }
   // Contract order follows the requested list; fields order as in the §4.1 table.
-  const order = names;
-  drift.sort((a, b) => order.indexOf(a.contract) - order.indexOf(b.contract));
+  drift.sort((a, b) => names.indexOf(a.contract) - names.indexOf(b.contract));
   return {
     ok: drift.length === 0,
     drift,
@@ -212,10 +211,11 @@ export async function assertDeployment(
   args: ChainArgs & { contracts: ReadonlyArray<ContractName> },
 ): Promise<bigint> {
   const check = await verifyDeployment(client, args);
-  for (const drift of check.drift) {
-    throw new Fiat24Error("contract-changed", `${drift.contract} contract changed`, {
-      contract: drift.contract,
-      field: drift.field,
+  const [first] = check.drift;
+  if (first !== undefined) {
+    throw new Fiat24Error("contract-changed", `${first.contract} contract changed`, {
+      contract: first.contract,
+      field: first.field,
     });
   }
   return check.blockNumber;

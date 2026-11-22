@@ -1,5 +1,5 @@
-import { numberToHex, pad, toEventSelector } from "viem";
-import type { Abi, AbiEvent, Address, Client, Hex } from "viem";
+import { numberToHex, pad } from "viem";
+import type { Address, Client, Hex } from "viem";
 
 import { accountAbi, cardAbi, depositAbi, tokenAbi } from "../abi/index.ts";
 import { assertTokenId } from "../core/account-id.ts";
@@ -14,22 +14,12 @@ import {
   getLogsChunked,
   resolveDeployment,
   snapshot,
+  topic0Of,
 } from "./context.ts";
 
 const invalidArgument = (): never => {
   throw new Fiat24Error("invalid-argument", "invalid argument");
 };
-
-// Topic0 selectors are derived from the ABIs at call time (§4.4, never hand-typed).
-function topic0Of(abi: Abi, name: string): Hex {
-  const event = abi.find(
-    (entry): entry is AbiEvent => entry.type === "event" && entry.name === name,
-  );
-  if (event === undefined) {
-    throw new Fiat24Error("invalid-rpc-response", "invalid rpc response");
-  }
-  return toEventSelector(event);
-}
 
 const DEFAULT_CHUNK = 100_000n;
 

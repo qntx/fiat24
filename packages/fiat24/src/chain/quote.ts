@@ -100,7 +100,7 @@ export async function getExchangeQuote(
   const spreadToken = side === "exact-in" ? toToken : fromToken;
   const exactOut = side === "exact-out";
 
-  const [rate, spread, marketClosed] = await Promise.all([
+  const [rateRaw, spreadRaw, marketClosed] = await Promise.all([
     readAt(client, B, {
       address: deposit,
       abi: depositAbi,
@@ -119,12 +119,9 @@ export async function getExchangeQuote(
       functionName: "marketClosed",
     }),
   ]);
-  const result = quoteExchange({
-    side,
-    amount,
-    rate: asBigint(rate),
-    spread: asBigint(spread),
-  });
+  const rate = asBigint(rateRaw);
+  const spread = asBigint(spreadRaw);
+  const result = quoteExchange({ side, amount, rate, spread });
   if (result === 0n) {
     throw new Fiat24Error("below-minimum", "below minimum");
   }
@@ -134,8 +131,8 @@ export async function getExchangeQuote(
     to,
     input: exactOut ? result : amount,
     output: exactOut ? amount : result,
-    rate: asBigint(rate),
-    spread: asBigint(spread),
+    rate,
+    spread,
     marketClosed: asBoolean(marketClosed),
     blockNumber: B,
   };

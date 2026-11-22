@@ -4,7 +4,7 @@ import type { Address, Client, Hex, TransactionReceipt } from "viem";
 import { apiError } from "../api/http.ts";
 import { freeze } from "../api/schemas.ts";
 import { parseSwissQr } from "../api/swiss-qr.ts";
-import type { Fiat24Session } from "../api/types.ts";
+import type { Fiat24Session, VerifiedPayout } from "../api/types.ts";
 import { isValidContactId, isValidPayoutRef, payoutCall, payoutRefCall } from "../calls/payout.ts";
 import { checkedAmount } from "../calls/types.ts";
 import { getAvailability } from "../chain/availability.ts";
@@ -124,31 +124,48 @@ async function verifyTarget(
   draft: PayoutDraft,
 ): Promise<{ readonly contactId: string; readonly purposeId: bigint; readonly ref: string }> {
   const { target } = draft;
+  let verified: VerifiedPayout;
   if (target.kind === "bank") {
-    const verified = await session.verifyBankPayment(target.request);
+    const bank = await session.verifyBankPayment(target.request);
     if (
-      verified.purposeId !== target.request.purpose ||
-      !isValidContactId(verified.contactId) ||
-      !isValidPayoutRef(verified.ref, draft.tokenId)
+      bank.purposeId !== target.request.purpose ||
+      !isValidContactId(bank.contactId) ||
+      !isValidPayoutRef(bank.ref, draft.tokenId)
     ) {
       apiMismatch();
     }
-    return verified;
-  }
-  if (target.kind !== "swiss-qr") {
+    verified = bank;
+  } else if (target.kind === "swiss-qr") {
+    const scanned = parseSwissQr(target.qr);
+    const qr = await session.verifySwissQr(target.qr);
+    if (
+      qr.currency !== `${scanned.currency}24` ||
+      qr.currency !== draft.currency ||
+      qr.amount !== scanned.amount ||
+      qr.amount !== draft.amount ||
+      qr.contactId !== "QRCH" ||
+      !isValidPayoutRef(qr.ref, draft.tokenId) ||
+      qr.account !== scanned.account
+    ) {
+      apiMismatch();
+    }
+    verified = qr;
+  } else {
     return invalidState();
   }
-  const scanned = parseSwissQr(target.qr);
-  const verified = await session.verifySwissQr(target.qr);
-  if (
-    verified.currency !== `${scanned.currency}24` ||
-    verified.currency !== draft.currency ||
-    verified.amount !== scanned.amount ||
-    verified.amount !== draft.amount ||
-    verified.contactId !== "QRCH" ||
-    !isValidPayoutRef(verified.ref, draft.tokenId) ||
-    verified.account !== scanned.account
-  ) {
+  // The QR bindings above do not cover purposeId; rebuilding the exact call the
+  // verified values imply surfaces every builder refusal as the same api-mismatch
+  // instead of a persisted state that only the codec could reject.
+  try {
+    payoutRefCall({
+      currency: draft.currency,
+      amount: draft.amount,
+      contactId: verified.contactId,
+      purposeId: verified.purposeId,
+      ref: verified.ref,
+      tokenId: draft.tokenId,
+    });
+  } catch {
     apiMismatch();
   }
   return verified;

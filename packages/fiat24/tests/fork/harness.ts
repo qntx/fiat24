@@ -34,8 +34,8 @@ import { expect } from "vite-plus/test";
 
 import { accountAbi, depositAbi, priceListAbi, tokenAbi } from "../../src/abi/index.ts";
 import type { Fiat24Call } from "../../src/calls/index.ts";
-import { decodeFiat24Revert, revertCode } from "../../src/core/index.ts";
-import type { Fiat24ErrorCode } from "../../src/core/index.ts";
+import { decodeFiat24Revert, Fiat24Error, revertCode } from "../../src/core/index.ts";
+import type { Fiat24ErrorCode, Fiat24TransactionRequest } from "../../src/core/index.ts";
 import { arbitrum } from "../../src/deployments/index.ts";
 import type { Fiat24Event, RawLog } from "../../src/events/index.ts";
 import { decodeFiat24Logs } from "../../src/events/index.ts";
@@ -180,14 +180,29 @@ export async function sendAs(
 ): Promise<TransactionReceipt> {
   await fork.testClient.impersonateAccount({ address: from });
   await fork.testClient.setBalance({ address: from, value: 10n ** 18n });
-  const hash = await fork.walletClient.sendTransaction({
-    account: from,
-    chain: arbitrumChain,
-    to,
-    data,
-    value,
-  });
-  return fork.publicClient.waitForTransactionReceipt({ hash });
+  const send = async (): Promise<TransactionReceipt> => {
+    const hash = await fork.walletClient.sendTransaction({
+      account: from,
+      chain: arbitrumChain,
+      to,
+      data,
+      value,
+    });
+    return fork.publicClient.waitForTransactionReceipt({ hash });
+  };
+  const receipt = await send();
+  // The remote-backed fork occasionally mines an impersonated tx against lazily-fetched upstream
+  // storage and yields a spurious `reverted` receipt while the identical `eth_call` is valid.
+  // Retry only when the chain itself proves the call cannot revert; a real revert resurfaces.
+  if (receipt.status === "reverted") {
+    try {
+      await fork.publicClient.call({ account: from, to, data, value, gasPrice: 0n });
+    } catch {
+      return receipt;
+    }
+    return send();
+  }
+  return receipt;
 }
 
 /** Sends a `Fiat24Call` from `from`. */
@@ -483,4 +498,84 @@ export async function castStorage(
 export async function castTimestamp(fork: Fork, block = "latest"): Promise<bigint> {
   const stdout = await runCast(["block", block, "--field", "timestamp", "--rpc-url", fork.url]);
   return BigInt(stdout.trim());
+}
+
+/**
+ * A `Fiat24Signer` on the fork: impersonates `owner` and broadcasts each request through
+ * `walletClient.sendTransaction` with exactly the request's `nonce` (I21 — the SDK asks, the signer
+ * sends; the chain id must be 42161 and the nonce is asserted by the caller via `requests`).
+ * `behaviour` models the §4 failure modes without a real wallet.
+ */
+export type ForkSignerBehaviour =
+  | { readonly kind: "normal" }
+  // Throws Fiat24Error("signer-rejected") before anything is broadcast (user declined).
+  | { readonly kind: "reject" }
+  // Throws a non-rejection error before broadcasting — the crash-between-persist-and-send case.
+  | { readonly kind: "throw-before-send" }
+  // Broadcasts (the tx will mine) and then throws — outcome genuinely unknown to the caller.
+  | { readonly kind: "broadcast-then-throw" }
+  // Runs `hook` (e.g. a robot rate update) immediately before broadcasting.
+  | { readonly kind: "before"; readonly hook: () => Promise<void> };
+
+const NORMAL: ForkSignerBehaviour = { kind: "normal" };
+const SESSION_SIGNATURE = Promise.resolve<Hex>(`0x${"ab".repeat(65)}`);
+
+export function forkSigner(
+  fork: Fork,
+  owner: Address,
+  behaviour: ForkSignerBehaviour = NORMAL,
+): {
+  readonly signer: {
+    readonly address: Address;
+    readonly sendTransaction: (request: Fiat24TransactionRequest) => Promise<Hex>;
+    readonly signSessionGrant: () => Promise<Hex>;
+  };
+  readonly requests: Fiat24TransactionRequest[];
+  readonly broadcasts: Hex[];
+} {
+  const requests: Fiat24TransactionRequest[] = [];
+  const broadcasts: Hex[] = [];
+  const broadcast = async (request: Fiat24TransactionRequest): Promise<Hex> => {
+    await fork.testClient.impersonateAccount({ address: owner });
+    await fork.testClient.setBalance({ address: owner, value: 10n ** 18n });
+    const hash = await fork.walletClient.sendTransaction({
+      account: owner,
+      chain: arbitrumChain,
+      to: request.to,
+      data: request.data,
+      value: request.value,
+      nonce: request.nonce,
+      // Explicit gas: viem otherwise runs eth_estimateGas, which refuses to send a tx it knows
+      // will revert — some tests deliberately send reverting txs to prove the receipt path.
+      gas: 3_000_000n,
+    });
+    broadcasts.push(hash);
+    return hash;
+  };
+  return {
+    requests,
+    broadcasts,
+    signer: {
+      address: owner,
+      sendTransaction: async (request: Fiat24TransactionRequest): Promise<Hex> => {
+        requests.push(request);
+        if (behaviour.kind === "reject") {
+          throw new Fiat24Error("signer-rejected", "signer rejected");
+        }
+        if (behaviour.kind === "throw-before-send") {
+          throw new Error("signer crashed before broadcasting");
+        }
+        if (behaviour.kind === "broadcast-then-throw") {
+          await broadcast(request);
+          throw new Error("signer crashed after broadcasting");
+        }
+        if (behaviour.kind === "before") {
+          await behaviour.hook();
+        }
+        return broadcast(request);
+      },
+      // Flow tests inject fake sessions; the grant hook is a Fiat24Signer member nonetheless.
+      signSessionGrant: async () => SESSION_SIGNATURE,
+    },
+  };
 }

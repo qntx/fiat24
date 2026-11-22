@@ -7,7 +7,11 @@ import type { Fiat24SessionGrant, Fiat24SessionSigner } from "../core/signer.ts"
 import { CHAIN_ID } from "../core/types.ts";
 import { apiError } from "./http.ts";
 
-export type SessionArgs = { chainId: 42161; tokenId: bigint; deadline: bigint };
+export type SessionArgs = {
+  readonly chainId: 42161;
+  readonly tokenId: bigint;
+  readonly deadline: bigint;
+};
 
 function checked(args: SessionArgs): SessionArgs {
   if (args.chainId !== CHAIN_ID) {

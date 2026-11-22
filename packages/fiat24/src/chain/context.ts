@@ -2,13 +2,22 @@ import type { Abi, AbiEvent, Address, Client, Hex } from "viem";
 import { getAddress, isAddress, numberToHex, toEventSelector } from "viem";
 import { getBlockNumber, getStorageAt, readContract } from "viem/actions";
 
+import {
+  accountAbi,
+  cardAbi,
+  depositAbi,
+  f24Abi,
+  f24SalesAbi,
+  priceListAbi,
+  tokenAbi,
+} from "../abi/index.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import type { UnavailableReason } from "../core/errors.ts";
 import { decodeFiat24Revert, revertCode } from "../core/revert.ts";
 import type { RevertReason } from "../core/revert.ts";
 import { CHAIN_ID } from "../core/types.ts";
-import type { PayoutCurrency } from "../core/types.ts";
-import { getDeployment } from "../deployments/deployment.ts";
+import type { ContractName, PayoutCurrency } from "../core/types.ts";
+import { contractAddress, getDeployment } from "../deployments/deployment.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import type { RawLog } from "../events/types.ts";
 
@@ -320,6 +329,31 @@ function unavailableReason(revert: RevertReason): UnavailableReason | undefined 
     return UNAVAILABLE_CUSTOMS.get(revert.name);
   }
   return undefined;
+}
+
+const CONTRACT_ABI: Readonly<Record<ContractName, Abi>> = {
+  account: accountAbi,
+  USD24: tokenAbi,
+  EUR24: tokenAbi,
+  CHF24: tokenAbi,
+  CNH24: tokenAbi,
+  deposit: depositAbi,
+  card: cardAbi,
+  priceList: priceListAbi,
+  f24Sales: f24SalesAbi,
+  f24: f24Abi,
+};
+
+/**
+ * `{address, abi}` of a named deployment contract — lets layers above `chain` (which may not import
+ * `abi/` directly) build `readAt` parameters and event topics (USDC is plain ERC-20: callers pair
+ * `deployment.usdc` with viem's `erc20Abi`).
+ */
+export function contractTarget(
+  deployment: Deployment,
+  name: ContractName,
+): { readonly address: Address; readonly abi: Abi } {
+  return { address: contractAddress(deployment, name), abi: CONTRACT_ABI[name] };
 }
 
 /**

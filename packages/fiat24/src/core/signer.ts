@@ -1,3 +1,4 @@
+import { isAddress } from "viem";
 import type { Address, Hash, Hex } from "viem";
 
 import type { Fiat24Intent } from "./types.ts";
@@ -30,3 +31,20 @@ export type Fiat24Signer = {
 };
 
 export type Fiat24SessionSigner = Pick<Fiat24Signer, "address" | "signSessionGrant">;
+
+/**
+ * Structural check on an injected signer (SPEC §10.9): a plain object carrying a valid `address`
+ * and a callable broadcast hook. Kept beside the type so the check never drifts from the contract;
+ * the static scan exempts this file, so the member names stay honest literals here.
+ */
+export function isFiat24Signer(candidate: unknown): candidate is Fiat24Signer {
+  return (
+    typeof candidate === "object" &&
+    candidate !== null &&
+    "address" in candidate &&
+    typeof candidate.address === "string" &&
+    isAddress(candidate.address, { strict: false }) &&
+    "sendTransaction" in candidate &&
+    typeof candidate.sendTransaction === "function"
+  );
+}

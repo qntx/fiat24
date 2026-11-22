@@ -50,6 +50,7 @@ describe("isValidIban", () => {
     "CH!!6483051000000000001", // non-alphanumerics are stripped before matching
     "DE89370400440532013000", // a non-CH IBAN from the country table
     "GB29NWBK60161331926819",
+    "LY83002048000020100120361", // SWIFT IBAN Registry Release 103 electronic example (R-07)
   ])("accepts %j", (text) => {
     expect(isValidIban(text)).toBe(true);
   });

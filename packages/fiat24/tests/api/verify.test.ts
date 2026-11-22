@@ -233,3 +233,41 @@ describe("verifySwissQr", () => {
     expect(calls).toHaveLength(0);
   });
 });
+
+describe("IBAN-country gating (R-07)", () => {
+  // LY gained a registered format in SWIFT IBAN Registry Release 103; DZ, LK and TG are listed by
+  // the docs but absent from the registry, so their accounts go to /verify for Fiat24 to decide.
+  test("an LY BIC with the registry IBAN is accepted locally", async () => {
+    const request = {
+      account: "LY83002048000020100120361",
+      bankName: "x",
+      bic: "XXXXLYXX",
+      purpose: 2n,
+      creditor: "BR" as const,
+    };
+    const { session, calls } = sessionApi({
+      [spPath({ ...request, purpose: 2 })]: json(fixtureBody("secured/verify-sp.json")),
+    });
+    const verified = await session.verifyBankPayment(request);
+    expect(verified.purposeId).toBe(2n);
+    expect(calls[1]?.url).toContain("/verify?sp=");
+  });
+
+  test.each(["DZ", "LK", "TG"])(
+    "a %s BIC with a non-IBAN account reaches /verify",
+    async (country) => {
+      const request = {
+        account: "00720012001345",
+        bankName: "x",
+        bic: `XXXX${country}XX`,
+        purpose: 2n,
+        creditor: "BR" as const,
+      };
+      const { session, calls } = sessionApi({
+        [spPath({ ...request, purpose: 2 })]: json(fixtureBody("secured/verify-sp.json")),
+      });
+      await session.verifyBankPayment(request);
+      expect(calls[1]?.url).toContain("/verify?sp=");
+    },
+  );
+});

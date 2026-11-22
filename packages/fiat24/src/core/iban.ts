@@ -20,10 +20,12 @@ export function ibanOf(tokenId: bigint): string {
   return `CH${check.toString().padStart(2, "0")}${bban}`;
 }
 
-// Per-country IBAN lengths, verbatim from the Fiat24 docs (Part 2 API
-// Reference, §10 Bank Payout, step "Check the destination bank account
-// format", `isValidIbanNumber`):
-// https://docs.fiat24.com/developer/integration-guide/part-2-api-reference
+// Per-country IBAN lengths, from the Fiat24 docs (Part 2 API Reference, §10
+// Bank Payout, step "Check the destination bank account format",
+// `isValidIbanNumber`) checked against the SWIFT IBAN Registry Release 103
+// (Sep 2026, https://www.swift.com/swift-resource/9606/download?language=en):
+// every docs entry matches the registry and LY (effective 2021-01) was added
+// from it; DZ, LK and TG appear in the docs but are not registered (R-07).
 const IBAN_CODE_LENGTHS: Readonly<Record<string, number>> = {
   AD: 24,
   AE: 23,
@@ -64,6 +66,8 @@ const IBAN_CODE_LENGTHS: Readonly<Record<string, number>> = {
   LT: 20,
   LU: 20,
   LV: 21,
+  // SWIFT IBAN Registry Release 103 (effective 2021-01; not in the docs' table).
+  LY: 25,
   MC: 27,
   MD: 24,
   ME: 22,

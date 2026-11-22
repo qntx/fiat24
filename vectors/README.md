@@ -15,6 +15,8 @@ Each generator lives in `packages/fiat24/scripts/vectors/`, writes
 ```text
 vectors/core/amount.json      parseAmount/formatAmount (core.amount)
 vectors/core/iban.json        ibanOf/isValidIban (core.iban)
+vectors/core/iban-registry.json isValidIban vs SWIFT IBAN Registry R103
+                              (schwifty oracle, core.iban-registry)
 vectors/calls/calldata.json   the nine call builders (calls.calldata)
 vectors/events/decode.json    decodeFiat24Log over recorded + synthetic logs
                               (events.decode)

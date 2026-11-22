@@ -1,0 +1,1653 @@
+{
+  "schema": 1,
+  "capability": "core.iban-registry",
+  "source": {
+    "kind": "official",
+    "name": "SWIFT IBAN Registry",
+    "version": "Release 103 (Sep 2026)",
+    "url": "https://www.swift.com/swift-resource/9606/download?language=en",
+    "evidence": "validator schwifty 2025.6.0 (raw/iban-registry.json)",
+    "generator": "packages/fiat24/scripts/vectors/iban-registry.ts"
+  },
+  "cases": [
+    {
+      "op": "isValidIban",
+      "country": "AD",
+      "variant": "registry",
+      "input": "AD1200012030200359100100",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "AD",
+      "variant": "check-digits",
+      "input": "AD1300012030200359100100",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "AD",
+      "variant": "truncated",
+      "input": "AD120001203020035910010",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "AE",
+      "variant": "registry",
+      "input": "AE070331234567890123456",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "AE",
+      "variant": "check-digits",
+      "input": "AE080331234567890123456",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "AE",
+      "variant": "truncated",
+      "input": "AE07033123456789012345",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "AL",
+      "variant": "registry",
+      "input": "AL47212110090000000235698741",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "AL",
+      "variant": "check-digits",
+      "input": "AL48212110090000000235698741",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "AL",
+      "variant": "truncated",
+      "input": "AL4721211009000000023569874",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "AT",
+      "variant": "registry",
+      "input": "AT611904300234573201",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "AT",
+      "variant": "check-digits",
+      "input": "AT621904300234573201",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "AT",
+      "variant": "truncated",
+      "input": "AT61190430023457320",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "AZ",
+      "variant": "registry",
+      "input": "AZ21NABZ00000000137010001944",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "AZ",
+      "variant": "check-digits",
+      "input": "AZ22NABZ00000000137010001944",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "AZ",
+      "variant": "truncated",
+      "input": "AZ21NABZ0000000013701000194",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "BA",
+      "variant": "registry",
+      "input": "BA391290079401028494",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "BA",
+      "variant": "check-digits",
+      "input": "BA401290079401028494",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "BA",
+      "variant": "truncated",
+      "input": "BA39129007940102849",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "BE",
+      "variant": "registry",
+      "input": "BE68539007547034",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "BE",
+      "variant": "check-digits",
+      "input": "BE69539007547034",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "BE",
+      "variant": "truncated",
+      "input": "BE6853900754703",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "BG",
+      "variant": "registry",
+      "input": "BG80BNBG96611020345678",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "BG",
+      "variant": "check-digits",
+      "input": "BG81BNBG96611020345678",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "BG",
+      "variant": "truncated",
+      "input": "BG80BNBG9661102034567",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "BH",
+      "variant": "registry",
+      "input": "BH67BMAG00001299123456",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "BH",
+      "variant": "check-digits",
+      "input": "BH68BMAG00001299123456",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "BH",
+      "variant": "truncated",
+      "input": "BH67BMAG0000129912345",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "BR",
+      "variant": "registry",
+      "input": "BR6699999A03000010009795493C1",
+      "output": false,
+      "docCheck": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "BR",
+      "variant": "check-digits",
+      "input": "BR6799999A03000010009795493C1",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "BR",
+      "variant": "truncated",
+      "input": "BR6699999A03000010009795493C",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "BY",
+      "variant": "registry",
+      "input": "BY13NBRB36009000000002Z00AB00",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "BY",
+      "variant": "check-digits",
+      "input": "BY14NBRB36009000000002Z00AB00",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "BY",
+      "variant": "truncated",
+      "input": "BY13NBRB36009000000002Z00AB0",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "CH",
+      "variant": "registry",
+      "input": "CH9300762011623852957",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "CH",
+      "variant": "check-digits",
+      "input": "CH9400762011623852957",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "CH",
+      "variant": "truncated",
+      "input": "CH930076201162385295",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "CR",
+      "variant": "registry",
+      "input": "CR05015202001026284066",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "CR",
+      "variant": "check-digits",
+      "input": "CR06015202001026284066",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "CR",
+      "variant": "truncated",
+      "input": "CR0501520200102628406",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "CY",
+      "variant": "registry",
+      "input": "CY17002001280000001200527600",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "CY",
+      "variant": "check-digits",
+      "input": "CY18002001280000001200527600",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "CY",
+      "variant": "truncated",
+      "input": "CY1700200128000000120052760",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "CZ",
+      "variant": "registry",
+      "input": "CZ6508000000192000145399",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "CZ",
+      "variant": "check-digits",
+      "input": "CZ6608000000192000145399",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "CZ",
+      "variant": "truncated",
+      "input": "CZ650800000019200014539",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "DE",
+      "variant": "registry",
+      "input": "DE89370400440532013000",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "DE",
+      "variant": "check-digits",
+      "input": "DE90370400440532013000",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "DE",
+      "variant": "truncated",
+      "input": "DE8937040044053201300",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "DK",
+      "variant": "registry",
+      "input": "DK5000400440116243",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "DK",
+      "variant": "check-digits",
+      "input": "DK5100400440116243",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "DK",
+      "variant": "truncated",
+      "input": "DK500040044011624",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "DO",
+      "variant": "registry",
+      "input": "DO28BAGR00000001212453611324",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "DO",
+      "variant": "check-digits",
+      "input": "DO29BAGR00000001212453611324",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "DO",
+      "variant": "truncated",
+      "input": "DO28BAGR0000000121245361132",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "EE",
+      "variant": "registry",
+      "input": "EE382200221020145685",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "EE",
+      "variant": "check-digits",
+      "input": "EE392200221020145685",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "EE",
+      "variant": "truncated",
+      "input": "EE38220022102014568",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "EG",
+      "variant": "registry",
+      "input": "EG38001900050000000263180002",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "EG",
+      "variant": "check-digits",
+      "input": "EG39001900050000000263180002",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "EG",
+      "variant": "truncated",
+      "input": "EG3800190005000000026318000",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "ES",
+      "variant": "registry",
+      "input": "ES9121000418450200051332",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "ES",
+      "variant": "check-digits",
+      "input": "ES9221000418450200051332",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "ES",
+      "variant": "truncated",
+      "input": "ES912100041845020005133",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "FI",
+      "variant": "registry",
+      "input": "FI2112345600000785",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "FI",
+      "variant": "check-digits",
+      "input": "FI2212345600000785",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "FI",
+      "variant": "truncated",
+      "input": "FI211234560000078",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "FO",
+      "variant": "registry",
+      "input": "FO6264600001631634",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "FO",
+      "variant": "check-digits",
+      "input": "FO6364600001631634",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "FO",
+      "variant": "truncated",
+      "input": "FO626460000163163",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "FR",
+      "variant": "registry",
+      "input": "FR1420041010050500013M02606",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "FR",
+      "variant": "check-digits",
+      "input": "FR1520041010050500013M02606",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "FR",
+      "variant": "truncated",
+      "input": "FR1420041010050500013M0260",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "GB",
+      "variant": "registry",
+      "input": "GB29NWBK60161331926819",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "GB",
+      "variant": "check-digits",
+      "input": "GB30NWBK60161331926819",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "GB",
+      "variant": "truncated",
+      "input": "GB29NWBK6016133192681",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "GE",
+      "variant": "registry",
+      "input": "GE29NB000000101904917",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "GE",
+      "variant": "check-digits",
+      "input": "GE30NB000000101904917",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "GE",
+      "variant": "truncated",
+      "input": "GE29NB00000010190491",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "GI",
+      "variant": "registry",
+      "input": "GI75NWBK000000007099453",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "GI",
+      "variant": "check-digits",
+      "input": "GI76NWBK000000007099453",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "GI",
+      "variant": "truncated",
+      "input": "GI75NWBK00000000709945",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "GL",
+      "variant": "registry",
+      "input": "GL8964710001000206",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "GL",
+      "variant": "check-digits",
+      "input": "GL9064710001000206",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "GL",
+      "variant": "truncated",
+      "input": "GL896471000100020",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "GR",
+      "variant": "registry",
+      "input": "GR1601101250000000012300695",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "GR",
+      "variant": "check-digits",
+      "input": "GR1701101250000000012300695",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "GR",
+      "variant": "truncated",
+      "input": "GR160110125000000001230069",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "GT",
+      "variant": "registry",
+      "input": "GT82TRAJ01020000001210029690",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "GT",
+      "variant": "check-digits",
+      "input": "GT83TRAJ01020000001210029690",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "GT",
+      "variant": "truncated",
+      "input": "GT82TRAJ0102000000121002969",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "HR",
+      "variant": "registry",
+      "input": "HR1210010051863000160",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "HR",
+      "variant": "check-digits",
+      "input": "HR1310010051863000160",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "HR",
+      "variant": "truncated",
+      "input": "HR121001005186300016",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "HU",
+      "variant": "registry",
+      "input": "HU42117730161111101800000000",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "HU",
+      "variant": "check-digits",
+      "input": "HU43117730161111101800000000",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "HU",
+      "variant": "truncated",
+      "input": "HU4211773016111110180000000",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "IE",
+      "variant": "registry",
+      "input": "IE29AIBK93115212345678",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "IE",
+      "variant": "check-digits",
+      "input": "IE30AIBK93115212345678",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "IE",
+      "variant": "truncated",
+      "input": "IE29AIBK9311521234567",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "IL",
+      "variant": "registry",
+      "input": "IL620108000000099999999",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "IL",
+      "variant": "check-digits",
+      "input": "IL630108000000099999999",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "IL",
+      "variant": "truncated",
+      "input": "IL62010800000009999999",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "IQ",
+      "variant": "registry",
+      "input": "IQ98NBIQ850123456789012",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "IQ",
+      "variant": "check-digits",
+      "input": "IQ02NBIQ850123456789012",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "IQ",
+      "variant": "truncated",
+      "input": "IQ98NBIQ85012345678901",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "IS",
+      "variant": "registry",
+      "input": "IS140159260076545510730339",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "IS",
+      "variant": "check-digits",
+      "input": "IS150159260076545510730339",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "IS",
+      "variant": "truncated",
+      "input": "IS14015926007654551073033",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "IT",
+      "variant": "registry",
+      "input": "IT60X0542811101000000123456",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "IT",
+      "variant": "check-digits",
+      "input": "IT61X0542811101000000123456",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "IT",
+      "variant": "truncated",
+      "input": "IT60X054281110100000012345",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "JO",
+      "variant": "registry",
+      "input": "JO94CBJO0010000000000131000302",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "JO",
+      "variant": "check-digits",
+      "input": "JO95CBJO0010000000000131000302",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "JO",
+      "variant": "truncated",
+      "input": "JO94CBJO001000000000013100030",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "KW",
+      "variant": "registry",
+      "input": "KW81CBKU0000000000001234560101",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "KW",
+      "variant": "check-digits",
+      "input": "KW82CBKU0000000000001234560101",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "KW",
+      "variant": "truncated",
+      "input": "KW81CBKU000000000000123456010",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "KZ",
+      "variant": "registry",
+      "input": "KZ86125KZT5004100100",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "KZ",
+      "variant": "check-digits",
+      "input": "KZ87125KZT5004100100",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "KZ",
+      "variant": "truncated",
+      "input": "KZ86125KZT500410010",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "LB",
+      "variant": "registry",
+      "input": "LB62099900000001001901229114",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "LB",
+      "variant": "check-digits",
+      "input": "LB63099900000001001901229114",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "LB",
+      "variant": "truncated",
+      "input": "LB6209990000000100190122911",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "LC",
+      "variant": "registry",
+      "input": "LC55HEMM000100010012001200023015",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "LC",
+      "variant": "check-digits",
+      "input": "LC56HEMM000100010012001200023015",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "LC",
+      "variant": "truncated",
+      "input": "LC55HEMM00010001001200120002301",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "LI",
+      "variant": "registry",
+      "input": "LI21088100002324013AA",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "LI",
+      "variant": "check-digits",
+      "input": "LI22088100002324013AA",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "LI",
+      "variant": "truncated",
+      "input": "LI21088100002324013A",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "LT",
+      "variant": "registry",
+      "input": "LT121000011101001000",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "LT",
+      "variant": "check-digits",
+      "input": "LT131000011101001000",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "LT",
+      "variant": "truncated",
+      "input": "LT12100001110100100",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "LU",
+      "variant": "registry",
+      "input": "LU280019400644750000",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "LU",
+      "variant": "check-digits",
+      "input": "LU290019400644750000",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "LU",
+      "variant": "truncated",
+      "input": "LU28001940064475000",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "LV",
+      "variant": "registry",
+      "input": "LV80BANK0000435195001",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "LV",
+      "variant": "check-digits",
+      "input": "LV81BANK0000435195001",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "LV",
+      "variant": "truncated",
+      "input": "LV80BANK000043519500",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "LY",
+      "variant": "registry",
+      "input": "LY83002048000020100120361",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "LY",
+      "variant": "check-digits",
+      "input": "LY84002048000020100120361",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "LY",
+      "variant": "truncated",
+      "input": "LY8300204800002010012036",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "MC",
+      "variant": "registry",
+      "input": "MC5811222000010123456789030",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "MC",
+      "variant": "check-digits",
+      "input": "MC5911222000010123456789030",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "MC",
+      "variant": "truncated",
+      "input": "MC581122200001012345678903",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "MD",
+      "variant": "registry",
+      "input": "MD24AG000225100013104168",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "MD",
+      "variant": "check-digits",
+      "input": "MD25AG000225100013104168",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "MD",
+      "variant": "truncated",
+      "input": "MD24AG00022510001310416",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "ME",
+      "variant": "registry",
+      "input": "ME25505000012345678951",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "ME",
+      "variant": "check-digits",
+      "input": "ME26505000012345678951",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "ME",
+      "variant": "truncated",
+      "input": "ME2550500001234567895",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "MK",
+      "variant": "registry",
+      "input": "MK07250120000058984",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "MK",
+      "variant": "check-digits",
+      "input": "MK08250120000058984",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "MK",
+      "variant": "truncated",
+      "input": "MK0725012000005898",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "MR",
+      "variant": "registry",
+      "input": "MR1300020001010000123456753",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "MR",
+      "variant": "check-digits",
+      "input": "MR1400020001010000123456753",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "MR",
+      "variant": "truncated",
+      "input": "MR130002000101000012345675",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "MT",
+      "variant": "registry",
+      "input": "MT84MALT011000012345MTLCAST001S",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "MT",
+      "variant": "check-digits",
+      "input": "MT85MALT011000012345MTLCAST001S",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "MT",
+      "variant": "truncated",
+      "input": "MT84MALT011000012345MTLCAST001",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "MU",
+      "variant": "registry",
+      "input": "MU17BOMM0101101030300200000MUR",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "MU",
+      "variant": "check-digits",
+      "input": "MU18BOMM0101101030300200000MUR",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "MU",
+      "variant": "truncated",
+      "input": "MU17BOMM0101101030300200000MU",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "NL",
+      "variant": "registry",
+      "input": "NL91ABNA0417164300",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "NL",
+      "variant": "check-digits",
+      "input": "NL92ABNA0417164300",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "NL",
+      "variant": "truncated",
+      "input": "NL91ABNA041716430",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "NO",
+      "variant": "registry",
+      "input": "NO9386011117947",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "NO",
+      "variant": "check-digits",
+      "input": "NO9486011117947",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "NO",
+      "variant": "truncated",
+      "input": "NO938601111794",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "PK",
+      "variant": "registry",
+      "input": "PK36SCBL0000001123456702",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "PK",
+      "variant": "check-digits",
+      "input": "PK37SCBL0000001123456702",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "PK",
+      "variant": "truncated",
+      "input": "PK36SCBL000000112345670",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "PL",
+      "variant": "registry",
+      "input": "PL61109010140000071219812874",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "PL",
+      "variant": "check-digits",
+      "input": "PL62109010140000071219812874",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "PL",
+      "variant": "truncated",
+      "input": "PL6110901014000007121981287",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "PS",
+      "variant": "registry",
+      "input": "PS92PALS000000000400123456702",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "PS",
+      "variant": "check-digits",
+      "input": "PS93PALS000000000400123456702",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "PS",
+      "variant": "truncated",
+      "input": "PS92PALS00000000040012345670",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "PT",
+      "variant": "registry",
+      "input": "PT50000201231234567890154",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "PT",
+      "variant": "check-digits",
+      "input": "PT51000201231234567890154",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "PT",
+      "variant": "truncated",
+      "input": "PT5000020123123456789015",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "QA",
+      "variant": "registry",
+      "input": "QA58DOHB00001234567890ABCDEFG",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "QA",
+      "variant": "check-digits",
+      "input": "QA59DOHB00001234567890ABCDEFG",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "QA",
+      "variant": "truncated",
+      "input": "QA58DOHB00001234567890ABCDEF",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "RO",
+      "variant": "registry",
+      "input": "RO49AAAA1B31007593840000",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "RO",
+      "variant": "check-digits",
+      "input": "RO50AAAA1B31007593840000",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "RO",
+      "variant": "truncated",
+      "input": "RO49AAAA1B3100759384000",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "RS",
+      "variant": "registry",
+      "input": "RS35260005601001611379",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "RS",
+      "variant": "check-digits",
+      "input": "RS36260005601001611379",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "RS",
+      "variant": "truncated",
+      "input": "RS3526000560100161137",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "SA",
+      "variant": "registry",
+      "input": "SA0380000000608010167519",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "SA",
+      "variant": "check-digits",
+      "input": "SA0480000000608010167519",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "SA",
+      "variant": "truncated",
+      "input": "SA038000000060801016751",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "SC",
+      "variant": "registry",
+      "input": "SC18SSCB11010000000000001497USD",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "SC",
+      "variant": "check-digits",
+      "input": "SC19SSCB11010000000000001497USD",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "SC",
+      "variant": "truncated",
+      "input": "SC18SSCB11010000000000001497US",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "SE",
+      "variant": "registry",
+      "input": "SE4550000000058398257466",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "SE",
+      "variant": "check-digits",
+      "input": "SE4650000000058398257466",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "SE",
+      "variant": "truncated",
+      "input": "SE455000000005839825746",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "SI",
+      "variant": "registry",
+      "input": "SI56263300012039086",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "SI",
+      "variant": "check-digits",
+      "input": "SI57263300012039086",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "SI",
+      "variant": "truncated",
+      "input": "SI5626330001203908",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "SK",
+      "variant": "registry",
+      "input": "SK3112000000198742637541",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "SK",
+      "variant": "check-digits",
+      "input": "SK3212000000198742637541",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "SK",
+      "variant": "truncated",
+      "input": "SK311200000019874263754",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "SM",
+      "variant": "registry",
+      "input": "SM86U0322509800000000270100",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "SM",
+      "variant": "check-digits",
+      "input": "SM87U0322509800000000270100",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "SM",
+      "variant": "truncated",
+      "input": "SM86U032250980000000027010",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "ST",
+      "variant": "registry",
+      "input": "ST23000100010051845310146",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "ST",
+      "variant": "check-digits",
+      "input": "ST24000100010051845310146",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "ST",
+      "variant": "truncated",
+      "input": "ST2300010001005184531014",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "SV",
+      "variant": "registry",
+      "input": "SV62CENR00000000000000700025",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "SV",
+      "variant": "check-digits",
+      "input": "SV63CENR00000000000000700025",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "SV",
+      "variant": "truncated",
+      "input": "SV62CENR0000000000000070002",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "TL",
+      "variant": "registry",
+      "input": "TL380080012345678910157",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "TL",
+      "variant": "check-digits",
+      "input": "TL390080012345678910157",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "TL",
+      "variant": "truncated",
+      "input": "TL38008001234567891015",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "TN",
+      "variant": "registry",
+      "input": "TN5910006035183598478831",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "TN",
+      "variant": "check-digits",
+      "input": "TN6010006035183598478831",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "TN",
+      "variant": "truncated",
+      "input": "TN591000603518359847883",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "TR",
+      "variant": "registry",
+      "input": "TR330006100519786457841326",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "TR",
+      "variant": "check-digits",
+      "input": "TR340006100519786457841326",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "TR",
+      "variant": "truncated",
+      "input": "TR33000610051978645784132",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "UA",
+      "variant": "registry",
+      "input": "UA213223130000026007233566001",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "UA",
+      "variant": "check-digits",
+      "input": "UA223223130000026007233566001",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "UA",
+      "variant": "truncated",
+      "input": "UA21322313000002600723356600",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "VA",
+      "variant": "registry",
+      "input": "VA59001123000012345678",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "VA",
+      "variant": "check-digits",
+      "input": "VA60001123000012345678",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "VA",
+      "variant": "truncated",
+      "input": "VA5900112300001234567",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "VG",
+      "variant": "registry",
+      "input": "VG96VPVG0000012345678901",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "VG",
+      "variant": "check-digits",
+      "input": "VG00VPVG0000012345678901",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "VG",
+      "variant": "truncated",
+      "input": "VG96VPVG000001234567890",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "XK",
+      "variant": "registry",
+      "input": "XK051212012345678906",
+      "output": true
+    },
+    {
+      "op": "isValidIban",
+      "country": "XK",
+      "variant": "check-digits",
+      "input": "XK061212012345678906",
+      "output": false
+    },
+    {
+      "op": "isValidIban",
+      "country": "XK",
+      "variant": "truncated",
+      "input": "XK05121201234567890",
+      "output": false
+    }
+  ]
+}

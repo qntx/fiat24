@@ -232,7 +232,7 @@ function classifyWriteError(error: unknown, endpoint: string): WriteVerdict {
       return "api-rejected";
     }
   }
-  return API_READY_ERRORS.has(error.code) ? error.code : "ambiguous";
+  return API_READY_ERRORS.includes(error.code) ? error.code : "ambiguous";
 }
 
 function checkedSession(deps: FlowDeps, tokenId: bigint): Fiat24Session {

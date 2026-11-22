@@ -155,6 +155,9 @@ export type Drift = {
 // @public (undocumented)
 export type DriftField = "implementation" | "admin" | "priceList" | "f24" | "f24Sales" | "usdc";
 
+// @public (undocumented)
+const errorCodes: readonly ["invalid-amount", "too-many-decimals", "amount-out-of-range", "invalid-account-id", "invalid-address", "invalid-argument", "internal-account", "unlimited-approval", "unsupported-currency", "unsupported-chain", "no-account", "not-live", "recipient-not-live", "stale-recipient", "address-ineligible", "account-id-taken", "insufficient-balance", "insufficient-allowance", "limit-exceeded", "transfer-not-allowed", "below-minimum", "above-maximum", "unavailable", "contract-changed", "quote-changed", "rpc-error", "invalid-rpc-response", "malformed-log", "contract-revert", "tx-reverted", "network-error", "unauthorized", "rate-limited", "http-error", "invalid-response", "api-rejected", "api-mismatch", "session-required", "signer-rejected", "unknown-outcome", "invalid-state"];
+
 // @public
 export type ExchangeQuote = {
     readonly side: "exact-in" | "exact-out";
@@ -210,7 +213,7 @@ export class Fiat24Error extends Error {
 export type Fiat24ErrorCode = (typeof fiat24ErrorCodes)[number];
 
 // @public (undocumented)
-export const fiat24ErrorCodes: readonly ["invalid-amount", "too-many-decimals", "amount-out-of-range", "invalid-account-id", "invalid-address", "invalid-argument", "internal-account", "unlimited-approval", "unsupported-currency", "unsupported-chain", "no-account", "not-live", "recipient-not-live", "stale-recipient", "address-ineligible", "account-id-taken", "insufficient-balance", "insufficient-allowance", "limit-exceeded", "transfer-not-allowed", "below-minimum", "above-maximum", "unavailable", "contract-changed", "quote-changed", "rpc-error", "invalid-rpc-response", "malformed-log", "contract-revert", "tx-reverted", "network-error", "unauthorized", "rate-limited", "http-error", "invalid-response", "api-rejected", "api-mismatch", "session-required", "signer-rejected", "unknown-outcome", "invalid-state"];
+export const fiat24ErrorCodes: typeof errorCodes;
 
 // @public (undocumented)
 export type Fiat24ErrorDetail = {

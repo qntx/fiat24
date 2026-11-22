@@ -236,7 +236,7 @@ const ACTIVE_PHASES: ReadonlySet<TxPhase> = new Set(["ready", "sending", "submit
 // §6 card API-write table: the `ready` error set a declined write may carry
 // (the write was not executed; retry is a new user action). card.ts shares it —
 // a write error with any other code is classified ambiguous instead.
-export const API_READY_ERRORS: ReadonlySet<Fiat24ErrorCode> = new Set([
+export const API_READY_ERRORS: ReadonlyArray<Fiat24ErrorCode> = /* @__PURE__ */ freeze([
   "unauthorized",
   "rate-limited",
   "http-error",
@@ -332,7 +332,7 @@ function apiRecord(record: ParsedRecord): void {
   }
   switch (record.phase) {
     case "ready":
-      if (error !== undefined && !API_READY_ERRORS.has(error)) {
+      if (error !== undefined && !API_READY_ERRORS.includes(error)) {
         invalidState();
       }
       return;

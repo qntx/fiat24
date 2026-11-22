@@ -56,22 +56,21 @@ export async function getBalances(
   resolveDeployment(client, args.deployment);
   const owner = checkedAddress(args.owner);
   const { deployment, blockNumber: B } = await snapshot(client, args);
-  const [usd24, eur24, chf24, cnh24] = await Promise.all(
-    CURRENCIES.map(async (currency) =>
-      readAt(client, B, {
-        address: deployment.tokens[currency].proxy,
-        abi: tokenAbi,
-        functionName: "balanceOf",
-        args: [owner],
-      }),
-    ),
+  // Each balance is stored under its own currency key: result assembly never
+  // depends on the CURRENCIES table's order (R-06).
+  const balances: Record<Currency, bigint> = { USD24: 0n, EUR24: 0n, CHF24: 0n, CNH24: 0n };
+  await Promise.all(
+    CURRENCIES.map(async (currency) => {
+      balances[currency] = asBigint(
+        await readAt(client, B, {
+          address: deployment.tokens[currency].proxy,
+          abi: tokenAbi,
+          functionName: "balanceOf",
+          args: [owner],
+        }),
+      );
+    }),
   );
-  const balances = {
-    USD24: asBigint(usd24),
-    EUR24: asBigint(eur24),
-    CHF24: asBigint(chf24),
-    CNH24: asBigint(cnh24),
-  };
   return { balances, blockNumber: B };
 }
 
@@ -116,55 +115,65 @@ export async function getAllowances(
   const owner = checkedAddress(args.owner);
   const { deployment, blockNumber: B } = await snapshot(client, args);
 
-  type Job = { address: Address; abi: Abi; spender: Address };
+  // Each allowance is stored under its own key: result assembly never depends
+  // on job order (R-06).
+  const card: Record<Currency, bigint> = { USD24: 0n, EUR24: 0n, CHF24: 0n, CNH24: 0n };
+  const deposit: Record<Currency | "USDC", bigint> = {
+    USD24: 0n,
+    EUR24: 0n,
+    CHF24: 0n,
+    CNH24: 0n,
+    USDC: 0n,
+  };
+  const account: { F24: bigint } = { F24: 0n };
+
+  type Job = {
+    readonly into: Record<string, bigint>;
+    readonly key: string;
+    readonly address: Address;
+    readonly abi: Abi;
+    readonly spender: Address;
+  };
   const cardJobs = CURRENCIES.map((currency): Job => ({
+    into: card,
+    key: currency,
     address: deployment.tokens[currency].proxy,
     abi: tokenAbi,
     spender: deployment.card.proxy,
   }));
   const depositJobs = CURRENCIES.map((currency): Job => ({
+    into: deposit,
+    key: currency,
     address: deployment.tokens[currency].proxy,
     abi: tokenAbi,
     spender: deployment.deposit.proxy,
   }));
   const usdcJob: Job = {
+    into: deposit,
+    key: "USDC",
     address: deployment.usdc,
     abi: erc20Abi,
     spender: deployment.deposit.proxy,
   };
   const f24Job: Job = {
+    into: account,
+    key: "F24",
     address: deployment.f24.address,
     abi: f24Abi,
     spender: deployment.account.proxy,
   };
 
-  const results = await Promise.all(
-    [...cardJobs, ...depositJobs, usdcJob, f24Job].map(async (job) =>
-      readAt(client, B, {
-        address: job.address,
-        abi: job.abi,
-        functionName: "allowance",
-        args: [owner, job.spender],
-      }),
-    ),
+  await Promise.all(
+    [...cardJobs, ...depositJobs, usdcJob, f24Job].map(async (job) => {
+      job.into[job.key] = asBigint(
+        await readAt(client, B, {
+          address: job.address,
+          abi: job.abi,
+          functionName: "allowance",
+          args: [owner, job.spender],
+        }),
+      );
+    }),
   );
-
-  const [cu, ce, cc, cn, du, de, dc, dn, usdc, f24] = results;
-  return {
-    card: {
-      USD24: asBigint(cu),
-      EUR24: asBigint(ce),
-      CHF24: asBigint(cc),
-      CNH24: asBigint(cn),
-    },
-    deposit: {
-      USD24: asBigint(du),
-      EUR24: asBigint(de),
-      CHF24: asBigint(dc),
-      CNH24: asBigint(dn),
-      USDC: asBigint(usdc),
-    },
-    account: { F24: asBigint(f24) },
-    blockNumber: B,
-  };
+  return { card, deposit, account, blockNumber: B };
 }

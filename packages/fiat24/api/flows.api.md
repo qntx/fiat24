@@ -221,6 +221,9 @@ type Deployment = {
 export function encodeFlowState(state: FlowState): string;
 
 // @public (undocumented)
+const errorCodes: readonly ["invalid-amount", "too-many-decimals", "amount-out-of-range", "invalid-account-id", "invalid-address", "invalid-argument", "internal-account", "unlimited-approval", "unsupported-currency", "unsupported-chain", "no-account", "not-live", "recipient-not-live", "stale-recipient", "address-ineligible", "account-id-taken", "insufficient-balance", "insufficient-allowance", "limit-exceeded", "transfer-not-allowed", "below-minimum", "above-maximum", "unavailable", "contract-changed", "quote-changed", "rpc-error", "invalid-rpc-response", "malformed-log", "contract-revert", "tx-reverted", "network-error", "unauthorized", "rate-limited", "http-error", "invalid-response", "api-rejected", "api-mismatch", "session-required", "signer-rejected", "unknown-outcome", "invalid-state"];
+
+// @public (undocumented)
 export type ExchangeState = Common & {
     readonly flow: "exchange";
     readonly step: "draft" | "quoted" | "tx" | "confirmed" | "failed" | "not-sent";
@@ -279,7 +282,7 @@ type Fiat24Api = {
 type Fiat24ErrorCode = (typeof fiat24ErrorCodes)[number];
 
 // @public (undocumented)
-const fiat24ErrorCodes: readonly ["invalid-amount", "too-many-decimals", "amount-out-of-range", "invalid-account-id", "invalid-address", "invalid-argument", "internal-account", "unlimited-approval", "unsupported-currency", "unsupported-chain", "no-account", "not-live", "recipient-not-live", "stale-recipient", "address-ineligible", "account-id-taken", "insufficient-balance", "insufficient-allowance", "limit-exceeded", "transfer-not-allowed", "below-minimum", "above-maximum", "unavailable", "contract-changed", "quote-changed", "rpc-error", "invalid-rpc-response", "malformed-log", "contract-revert", "tx-reverted", "network-error", "unauthorized", "rate-limited", "http-error", "invalid-response", "api-rejected", "api-mismatch", "session-required", "signer-rejected", "unknown-outcome", "invalid-state"];
+const fiat24ErrorCodes: typeof errorCodes;
 
 // @public (undocumented)
 type Fiat24Intent = {

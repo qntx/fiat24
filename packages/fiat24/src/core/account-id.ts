@@ -1,4 +1,5 @@
 import { Fiat24Error } from "./errors.ts";
+import { freeze } from "./freeze.ts";
 
 const MAX_TOKEN_ID: bigint = 2n ** 256n;
 
@@ -30,7 +31,7 @@ export const INTERNAL_ACCOUNTS: Readonly<{
   closedCollector: 9106n;
   cardBooked: 9110n;
   feeDesk: 9203n;
-}> = Object.freeze({
+}> = /* @__PURE__ */ freeze({
   treasury: 9100n,
   cashDesk: 9101n,
   payoutDesk: 9102n,

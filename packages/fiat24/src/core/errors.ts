@@ -1,11 +1,12 @@
 import type { Hex } from "viem";
 
+import { freeze } from "./freeze.ts";
 import type { RevertReason } from "./revert.ts";
 import type { ContractName } from "./types.ts";
 
 // The codes are kebab-case strings (not an enum) so vector failure cases name
 // them verbatim; the tuple is the closed set `Fiat24Error.code` may take.
-export const fiat24ErrorCodes = [
+const errorCodes = [
   "invalid-amount",
   "too-many-decimals",
   "amount-out-of-range",
@@ -48,6 +49,8 @@ export const fiat24ErrorCodes = [
   "unknown-outcome",
   "invalid-state",
 ] as const;
+
+export const fiat24ErrorCodes: typeof errorCodes = /* @__PURE__ */ freeze(errorCodes);
 
 export type Fiat24ErrorCode = (typeof fiat24ErrorCodes)[number];
 

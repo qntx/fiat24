@@ -24,7 +24,7 @@
         "strict_required_status_checks_policy": true,
         "do_not_enforce_on_create": false,
         "required_status_checks": [
-          { "context": "ci / ci", "integration_id": 15368 },
+          { "context": "ci", "integration_id": 15368 },
           { "context": "smoke / ci", "integration_id": 15368 },
           { "context": "audit", "integration_id": 15368 }
         ]

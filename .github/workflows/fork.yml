@@ -1,0 +1,43 @@
+name: Fork
+
+# The anvil fork suite replays the SDK against Arbitrum One at pinned blocks. It needs an archive
+# endpoint, kept in the FIAT24_FORK_URL secret; with no secret the suite skips cleanly, and with a
+# secret but no fork tests the JSON assertion fails loudly on purpose.
+on:
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fork:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: foundry-rs/foundry-toolchain@dba66c27052e63476d886f22216e119ba7e615bf # v1.9.2
+        with:
+          version: v1.8.6
+      - run: bun install --frozen-lockfile
+      - id: fork-url
+        env:
+          FIAT24_FORK_URL: ${{ secrets.FIAT24_FORK_URL }}
+        run: |
+          if [ -z "${FIAT24_FORK_URL:-}" ]; then
+            echo "::notice::FIAT24_FORK_URL secret is not set; skipping the fork suite"
+            echo "set=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "set=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.fork-url.outputs.set == 'true'
+        env:
+          FIAT24_FORK_URL: ${{ secrets.FIAT24_FORK_URL }}
+        working-directory: packages/fiat24
+        run: |
+          set -euo pipefail
+          bun run test:fork --reporter=default --reporter=json --outputFile.json=/tmp/fork.json
+          jq -e '.numTotalTests > 0 and .numPendingTests == 0 and .numTodoTests == 0' /tmp/fork.json

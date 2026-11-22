@@ -592,6 +592,8 @@ describe("advancePayout verified → tx", () => {
   test("confirmed: txid extracted from the ClientPayout event", async () => {
     const stub = makeFlowStub({
       blockNumber: B + 10n,
+      calls: proxyAdminEntry(),
+      storage: honestStorage(),
       receipts: {
         [TXID_1]: receiptPayload({
           transactionHash: TXID_1,
@@ -624,6 +626,8 @@ describe("advancePayout verified → tx", () => {
   test("confirmed: ClientPayoutRef receipt yields txid for a ref payout", async () => {
     const stub = makeFlowStub({
       blockNumber: B + 10n,
+      calls: proxyAdminEntry(),
+      storage: honestStorage(),
       receipts: {
         [TXID_1]: receiptPayload({
           transactionHash: TXID_1,
@@ -798,6 +802,8 @@ describe("loadPayoutSettlement", () => {
     const seen: Array<Record<string, unknown>> = [];
     const stub = makeFlowStub({
       blockNumber: B + 10n,
+      calls: proxyAdminEntry(),
+      storage: honestStorage(),
       receipts: {
         [TXID_1]: receiptPayload({
           transactionHash: TXID_1,
@@ -857,6 +863,8 @@ describe("loadPayoutSettlement", () => {
       ).map(async ([payoutAccount, status]) => {
         const stub = makeFlowStub({
           blockNumber: B + 10n,
+          calls: proxyAdminEntry(),
+          storage: honestStorage(),
           receipts: {
             [TXID_1]: receiptPayload({
               transactionHash: TXID_1,

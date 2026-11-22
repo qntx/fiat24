@@ -96,7 +96,7 @@ state = await advanceTransfer(deps, decodeFlowState(await store.get(id)));
 | Onboarding             | `startOnboarding`                      | `check → ready → tx (approve F24) → tx (mint) → tourist → kyc → live / rejected`            |
 | Top-up (USDC)          | `startTopUp`                           | `check → quoted → tx (approve USDC) → tx (main) → confirmed`, or `unavailable`              |
 
-While a transaction is in flight the step is `tx` and the last entry of `txs` carries its phase (`ready`, `sending`, `submitted`, `unknown`); every flow can also end in `failed` or `not-sent`. `advance*` throws a `Fiat24Error` only when no transition happened (a guard refused, the RPC or API failed); the state is then unchanged and nothing was sent. Every advance re-reads the chain at a fresh block and re-runs its guards before any send; a persisted state is untrusted input and calls are always rebuilt from its fields.
+While a transaction is in flight the step is `tx` and the last entry of `txs` carries its phase (`ready`, `sending`, `submitted`, `unknown`); every flow can also end in `failed` or `not-sent`. `advance*` throws a `Fiat24Error` only when no transition happened (a guard refused, the RPC or API failed); the state is then unchanged and nothing was sent. Every advance re-reads the chain at a fresh block, asserts the pinned deployment of every contract its reads touch before the first read, and re-runs its guards before any send; a persisted state is untrusted input and calls are always rebuilt from its fields.
 
 Rules for hosts:
 

@@ -14,7 +14,6 @@ import {
   contractTarget,
   readAt,
   resolveDeployment,
-  snapshot,
   topic0Of,
 } from "../chain/context.ts";
 import { getMintQuote } from "../chain/mint.ts";
@@ -22,7 +21,8 @@ import type { MintQuote } from "../chain/mint.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
-import { assertPath, checkedSigner, supplyBound } from "./guards.ts";
+import { checkedSigner, contractsOf, supplyBound, verifiedBlock } from "./guards.ts";
+import type { VerifiedBlock } from "./guards.ts";
 import { checkedState, invalidState, invalidArgument } from "./state.ts";
 import { advanceTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
@@ -67,9 +67,12 @@ async function checkGuards(
   client: Client,
   deployment: Deployment,
   state: OnboardingState,
-  blockNumber: bigint,
+  at: VerifiedBlock,
 ): Promise<MintQuote> {
-  const availability = await getAvailability(client, { deployment, blockNumber });
+  const availability = await getAvailability(client, {
+    deployment,
+    blockNumber: at.blockNumber,
+  });
   if (availability.account.paused) {
     throw new Fiat24Error("unavailable", "account unavailable", {
       contract: "account",
@@ -96,12 +99,12 @@ async function checkGuards(
   }
   const accountTarget = contractTarget(deployment, "account");
   const [historic, balance] = await Promise.all([
-    readAt(client, blockNumber, {
+    readAt(client, at.blockNumber, {
       ...accountTarget,
       functionName: "historicOwnership",
       args: [state.owner],
     }),
-    readAt(client, blockNumber, {
+    readAt(client, at.blockNumber, {
       ...accountTarget,
       functionName: "balanceOf",
       args: [state.owner],
@@ -113,14 +116,14 @@ async function checkGuards(
   const quote = await getMintQuote(client, {
     deployment,
     tokenId: state.tokenId,
-    blockNumber,
+    blockNumber: at.blockNumber,
   });
   if (quote.taken) {
     throw new Fiat24Error("account-id-taken", "account id taken");
   }
   if (state.payment === "f24") {
     const f24Balance = asBigint(
-      await readAt(client, blockNumber, {
+      await readAt(client, at.blockNumber, {
         ...contractTarget(deployment, "f24"),
         functionName: "balanceOf",
         args: [state.owner],
@@ -135,7 +138,7 @@ async function checkGuards(
 
 /**
  * The calls a `check`/`ready` state can send — approve F24 (f24 path) plus the mint call.
- * `assertPath` consumes only `.contracts`, so the amounts stand in until a quote exists.
+ * `contractsOf` consumes only `.contracts`, so the amounts stand in until a quote exists.
  */
 function pathCalls(state: OnboardingState, deployment: Deployment): ReadonlyArray<Fiat24Call> {
   if (state.payment === "f24") {
@@ -159,12 +162,12 @@ async function approveGuard(
   client: Client,
   deployment: Deployment,
   state: OnboardingState,
-  blockNumber: bigint,
+  at: VerifiedBlock,
 ): Promise<void> {
-  await checkGuards(client, deployment, state, blockNumber);
+  await checkGuards(client, deployment, state, at);
   await supplyBound(client, {
     deployment,
-    blockNumber,
+    at,
     asset: "F24",
     amount: requiredInput(state),
   });
@@ -179,9 +182,9 @@ async function mainGuard(
   client: Client,
   deployment: Deployment,
   state: OnboardingState,
-  blockNumber: bigint,
+  at: VerifiedBlock,
 ): Promise<void> {
-  const fresh = await checkGuards(client, deployment, state, blockNumber);
+  const fresh = await checkGuards(client, deployment, state, at);
   const input = requiredInput(state);
   if (state.payment === "f24") {
     if (fresh.priceF24 > input) {
@@ -192,7 +195,7 @@ async function mainGuard(
       owner: state.owner,
       asset: "F24",
       spender: "account",
-      blockNumber,
+      blockNumber: at.blockNumber,
     });
     if (allowance !== input) {
       quoteChanged();
@@ -287,15 +290,18 @@ export async function advanceOnboarding(
     case "not-sent":
       return invalidState();
     case "check": {
-      const { blockNumber } = await snapshot(deps.client, { deployment });
-      await assertPath(deps.client, deployment, blockNumber, pathCalls(checked, deployment));
-      const quote = await checkGuards(deps.client, deployment, checked, blockNumber);
+      const at = await verifiedBlock(
+        deps.client,
+        deployment,
+        contractsOf(pathCalls(checked, deployment)),
+      );
+      const quote = await checkGuards(deps.client, deployment, checked, at);
       const next = freeze({
         ...checked,
         step: "ready" as const,
         quote: {
           input: checked.payment === "f24" ? quote.priceF24 : quote.priceWei,
-          blockNumber,
+          blockNumber: at.blockNumber,
         },
       });
       await deps.persist(next);
@@ -306,10 +312,12 @@ export async function advanceOnboarding(
       if (deps.api === undefined) {
         invalidArgument();
       }
+      const at = await verifiedBlock(deps.client, deployment, ["account"]);
       const kyc = await deps.api.kycStatus(checked.tokenId);
       const account = await getAccount(deps.client, {
         deployment,
         tokenId: checked.tokenId,
+        blockNumber: at.blockNumber,
       });
       // `kyc` exists iff the step is `kyc` — the base carries no `kyc` key so
       // leaving the step drops it (exactOptionalPropertyTypes).
@@ -341,14 +349,17 @@ export async function advanceOnboarding(
       return invalidState();
     }
     if (checked.payment === "f24") {
-      const { blockNumber } = await snapshot(deps.client, { deployment });
-      await assertPath(deps.client, deployment, blockNumber, pathCalls(checked, deployment));
+      const at = await verifiedBlock(
+        deps.client,
+        deployment,
+        contractsOf(pathCalls(checked, deployment)),
+      );
       const allowance = await getAllowance(deps.client, {
         deployment,
         owner: checked.owner,
         asset: "F24",
         spender: "account",
-        blockNumber,
+        blockNumber: at.blockNumber,
       });
       purpose = allowance === checked.quote.input ? "main" : "approve";
     } else {
@@ -384,10 +395,10 @@ export async function advanceOnboarding(
     call,
     owner: checked.owner,
     deployment,
-    guard: async (blockNumber) =>
+    guard: async (at: VerifiedBlock) =>
       isApprove
-        ? approveGuard(deps.client, deployment, checked, blockNumber)
-        : mainGuard(deps.client, deployment, checked, blockNumber),
+        ? approveGuard(deps.client, deployment, checked, at)
+        : mainGuard(deps.client, deployment, checked, at),
     evidence: isApprove ? approveEvidence(deployment, checked) : mintEvidence(deployment, checked),
     // `onConfirmed` is omitted entirely for the approve record —
     // exactOptionalPropertyTypes forbids an explicit `undefined`.

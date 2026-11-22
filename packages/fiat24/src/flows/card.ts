@@ -6,19 +6,20 @@ import type { Card as ApiCard, Fiat24Session } from "../api/types.ts";
 import { approveCall } from "../calls/approve.ts";
 import { getAvailability } from "../chain/availability.ts";
 import { getAllowance } from "../chain/balances.ts";
-import {
-  checkedAddress,
-  contractTarget,
-  resolveDeployment,
-  snapshot,
-  topic0Of,
-} from "../chain/context.ts";
+import { checkedAddress, contractTarget, resolveDeployment, topic0Of } from "../chain/context.ts";
 import { assertTokenId } from "../core/account-id.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import type { Fiat24ErrorCode } from "../core/errors.ts";
 import type { Currency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
-import { assertPath, assertUnpaused, checkedSigner, supplyBound } from "./guards.ts";
+import {
+  assertUnpaused,
+  checkedSigner,
+  contractsOf,
+  supplyBound,
+  verifiedBlock,
+} from "./guards.ts";
+import type { VerifiedBlock } from "./guards.ts";
 import { API_READY_ERRORS, checkedState, invalidState, invalidArgument } from "./state.ts";
 import { advanceTx, persistSwallow, recheckTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
@@ -354,11 +355,14 @@ async function approveGuard(
   deployment: Deployment,
   currency: Currency,
   amount: bigint,
-  blockNumber: bigint,
+  at: VerifiedBlock,
 ): Promise<void> {
-  const availability = await getAvailability(client, { deployment, blockNumber });
+  const availability = await getAvailability(client, {
+    deployment,
+    blockNumber: at.blockNumber,
+  });
   assertUnpaused(availability, [currency], { account: false });
-  await supplyBound(client, { deployment, blockNumber, asset: currency, amount });
+  await supplyBound(client, { deployment, at, asset: currency, amount });
 }
 
 // The chain leg of an operation: the setup's `cap` or a `set-cap` (the approve IS the operation).
@@ -406,21 +410,24 @@ export async function advanceCard(deps: FlowDeps, state: CardState): Promise<Car
     index = checked.txs.length;
     purpose = "main";
   } else {
-    const { blockNumber } = await snapshot(deps.client, { deployment });
-    await assertPath(deps.client, deployment, blockNumber, [
-      approveCall({
-        asset: chain.currency,
-        spender: "card",
-        amount: chain.amount,
-        deployment,
-      }),
-    ]);
+    const at = await verifiedBlock(
+      deps.client,
+      deployment,
+      contractsOf([
+        approveCall({
+          asset: chain.currency,
+          spender: "card",
+          amount: chain.amount,
+          deployment,
+        }),
+      ]),
+    );
     const allowance = await getAllowance(deps.client, {
       deployment,
       owner: checked.owner,
       asset: chain.currency,
       spender: "card",
-      blockNumber,
+      blockNumber: at.blockNumber,
     });
     if (allowance === chain.amount) {
       if (checked.operation.kind === "set-cap") {
@@ -457,8 +464,8 @@ export async function advanceCard(deps: FlowDeps, state: CardState): Promise<Car
       call,
       owner: checked.owner,
       deployment,
-      guard: async (blockNumber) =>
-        approveGuard(deps.client, deployment, chain.currency, chain.amount, blockNumber),
+      guard: async (at: VerifiedBlock) =>
+        approveGuard(deps.client, deployment, chain.currency, chain.amount, at),
       evidence: approveEvidence(deployment, chain.currency, checked.owner),
       commit: (record: TxRecord) => {
         const txs = [...checked.txs.slice(0, index), record];

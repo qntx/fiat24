@@ -11,13 +11,14 @@ import {
   snapshot,
 } from "../chain/context.ts";
 import type { LogFilter } from "../chain/context.ts";
-import { assertDeployment } from "../chain/deployment.ts";
 import { simulateCall } from "../chain/simulate.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import { CHAIN_ID } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
 import type { Fiat24Event, RawLog } from "../events/types.ts";
+import { verifiedBlock } from "./guards.ts";
+import type { VerifiedBlock } from "./guards.ts";
 import { invalidState } from "./state.ts";
 import type { FlowDeps, FlowState, TxMismatch, TxRecord } from "./types.ts";
 
@@ -59,7 +60,7 @@ export type TxArgs<S extends FlowState, R> = {
   readonly owner: Address;
   readonly deployment: Deployment;
   /** The flow's guards, re-run at the ready-phase block before every send. */
-  readonly guard?: (blockNumber: bigint) => Promise<void>;
+  readonly guard?: (at: VerifiedBlock) => Promise<void>;
   /** The §4 evidence spec; required — an absent spec would make every `L > N` reconcile `not-sent`. */
   readonly evidence: TxEvidence;
   /**
@@ -157,25 +158,20 @@ async function readyPhase<S extends FlowState, R>(
   deps: FlowDeps,
   args: TxArgs<S, R>,
 ): Promise<TxOutcome<S, R>> {
-  const { blockNumber } = await snapshot(deps.client, { deployment: args.deployment });
-  await assertDeployment(deps.client, {
-    deployment: args.deployment,
-    contracts: args.call.contracts,
-    blockNumber,
-  });
+  const at = await verifiedBlock(deps.client, args.deployment, args.call.contracts);
   if (args.guard !== undefined) {
-    await args.guard(blockNumber);
+    await args.guard(at);
   }
   await simulateCall(deps.client, {
     call: args.call,
     from: args.owner,
-    blockNumber,
+    blockNumber: at.blockNumber,
   });
   const nonce = await countAt(deps, args.owner, { pending: true });
   const sending: TxRecord = {
     purpose: args.purpose,
     phase: "sending",
-    fromBlock: blockNumber,
+    fromBlock: at.blockNumber,
     nonce,
   };
   // Persist-before-send: a rejection propagates and the signer is never called.
@@ -196,7 +192,7 @@ async function readyPhase<S extends FlowState, R>(
       ? {
           purpose: args.purpose,
           phase: "submitted",
-          fromBlock: blockNumber,
+          fromBlock: at.blockNumber,
           nonce,
           hash: lowered,
         }
@@ -205,7 +201,7 @@ async function readyPhase<S extends FlowState, R>(
         {
           purpose: args.purpose,
           phase: "unknown",
-          fromBlock: blockNumber,
+          fromBlock: at.blockNumber,
           nonce,
           error: "unknown-outcome",
         };
@@ -215,7 +211,7 @@ async function readyPhase<S extends FlowState, R>(
       : {
           purpose: args.purpose,
           phase: "unknown",
-          fromBlock: blockNumber,
+          fromBlock: at.blockNumber,
           nonce,
           error: "unknown-outcome",
         };
@@ -418,15 +414,15 @@ function decodeEvidence(
 async function countAt(
   deps: FlowDeps,
   owner: Address,
-  at: { readonly blockNumber: bigint } | { readonly pending: true },
+  probe: { readonly blockNumber: bigint } | { readonly pending: true },
 ): Promise<number> {
   try {
     return checkedCount(
       await getTransactionCount(
         deps.client,
-        "pending" in at
+        "pending" in probe
           ? { address: owner, blockTag: "pending" }
-          : { address: owner, blockNumber: at.blockNumber },
+          : { address: owner, blockNumber: probe.blockNumber },
       ),
     );
   } catch (error) {

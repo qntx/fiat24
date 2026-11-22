@@ -12,6 +12,7 @@ import {
   contractTarget,
   readAt,
   revertError,
+  snapshot,
 } from "../chain/context.ts";
 import { assertDeployment } from "../chain/deployment.ts";
 import { Fiat24Error } from "../core/errors.ts";
@@ -57,18 +58,17 @@ export function assertUnpaused(
   }
 }
 
+declare const verified: unique symbol;
+
 /**
- * §4/§8.2: an advance that issues chain reads asserts the deployment at that advance's block B
- * before the first delegated read — a drifted implementation must never feed guard values or
- * surface as a bare `invalid-rpc-response`. `contracts` is the deduplicated union of every call the
- * state can send; the tx machine's ready-phase assertion at its own fresh B is unchanged.
+ * A block whose deployment was just asserted — the only block number a flow may read at. The brand
+ * exists so a bare `eth_blockNumber` value can never be passed where a verified block is required;
+ * `verifiedBlock` is the single producer.
  */
-export async function assertPath(
-  client: Client,
-  deployment: Deployment,
-  blockNumber: bigint,
-  calls: ReadonlyArray<Fiat24Call>,
-): Promise<void> {
+export type VerifiedBlock = { readonly blockNumber: bigint; readonly [verified]: true };
+
+/** The deduplicated contract union of a set of calls — what a verified block must assert. */
+export function contractsOf(calls: ReadonlyArray<Fiat24Call>): ContractName[] {
   const contracts: ContractName[] = [];
   for (const call of calls) {
     for (const name of call.contracts) {
@@ -77,18 +77,42 @@ export async function assertPath(
       }
     }
   }
-  await assertDeployment(client, { deployment, contracts, blockNumber });
+  return contracts;
+}
+
+/**
+ * §4/§8.2: every chain read in a flow happens at a block whose deployment was asserted first — a
+ * drifted implementation must never feed guard values or surface as a bare `invalid-rpc-response`.
+ * `contracts` is every contract the upcoming reads touch (the deduplicated union of `contractsOf`
+ * for call-driven paths); a read that only needs a fresh block without contract state — the tx
+ * machine's nonce probes — takes a bare `snapshot` instead.
+ */
+export async function verifiedBlock(
+  client: Client,
+  deployment: Deployment,
+  contracts: ReadonlyArray<ContractName>,
+): Promise<VerifiedBlock> {
+  const { blockNumber } = await snapshot(client, { deployment });
+  const names: ContractName[] = [];
+  for (const name of contracts) {
+    if (!names.includes(name)) {
+      names.push(name);
+    }
+  }
+  await assertDeployment(client, { deployment, contracts: names, blockNumber });
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the single brand cast lives here
+  return { blockNumber } as VerifiedBlock;
 }
 
 /** §5: `getAccount({owner, B})` absent ⇒ `no-account`; `status !== "live"` ⇒ `not-live`. */
 export async function senderLive(
   client: Client,
-  args: { readonly deployment: Deployment; readonly owner: Address; readonly blockNumber: bigint },
+  args: { readonly deployment: Deployment; readonly owner: Address; readonly at: VerifiedBlock },
 ): Promise<Fiat24Account> {
   const account = await getAccount(client, {
     deployment: args.deployment,
     owner: args.owner,
-    blockNumber: args.blockNumber,
+    blockNumber: args.at.blockNumber,
   });
   if (account === undefined) {
     throw new Fiat24Error("no-account", "no account");
@@ -122,7 +146,7 @@ export async function legAllowed(
   client: Client,
   args: {
     readonly deployment: Deployment;
-    readonly blockNumber: bigint;
+    readonly at: VerifiedBlock;
     readonly token: Currency;
     readonly from: Address;
     readonly to: Address;
@@ -130,11 +154,10 @@ export async function legAllowed(
     readonly limitOf?: bigint;
   },
 ): Promise<void> {
-  const B = args.blockNumber;
   let allowed: boolean;
   try {
     allowed = asBoolean(
-      await readAt(client, B, {
+      await readAt(client, args.at.blockNumber, {
         ...contractTarget(args.deployment, args.token),
         functionName: "tokenTransferAllowed",
         args: [args.from, args.to, args.amount],
@@ -148,14 +171,14 @@ export async function legAllowed(
   }
   if (args.limitOf !== undefined) {
     const chf = asBigint(
-      await readAt(client, B, {
+      await readAt(client, args.at.blockNumber, {
         ...contractTarget(args.deployment, args.token),
         functionName: "convertToChf",
         args: [args.amount],
       }),
     );
     const within = asBoolean(
-      await readAt(client, B, {
+      await readAt(client, args.at.blockNumber, {
         ...contractTarget(args.deployment, "account"),
         functionName: "checkLimit",
         args: [args.limitOf, chf],
@@ -171,10 +194,10 @@ export async function legAllowed(
 /** §5: `ownerOf(tokenId)` on the account contract at B — the internal desks 9100/9102/9105. */
 export async function deskOwner(
   client: Client,
-  args: { readonly deployment: Deployment; readonly blockNumber: bigint; readonly tokenId: bigint },
+  args: { readonly deployment: Deployment; readonly at: VerifiedBlock; readonly tokenId: bigint },
 ): Promise<Address> {
   return asAddress(
-    await readAt(client, args.blockNumber, {
+    await readAt(client, args.at.blockNumber, {
       ...contractTarget(args.deployment, "account"),
       functionName: "ownerOf",
       args: [args.tokenId],
@@ -190,7 +213,7 @@ export async function supplyBound(
   client: Client,
   args: {
     readonly deployment: Deployment;
-    readonly blockNumber: bigint;
+    readonly at: VerifiedBlock;
     readonly asset: Asset;
     readonly amount: bigint;
   },
@@ -201,7 +224,7 @@ export async function supplyBound(
       ? { address: args.deployment.usdc, abi: erc20Abi }
       : contractTarget(args.deployment, asset === "F24" ? "f24" : asset);
   const supply = asBigint(
-    await readAt(client, args.blockNumber, {
+    await readAt(client, args.at.blockNumber, {
       ...target,
       functionName: "totalSupply",
     }),

@@ -13,7 +13,6 @@ import {
   contractTarget,
   readAt,
   resolveDeployment,
-  snapshot,
   topic0Of,
 } from "../chain/context.ts";
 import { getTopUpQuote } from "../chain/quote.ts";
@@ -23,7 +22,15 @@ import type { UnavailableReason } from "../core/errors.ts";
 import type { ContractName, Currency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
-import { assertPath, checkedSigner, deskOwner, legAllowed, supplyBound } from "./guards.ts";
+import {
+  checkedSigner,
+  deskOwner,
+  legAllowed,
+  supplyBound,
+  contractsOf,
+  verifiedBlock,
+} from "./guards.ts";
+import type { VerifiedBlock } from "./guards.ts";
 import { checkedState, invalidState } from "./state.ts";
 import { advanceTx, recheckTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
@@ -94,11 +101,11 @@ async function quotedGuards(
   client: Client,
   deployment: Deployment,
   state: TopUpState,
-  blockNumber: bigint,
+  at: VerifiedBlock,
   outputAmount: bigint,
 ): Promise<void> {
   const balance = asBigint(
-    await readAt(client, blockNumber, {
+    await readAt(client, at.blockNumber, {
       address: deployment.usdc,
       abi: erc20Abi,
       functionName: "balanceOf",
@@ -110,12 +117,12 @@ async function quotedGuards(
   }
   const crypto = await deskOwner(client, {
     deployment,
-    blockNumber,
+    at,
     tokenId: CRYPTO_DESK,
   });
   await legAllowed(client, {
     deployment,
-    blockNumber,
+    at,
     token: state.output,
     from: crypto,
     to: state.owner,
@@ -130,16 +137,19 @@ async function txPrelude(
   client: Client,
   deployment: Deployment,
   state: TopUpState,
-  blockNumber: bigint,
+  at: VerifiedBlock,
 ): Promise<TopUpQuote> {
   const quote = await getTopUpQuote(client, {
     deployment,
     owner: state.owner,
     output: state.output,
     usdcAmount: state.usdcAmount,
-    blockNumber,
+    blockNumber: at.blockNumber,
   });
-  const availability = await getAvailability(client, { deployment, blockNumber });
+  const availability = await getAvailability(client, {
+    deployment,
+    blockNumber: at.blockNumber,
+  });
   const verdict = pauseVerdict(quote, availability, state.output);
   if (verdict !== undefined) {
     throwVerdict(verdict);
@@ -152,13 +162,13 @@ async function approveGuard(
   client: Client,
   deployment: Deployment,
   state: TopUpState,
-  blockNumber: bigint,
+  at: VerifiedBlock,
 ): Promise<void> {
-  const fresh = await txPrelude(client, deployment, state, blockNumber);
-  await quotedGuards(client, deployment, state, blockNumber, fresh.outputAmount);
+  const fresh = await txPrelude(client, deployment, state, at);
+  await quotedGuards(client, deployment, state, at, fresh.outputAmount);
   await supplyBound(client, {
     deployment,
-    blockNumber,
+    at,
     asset: "USDC",
     amount: state.usdcAmount,
   });
@@ -169,20 +179,20 @@ async function mainGuard(
   client: Client,
   deployment: Deployment,
   state: TopUpState,
-  blockNumber: bigint,
+  at: VerifiedBlock,
 ): Promise<void> {
   const { quote } = state;
   if (quote === undefined) {
     return invalidState();
   }
-  const fresh = await txPrelude(client, deployment, state, blockNumber);
-  await quotedGuards(client, deployment, state, blockNumber, fresh.outputAmount);
+  const fresh = await txPrelude(client, deployment, state, at);
+  await quotedGuards(client, deployment, state, at, fresh.outputAmount);
   const allowance = await getAllowance(client, {
     deployment,
     owner: state.owner,
     asset: "USDC",
     spender: "deposit",
-    blockNumber,
+    blockNumber: at.blockNumber,
   });
   if (allowance < state.usdcAmount) {
     throw new Fiat24Error("insufficient-allowance", "insufficient allowance");
@@ -267,26 +277,29 @@ export async function advanceTopUp(deps: FlowDeps, state: TopUpState): Promise<T
     case "unavailable":
       return invalidState();
     case "check": {
-      const { blockNumber } = await snapshot(deps.client, { deployment });
-      await assertPath(deps.client, deployment, blockNumber, [
-        approveCall({
-          asset: "USDC",
-          spender: "deposit",
-          amount: checked.usdcAmount,
-          deployment,
-        }),
-        topUpCall({ output: checked.output, usdcAmount: checked.usdcAmount, deployment }),
-      ]);
+      const at = await verifiedBlock(
+        deps.client,
+        deployment,
+        contractsOf([
+          approveCall({
+            asset: "USDC",
+            spender: "deposit",
+            amount: checked.usdcAmount,
+            deployment,
+          }),
+          topUpCall({ output: checked.output, usdcAmount: checked.usdcAmount, deployment }),
+        ]),
+      );
       const quote = await getTopUpQuote(deps.client, {
         deployment,
         owner: checked.owner,
         output: checked.output,
         usdcAmount: checked.usdcAmount,
-        blockNumber,
+        blockNumber: at.blockNumber,
       });
       const availability = await getAvailability(deps.client, {
         deployment,
-        blockNumber,
+        blockNumber: at.blockNumber,
       });
       const verdict = pauseVerdict(quote, availability, checked.output);
       if (verdict !== undefined) {
@@ -298,14 +311,14 @@ export async function advanceTopUp(deps: FlowDeps, state: TopUpState): Promise<T
         await deps.persist(next);
         return next;
       }
-      await quotedGuards(deps.client, deployment, checked, blockNumber, quote.outputAmount);
+      await quotedGuards(deps.client, deployment, checked, at, quote.outputAmount);
       const next = freeze({
         ...checked,
         step: "quoted" as const,
         quote: {
           input: checked.usdcAmount,
           output: quote.outputAmount,
-          blockNumber,
+          blockNumber: at.blockNumber,
         },
       });
       await deps.persist(next);
@@ -320,22 +333,25 @@ export async function advanceTopUp(deps: FlowDeps, state: TopUpState): Promise<T
     if (checked.quote === undefined) {
       return invalidState();
     }
-    const { blockNumber } = await snapshot(deps.client, { deployment });
-    await assertPath(deps.client, deployment, blockNumber, [
-      approveCall({
-        asset: "USDC",
-        spender: "deposit",
-        amount: checked.usdcAmount,
-        deployment,
-      }),
-      topUpCall({ output: checked.output, usdcAmount: checked.usdcAmount, deployment }),
-    ]);
+    const at = await verifiedBlock(
+      deps.client,
+      deployment,
+      contractsOf([
+        approveCall({
+          asset: "USDC",
+          spender: "deposit",
+          amount: checked.usdcAmount,
+          deployment,
+        }),
+        topUpCall({ output: checked.output, usdcAmount: checked.usdcAmount, deployment }),
+      ]),
+    );
     const allowance = await getAllowance(deps.client, {
       deployment,
       owner: checked.owner,
       asset: "USDC",
       spender: "deposit",
-      blockNumber,
+      blockNumber: at.blockNumber,
     });
     purpose = allowance < checked.usdcAmount ? "approve" : "main";
     index = checked.txs.length;
@@ -373,10 +389,10 @@ export async function advanceTopUp(deps: FlowDeps, state: TopUpState): Promise<T
     call,
     owner: checked.owner,
     deployment,
-    guard: async (blockNumber) =>
+    guard: async (at: VerifiedBlock) =>
       isApprove
-        ? approveGuard(deps.client, deployment, checked, blockNumber)
-        : mainGuard(deps.client, deployment, checked, blockNumber),
+        ? approveGuard(deps.client, deployment, checked, at)
+        : mainGuard(deps.client, deployment, checked, at),
     evidence: isApprove ? approveEvidence(deployment, checked) : mainEvidence(deployment, checked),
     // `onConfirmed` is omitted entirely for the approve record —
     // exactOptionalPropertyTypes forbids an explicit `undefined`.

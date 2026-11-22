@@ -4,18 +4,13 @@ import type { Address, Client } from "viem";
 import { freeze } from "../api/schemas.ts";
 import { transferCall, transferToAccountCall } from "../calls/transfer.ts";
 import { getAvailability } from "../chain/availability.ts";
-import {
-  checkedAddress,
-  contractTarget,
-  resolveDeployment,
-  snapshot,
-  topic0Of,
-} from "../chain/context.ts";
+import { checkedAddress, contractTarget, resolveDeployment, topic0Of } from "../chain/context.ts";
 import { checkTransfer } from "../chain/transfer.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import type { Currency, Recipient } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
-import { assertPath, assertUnpaused, checkedSigner } from "./guards.ts";
+import { assertUnpaused, checkedSigner, contractsOf, verifiedBlock } from "./guards.ts";
+import type { VerifiedBlock } from "./guards.ts";
 import { checkedState, invalidState } from "./state.ts";
 import { advanceTx, recheckTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
@@ -100,7 +95,7 @@ async function transferGuards(
   client: Client,
   deployment: Deployment,
   state: TransferState,
-  blockNumber: bigint,
+  at: VerifiedBlock,
 ): Promise<void> {
   const check = await checkTransfer(client, {
     deployment,
@@ -108,9 +103,12 @@ async function transferGuards(
     to: state.to,
     currency: state.currency,
     amount: state.amount,
-    blockNumber,
+    blockNumber: at.blockNumber,
   });
-  const availability = await getAvailability(client, { deployment, blockNumber });
+  const availability = await getAvailability(client, {
+    deployment,
+    blockNumber: at.blockNumber,
+  });
   assertUnpaused(availability, [state.currency]);
   if (isAddressEqual(check.recipient, state.owner)) {
     throw new Fiat24Error("invalid-argument", "invalid argument");
@@ -160,9 +158,12 @@ export async function advanceTransfer(
     case "not-sent":
       return invalidState();
     case "draft": {
-      const { blockNumber } = await snapshot(deps.client, { deployment });
-      await assertPath(deps.client, deployment, blockNumber, [buildCall(checked, deployment)]);
-      await transferGuards(deps.client, deployment, checked, blockNumber);
+      const at = await verifiedBlock(
+        deps.client,
+        deployment,
+        contractsOf([buildCall(checked, deployment)]),
+      );
+      await transferGuards(deps.client, deployment, checked, at);
       const next = freeze({ ...checked, step: "ready" as const });
       await deps.persist(next);
       return next;
@@ -181,7 +182,7 @@ export async function advanceTransfer(
         call,
         owner: checked.owner,
         deployment,
-        guard: async (blockNumber) => transferGuards(deps.client, deployment, checked, blockNumber),
+        guard: async (at: VerifiedBlock) => transferGuards(deps.client, deployment, checked, at),
         evidence: transferEvidence(deployment, checked),
         commit: (record) =>
           freeze({

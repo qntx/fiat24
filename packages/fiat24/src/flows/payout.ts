@@ -25,7 +25,15 @@ import { Fiat24Error } from "../core/errors.ts";
 import type { PayoutCurrency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
-import { assertUnpaused, checkedSigner, deskOwner, legAllowed, senderLive } from "./guards.ts";
+import {
+  assertUnpaused,
+  checkedSigner,
+  deskOwner,
+  legAllowed,
+  senderLive,
+  verifiedBlock,
+} from "./guards.ts";
+import type { VerifiedBlock } from "./guards.ts";
 import { checkedState, invalidState, invalidArgument } from "./state.ts";
 import { advanceTx, fetchTx, getReceipt, mismatchOf, recheckTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
@@ -175,14 +183,17 @@ async function mainGuard(
   client: Client,
   deployment: Deployment,
   state: PayoutState,
-  blockNumber: bigint,
+  at: VerifiedBlock,
 ): Promise<void> {
-  const availability = await getAvailability(client, { deployment, blockNumber });
+  const availability = await getAvailability(client, {
+    deployment,
+    blockNumber: at.blockNumber,
+  });
   assertUnpaused(availability, [state.currency]);
   const account = await senderLive(client, {
     deployment,
     owner: state.owner,
-    blockNumber,
+    at,
   });
   if (account.tokenId !== state.tokenId || !account.ownsToken) {
     invalidArgument();
@@ -190,13 +201,13 @@ async function mainGuard(
   const minimum = await getPayoutMinimum(client, {
     deployment,
     currency: state.currency,
-    blockNumber,
+    blockNumber: at.blockNumber,
   });
   if (state.amount < minimum) {
     throw new Fiat24Error("below-minimum", "below minimum");
   }
   const balance = asBigint(
-    await readAt(client, blockNumber, {
+    await readAt(client, at.blockNumber, {
       ...contractTarget(deployment, state.currency),
       functionName: "balanceOf",
       args: [state.owner],
@@ -207,12 +218,12 @@ async function mainGuard(
   }
   const desk = await deskOwner(client, {
     deployment,
-    blockNumber,
+    at,
     tokenId: PAYOUT_DESK,
   });
   await legAllowed(client, {
     deployment,
-    blockNumber,
+    at,
     token: state.currency,
     from: state.owner,
     to: desk,
@@ -359,7 +370,7 @@ export async function advancePayout(
       call,
       owner: checked.owner,
       deployment,
-      guard: async (blockNumber) => mainGuard(deps.client, deployment, checked, blockNumber),
+      guard: async (at: VerifiedBlock) => mainGuard(deps.client, deployment, checked, at),
       evidence: payoutEvidence(deployment, checked),
       onConfirmed: (receipt: TransactionReceipt) => extractTxid(receipt, checked, deployment),
       commit: (record: TxRecord) =>
@@ -408,6 +419,7 @@ export async function loadPayoutSettlement(
     return invalidState();
   }
   const txid = extractTxid(receipt, checked, deployment);
+  const at = await verifiedBlock(deps.client, deployment, [checked.currency]);
   const settlement = await getPayoutSettlement(deps.client, {
     deployment,
     currency: checked.currency,
@@ -415,6 +427,7 @@ export async function loadPayoutSettlement(
     contactId: checked.contactId,
     txid,
     fromBlock: receipt.blockNumber,
+    blockNumber: at.blockNumber,
   });
   return freeze({ ...settlement, txid });
 }

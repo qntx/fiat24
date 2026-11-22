@@ -12,7 +12,6 @@ import {
   contractTarget,
   readAt,
   resolveDeployment,
-  snapshot,
   topic0Of,
 } from "../chain/context.ts";
 import { getExchangeQuote } from "../chain/quote.ts";
@@ -22,14 +21,16 @@ import type { Currency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
 import {
-  assertPath,
   assertUnpaused,
   checkedSigner,
   deskOwner,
   legAllowed,
   senderLive,
   supplyBound,
+  contractsOf,
+  verifiedBlock,
 } from "./guards.ts";
+import type { VerifiedBlock } from "./guards.ts";
 import { checkedState, invalidState } from "./state.ts";
 import { advanceTx, recheckTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
@@ -85,7 +86,7 @@ async function quotedGuards(
   client: Client,
   deployment: Deployment,
   state: ExchangeState,
-  blockNumber: bigint,
+  at: VerifiedBlock,
 ): Promise<ExchangeQuote> {
   const quote = await getExchangeQuote(client, {
     deployment,
@@ -93,17 +94,20 @@ async function quotedGuards(
     from: state.from,
     to: state.to,
     amount: state.amount,
-    blockNumber,
+    blockNumber: at.blockNumber,
   });
-  const availability = await getAvailability(client, { deployment, blockNumber });
+  const availability = await getAvailability(client, {
+    deployment,
+    blockNumber: at.blockNumber,
+  });
   assertUnpaused(availability, [state.from, state.to]);
   const account = await senderLive(client, {
     deployment,
     owner: state.owner,
-    blockNumber,
+    at,
   });
   const balance = asBigint(
-    await readAt(client, blockNumber, {
+    await readAt(client, at.blockNumber, {
       ...contractTarget(deployment, state.from),
       functionName: "balanceOf",
       args: [state.owner],
@@ -114,12 +118,12 @@ async function quotedGuards(
   }
   const treasury = await deskOwner(client, {
     deployment,
-    blockNumber,
+    at,
     tokenId: TREASURY_DESK,
   });
   await legAllowed(client, {
     deployment,
-    blockNumber,
+    at,
     token: state.from,
     from: state.owner,
     to: treasury,
@@ -128,12 +132,12 @@ async function quotedGuards(
   });
   const crypto = await deskOwner(client, {
     deployment,
-    blockNumber,
+    at,
     tokenId: CRYPTO_DESK,
   });
   await legAllowed(client, {
     deployment,
-    blockNumber,
+    at,
     token: state.to,
     from: crypto,
     to: state.owner,
@@ -159,12 +163,12 @@ async function approveGuard(
   client: Client,
   deployment: Deployment,
   state: ExchangeState,
-  blockNumber: bigint,
+  at: VerifiedBlock,
 ): Promise<void> {
-  await quotedGuards(client, deployment, state, blockNumber);
+  await quotedGuards(client, deployment, state, at);
   await supplyBound(client, {
     deployment,
-    blockNumber,
+    at,
     asset: state.from,
     amount: approveAmount(state),
   });
@@ -175,19 +179,19 @@ async function mainGuard(
   client: Client,
   deployment: Deployment,
   state: ExchangeState,
-  blockNumber: bigint,
+  at: VerifiedBlock,
 ): Promise<void> {
   const { quote } = state;
   if (quote === undefined) {
     return invalidState();
   }
-  const fresh = await quotedGuards(client, deployment, state, blockNumber);
+  const fresh = await quotedGuards(client, deployment, state, at);
   const allowance = await getAllowance(client, {
     deployment,
     owner: state.owner,
     asset: state.from,
     spender: "deposit",
-    blockNumber,
+    blockNumber: at.blockNumber,
   });
   if (state.side === "exact-in") {
     if (fresh.output < quote.output) {
@@ -278,19 +282,22 @@ export async function advanceExchange(
     case "not-sent":
       return invalidState();
     case "draft": {
-      const { blockNumber } = await snapshot(deps.client, { deployment });
       // Draft predates the quote/allowance split: the union is the exchange call alone
       // (the approve's contracts are a subset of it).
-      await assertPath(deps.client, deployment, blockNumber, [
-        exchangeCall({
-          side: checked.side,
-          from: checked.from,
-          to: checked.to,
-          amount: checked.amount,
-          deployment,
-        }),
-      ]);
-      const quote = await quotedGuards(deps.client, deployment, checked, blockNumber);
+      const at = await verifiedBlock(
+        deps.client,
+        deployment,
+        contractsOf([
+          exchangeCall({
+            side: checked.side,
+            from: checked.from,
+            to: checked.to,
+            amount: checked.amount,
+            deployment,
+          }),
+        ]),
+      );
+      const quote = await quotedGuards(deps.client, deployment, checked, at);
       const next = freeze({
         ...checked,
         step: "quoted" as const,
@@ -299,7 +306,7 @@ export async function advanceExchange(
           output: quote.output,
           rate: quote.rate,
           spread: quote.spread,
-          blockNumber,
+          blockNumber: at.blockNumber,
         },
       });
       await deps.persist(next);
@@ -314,28 +321,31 @@ export async function advanceExchange(
     if (checked.quote === undefined) {
       return invalidState();
     }
-    const { blockNumber } = await snapshot(deps.client, { deployment });
-    await assertPath(deps.client, deployment, blockNumber, [
-      approveCall({
-        asset: checked.from,
-        spender: "deposit",
-        amount: approveAmount(checked),
-        deployment,
-      }),
-      exchangeCall({
-        side: checked.side,
-        from: checked.from,
-        to: checked.to,
-        amount: checked.amount,
-        deployment,
-      }),
-    ]);
+    const at = await verifiedBlock(
+      deps.client,
+      deployment,
+      contractsOf([
+        approveCall({
+          asset: checked.from,
+          spender: "deposit",
+          amount: approveAmount(checked),
+          deployment,
+        }),
+        exchangeCall({
+          side: checked.side,
+          from: checked.from,
+          to: checked.to,
+          amount: checked.amount,
+          deployment,
+        }),
+      ]),
+    );
     const allowance = await getAllowance(deps.client, {
       deployment,
       owner: checked.owner,
       asset: checked.from,
       spender: "deposit",
-      blockNumber,
+      blockNumber: at.blockNumber,
     });
     purpose =
       checked.side === "exact-in"
@@ -382,10 +392,10 @@ export async function advanceExchange(
     call,
     owner: checked.owner,
     deployment,
-    guard: async (blockNumber) =>
+    guard: async (at: VerifiedBlock) =>
       isApprove
-        ? approveGuard(deps.client, deployment, checked, blockNumber)
-        : mainGuard(deps.client, deployment, checked, blockNumber),
+        ? approveGuard(deps.client, deployment, checked, at)
+        : mainGuard(deps.client, deployment, checked, at),
     evidence: isApprove ? approveEvidence(deployment, checked) : mainEvidence(deployment, checked),
     // `onConfirmed` is omitted entirely for the approve record —
     // exactOptionalPropertyTypes forbids an explicit `undefined`.

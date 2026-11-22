@@ -13,6 +13,7 @@ import {
   senderLive,
   supplyBound,
 } from "../../src/flows/guards.ts";
+import type { VerifiedBlock } from "../../src/flows/guards.ts";
 import type { CallEntry } from "../chain/stub.ts";
 import { expectErrorAsync } from "../chain/stub.ts";
 import { throwsCode } from "../helpers.ts";
@@ -29,6 +30,7 @@ import {
 } from "./stub.ts";
 
 const DEPLOYMENT: Deployment = C;
+const AT = { blockNumber: B } as VerifiedBlock;
 const ACCOUNT = C.account.proxy;
 const TOKEN = C.tokens.EUR24.proxy;
 const TXID = `0x${"aa".repeat(32)}` as const;
@@ -105,7 +107,7 @@ describe("assertUnpaused", () => {
 });
 
 describe("senderLive", () => {
-  const args = { deployment: DEPLOYMENT, owner: OWNER, blockNumber: B };
+  const args = { deployment: DEPLOYMENT, owner: OWNER, at: AT };
 
   test("returns the live account", async () => {
     const stub = makeFlowStub({ calls: accountEntries(OWNER, {}) });
@@ -132,7 +134,7 @@ describe("senderLive", () => {
 describe("legAllowed", () => {
   const args = {
     deployment: DEPLOYMENT,
-    blockNumber: B,
+    at: AT,
     token: "EUR24" as const,
     from: OWNER,
     to: RECIPIENT,
@@ -185,7 +187,7 @@ describe("legAllowed", () => {
       async () =>
         legAllowed(stub.client, {
           deployment: args.deployment,
-          blockNumber: args.blockNumber,
+          at: args.at,
           token: args.token,
           from: args.from,
           to: args.to,
@@ -215,7 +217,7 @@ describe("deskOwner", () => {
     });
     const owner = await deskOwner(stub.client, {
       deployment: DEPLOYMENT,
-      blockNumber: B,
+      at: AT,
       tokenId: 9102n,
     });
     expect(owner).toBe(RECIPIENT);
@@ -243,7 +245,7 @@ describe("supplyBound", () => {
           async () =>
             supplyBound(stub.client, {
               deployment: DEPLOYMENT,
-              blockNumber: B,
+              at: AT,
               asset,
               amount: AMOUNT,
             }),
@@ -260,7 +262,7 @@ describe("supplyBound", () => {
     });
     await supplyBound(stub.client, {
       deployment: DEPLOYMENT,
-      blockNumber: B,
+      at: AT,
       asset: "EUR24",
       amount: AMOUNT,
     });

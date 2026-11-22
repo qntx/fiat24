@@ -426,6 +426,70 @@ export function build(): {
         }),
         output: null,
       },
+      // An unknown address must stay "not ours" even when it carries a wanted
+      // topic0 of the other §7.1 groups (the existing case above covers tokens).
+      {
+        label: "notours.unknown-address-deposit",
+        input: inputLog({
+          address: "0x000000000000000000000000000000000000beef",
+          topics: [
+            cast(["sig-event", "MoneyExchangedExactIn(address,address,address,uint256,uint256)"]),
+            padTopic("1111111111111111111111111111111111111111"),
+          ],
+          data: cast([
+            "abi-encode",
+            "f(address,address,uint256,uint256)",
+            eur24,
+            deployments.proxies["CHF24"]?.proxy ?? "",
+            "100",
+            "99",
+          ]),
+          blockNumber: "0x1f5f0a4",
+          transactionHash: txHash,
+          logIndex: "0x0",
+        }),
+        output: null,
+      },
+      {
+        label: "notours.unknown-address-card",
+        input: inputLog({
+          address: "0x000000000000000000000000000000000000beef",
+          topics: [
+            cast(["sig-event", "Authorized(string,uint256,address,string,address,uint256)"]),
+            padTopic("7"),
+            padTopic("1111111111111111111111111111111111111111"),
+          ],
+          data: cast([
+            "abi-encode",
+            "f(string,string,address,uint256)",
+            "auth-1",
+            "CARD-1",
+            eur24,
+            "100",
+          ]),
+          blockNumber: "0x1f5f0a4",
+          transactionHash: txHash,
+          logIndex: "0x0",
+        }),
+        output: null,
+      },
+      {
+        label: "notours.unknown-address-account",
+        input: inputLog({
+          address: "0x000000000000000000000000000000000000beef",
+          topics: [
+            cast(["sig-event", "Transfer(address,address,uint256)"]),
+            padTopic("1111111111111111111111111111111111111111"),
+            padTopic("2222222222222222222222222222222222222222"),
+            padTopic("7"),
+          ],
+          data: "0x",
+          blockNumber: "0x1f5f0a4",
+          transactionHash: txHash,
+          logIndex: "0x0",
+        }),
+        output: null,
+      },
     );
   }
 

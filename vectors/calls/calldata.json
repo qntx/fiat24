@@ -883,6 +883,33 @@
       "args": {
         "currency": "EUR24",
         "amount": "5000",
+        "contactId": "A"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "5000",
+        "contactId": "A-1"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "5000",
+        "contactId": "ABCDEFGHI"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "5000",
         "contactId": "TOOLONGGGGG"
       },
       "error": "invalid-argument"
@@ -949,6 +976,66 @@
         "contactId": "SP",
         "purposeId": "0",
         "ref": "109549-854EE1EF-6FC3-4009-A10E-7C3BE268E52C",
+        "tokenId": "109549"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutRefCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "1",
+        "contactId": "SP",
+        "purposeId": "0",
+        "ref": "109549-854eE1ef-6fc3-4009-a10e-7c3be268e52c",
+        "tokenId": "109549"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutRefCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "1",
+        "contactId": "SP",
+        "purposeId": "0",
+        "ref": "109549-854ee1ef-6fC3-4009-a10e-7c3be268e52c",
+        "tokenId": "109549"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutRefCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "1",
+        "contactId": "SP",
+        "purposeId": "0",
+        "ref": "109549-854ee1ef-6fc3-400F-a10e-7c3be268e52c",
+        "tokenId": "109549"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutRefCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "1",
+        "contactId": "SP",
+        "purposeId": "0",
+        "ref": "109549-854ee1ef-6fc3-4009-a10E-7c3be268e52c",
+        "tokenId": "109549"
+      },
+      "error": "invalid-argument"
+    },
+    {
+      "op": "payoutRefCall",
+      "args": {
+        "currency": "EUR24",
+        "amount": "1",
+        "contactId": "SP",
+        "purposeId": "0",
+        "ref": "109549-854ee1ef-6fc3-4009-a10e-7c3be268e52C",
         "tokenId": "109549"
       },
       "error": "invalid-argument"

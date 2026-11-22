@@ -369,6 +369,13 @@ export function build(): {
       "unsupported-currency",
     ),
     fail("payoutCall", { currency: "EUR24", amount: "5000", contactId: "sp" }, "invalid-argument"),
+    fail("payoutCall", { currency: "EUR24", amount: "5000", contactId: "A" }, "invalid-argument"),
+    fail("payoutCall", { currency: "EUR24", amount: "5000", contactId: "A-1" }, "invalid-argument"),
+    fail(
+      "payoutCall",
+      { currency: "EUR24", amount: "5000", contactId: "ABCDEFGHI" },
+      "invalid-argument",
+    ),
     fail(
       "payoutCall",
       { currency: "EUR24", amount: "5000", contactId: "TOOLONGGGGG" },
@@ -429,6 +436,27 @@ export function build(): {
         tokenId: "109549",
       },
       "invalid-argument",
+    ),
+    // one uppercase hex char in each uuid group, in turn
+    ...[
+      "854eE1ef-6fc3-4009-a10e-7c3be268e52c",
+      "854ee1ef-6fC3-4009-a10e-7c3be268e52c",
+      "854ee1ef-6fc3-400F-a10e-7c3be268e52c",
+      "854ee1ef-6fc3-4009-a10E-7c3be268e52c",
+      "854ee1ef-6fc3-4009-a10e-7c3be268e52C",
+    ].map((uuid) =>
+      fail(
+        "payoutRefCall",
+        {
+          currency: "EUR24",
+          amount: "1",
+          contactId: "SP",
+          purposeId: "0",
+          ref: `109549-${uuid}`,
+          tokenId: "109549",
+        },
+        "invalid-argument",
+      ),
     ),
     // NUL padding that does not fill to exactly 45
     fail(

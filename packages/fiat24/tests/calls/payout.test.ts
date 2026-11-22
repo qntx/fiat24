@@ -60,6 +60,16 @@ describe("isValidPayoutRef", () => {
     expect(isValidPayoutRef(uuid, 109549n)).toBe(false); // bare uuidv4
     expect(isValidPayoutRef(`109548-${uuid}`, 109549n)).toBe(false); // foreign prefix
     expect(isValidPayoutRef(`109549-${uuid.toUpperCase()}`, 109549n)).toBe(false); // uppercase
+    // one uppercase hex char in each of the five uuid groups, in turn
+    for (const upper of [
+      "854eE1ef-6fc3-4009-a10e-7c3be268e52c",
+      "854ee1ef-6fC3-4009-a10e-7c3be268e52c",
+      "854ee1ef-6fc3-400F-a10e-7c3be268e52c",
+      "854ee1ef-6fc3-4009-a10E-7c3be268e52c",
+      "854ee1ef-6fc3-4009-a10e-7c3be268e52C",
+    ]) {
+      expect(isValidPayoutRef(`109549-${upper}`, 109549n)).toBe(false);
+    }
     expect(isValidPayoutRef(`109549-${uuid} `, 109549n)).toBe(false); // len 44 with padding
     expect(isValidPayoutRef(`109549-${uuid}   `, 109549n)).toBe(false); // len 46
     expect(isValidPayoutRef(`109549-${uuid.slice(0, 35)} `, 109549n)).toBe(false); // NUL in uuid
@@ -129,10 +139,12 @@ describe("payoutCall", () => {
 
   test("invalid contactId is invalid-argument", () => {
     expect.hasAssertions();
-    expectError(
-      () => payoutCall({ currency: "EUR24", amount: 1n, contactId: "sp" }),
-      "invalid-argument",
-    );
+    for (const contactId of ["sp", "A", "A-1", "ABCDEFGHI", "EA-12345678901234567"]) {
+      expectError(
+        () => payoutCall({ currency: "EUR24", amount: 1n, contactId }),
+        "invalid-argument",
+      );
+    }
   });
 
   test("invalid amount rules apply", () => {

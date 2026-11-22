@@ -2,7 +2,7 @@ import { encodeAbiParameters, encodeEventTopics } from "viem";
 import type { Abi, AbiEvent, Address, Hex } from "viem";
 import { describe, expect, test } from "vite-plus/test";
 
-import { accountAbi, tokenAbi } from "../../src/abi/index.ts";
+import { accountAbi, cardAbi, depositAbi, tokenAbi } from "../../src/abi/index.ts";
 import { arbitrum } from "../../src/deployments/index.ts";
 import type { Deployment } from "../../src/deployments/index.ts";
 import { decodeFiat24Log, decodeFiat24Logs } from "../../src/events/index.ts";
@@ -100,6 +100,78 @@ describe("decodeFiat24Log", () => {
         log({
           address: "0x000000000000000000000000000000000000bEEF",
           topics: [`0x${"0".repeat(64)}`],
+        }),
+      ),
+    ).toBeUndefined();
+    // `0X…` is not a valid hex prefix: it must stay "not ours" even though the
+    // lowercase address would match a pinned token (contractOf compares lowercased).
+    expect(
+      decodeFiat24Log(
+        log({
+          address: `0X${arbitrum.tokens.EUR24.proxy.slice(2)}` as Address,
+          topics: erc20TransferLog(
+            "0x0000000000000000000000000000000000000001",
+            "0x0000000000000000000000000000000000000002",
+            1n,
+          ).topics,
+        }),
+      ),
+    ).toBeUndefined();
+  });
+
+  test("unknown address with a wanted topic0 of each §7.1 group returns undefined", () => {
+    const unknown = "0x000000000000000000000000000000000000bEEF" as Address;
+    const sender = "0x1111111111111111111111111111111111111111";
+    // tokens group: ERC-20 Transfer
+    const transfer = erc20TransferLog(sender, sender, 1n);
+    expect(decodeFiat24Log({ ...transfer, address: unknown })).toBeUndefined();
+    // deposit group: MoneyExchangedExactIn (sender indexed, four non-indexed args)
+    expect(
+      decodeFiat24Log(
+        log({
+          address: unknown,
+          topics: mustTopics(
+            encodeEventTopics({
+              abi: [mustEvent(depositAbi, "MoneyExchangedExactIn")],
+              args: { sender },
+            }),
+          ),
+          data: encodeAbiParameters(
+            [{ type: "address" }, { type: "address" }, { type: "uint256" }, { type: "uint256" }],
+            [arbitrum.tokens.EUR24.proxy, arbitrum.tokens.CHF24.proxy, 100n, 99n],
+          ),
+        }),
+      ),
+    ).toBeUndefined();
+    // card group: Authorized (tokenId + sender indexed, four non-indexed args)
+    expect(
+      decodeFiat24Log(
+        log({
+          address: unknown,
+          topics: mustTopics(
+            encodeEventTopics({
+              abi: [mustEvent(cardAbi, "Authorized")],
+              args: { tokenId: 7n, sender },
+            }),
+          ),
+          data: encodeAbiParameters(
+            [{ type: "string" }, { type: "string" }, { type: "address" }, { type: "uint256" }],
+            ["auth-1", "CARD-1", arbitrum.tokens.EUR24.proxy, 100n],
+          ),
+        }),
+      ),
+    ).toBeUndefined();
+    // account group: ERC-721 Transfer (three indexed topics, empty data)
+    expect(
+      decodeFiat24Log(
+        log({
+          address: unknown,
+          topics: mustTopics(
+            encodeEventTopics({
+              abi: [mustEvent(accountAbi, "Transfer")],
+              args: { from: sender, to: sender, tokenId: 7n },
+            }),
+          ),
         }),
       ),
     ).toBeUndefined();

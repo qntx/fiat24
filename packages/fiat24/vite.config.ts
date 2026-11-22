@@ -1,4 +1,4 @@
-import { defineConfig } from "vite-plus";
+import { configDefaults, defineConfig } from "vite-plus";
 import type { UserConfig } from "vite-plus";
 
 /** ESM-only sugar flattens to a string; keep types/import/default for pack entries. */
@@ -43,7 +43,14 @@ const config: UserConfig = defineConfig({
     },
   },
   test: {
-    include: ["tests/**/*.test.ts"],
+    // `bun run test` must never collect the anvil fork suite (SPEC §11.5); `test:fork` sets
+    // FIAT24_FORK=1 to flip the include to it exclusively.
+    include:
+      process.env["FIAT24_FORK"] === "1" ? ["tests/fork/**/*.test.ts"] : ["tests/**/*.test.ts"],
+    exclude:
+      process.env["FIAT24_FORK"] === "1"
+        ? configDefaults.exclude
+        : [...configDefaults.exclude, "tests/fork/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "text-summary"],

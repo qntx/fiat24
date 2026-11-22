@@ -173,6 +173,18 @@ function cardQueue(bodies: ReadonlyArray<ReadonlyArray<ApiCard>>): () => Readonl
   };
 }
 
+/** A persist hook that throws `error` on call `failAt`; keeps test bodies branch-free. */
+function failingPersist(failAt: number, error: Error) {
+  let calls = 0;
+  return {
+    calls: () => calls,
+    persist: async () => {
+      calls += 1;
+      return calls === failAt ? Promise.reject(error) : Promise.resolve();
+    },
+  };
+}
+
 type TableOpts = {
   readonly currency?: "EUR24" | "USD24";
   readonly allowance?: bigint;
@@ -659,6 +671,31 @@ describe("advanceCard API write", () => {
     const stay = await advanceCard({ ...deps4, session: again.session }, MAIN_UNKNOWN);
     expect(stay.txs.at(-1)?.phase).toBe("unknown");
     expect(again.writes).toStrictEqual([]);
+  });
+
+  test("persist failing after the write ⇒ the persisted `sending` never re-posts", async () => {
+    // The write landed but the post-write persist was swallowed: the host only ever saw
+    // `sending`. Resuming that state reconciles with one read — no second POST.
+    const storage = failingPersist(2, new Error("storage full"));
+    const { session, writes: issued } = cardSession({ cards: [] });
+    const stub = makeFlowStub({ storage: honestStorage() });
+    const { deps, persisted } = flowDeps(stub.client, { persist: storage.persist });
+    const returned = await advanceCard({ ...deps, session }, CREATE);
+    expect(returned.step).toBe("confirmed");
+    expect(issued).toStrictEqual(["POST /card"]);
+    expect(storage.calls()).toBe(2);
+
+    const last = persisted[0] as CardState;
+    expect(last.step).toBe("tx");
+    expect(last.txs.at(-1)).toStrictEqual({ purpose: "main", phase: "sending" });
+
+    const resume = cardSession({ cards: [] });
+    const stub2 = makeFlowStub({ storage: honestStorage() });
+    const { deps: deps2 } = flowDeps(stub2.client);
+    const next = await advanceCard({ ...deps2, session: resume.session }, last);
+    expect(next.txs.at(-1)?.phase).toBe("unknown");
+    expect(resume.writes).toStrictEqual([]);
+    expect(resume.cardReads.count).toBe(1);
   });
 
   test("session missing ⇒ session-required; wrong tokenId ⇒ invalid-argument", async () => {

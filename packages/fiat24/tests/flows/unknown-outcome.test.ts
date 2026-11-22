@@ -479,3 +479,110 @@ describe("unknown outcome", () => {
     expect(persisted).toHaveLength(2);
   });
 });
+
+describe("a failed persist after send can never resend", () => {
+  /** `eth_blockNumber` answers B, B+1, … per call — enough for the two-block nonce proof. */
+  const risingBlocks = () => {
+    let calls = 0;
+    return (method: string): unknown => {
+      const block = method === "eth_blockNumber" ? B + BigInt(calls) : undefined;
+      calls += method === "eth_blockNumber" ? 1 : 0;
+      return block === undefined ? undefined : `0x${block.toString(16)}`;
+    };
+  };
+
+  /** The mined-with-log world: nonce consumed, our Transfer under TXID_1, a binding tx. */
+  const minedStub = () =>
+    makeFlowStub({
+      count: { latest: NONCE + 1 },
+      logs: () => [
+        transferLog({
+          token: TOKEN,
+          from: OWNER,
+          to: RECIPIENT,
+          amount: AMOUNT,
+          blockNumber: B + 1n,
+          transactionHash: TXID_1,
+        }),
+      ],
+      transactions: { [TXID_1]: honestTx(TXID_1) },
+      receipts: {
+        [TXID_1]: receiptPayload({
+          transactionHash: TXID_1,
+          blockNumber: B + 1n,
+          status: "success",
+        }),
+      },
+    });
+
+  test("last persisted `sending` reconciles every outcome; the signer is never re-called", async () => {
+    const { signer, requests } = makeSigner(OWNER);
+    const storage = failingPersist(2, new Error("storage full"));
+    const { deps, persisted } = readyStub({ signer, persist: storage.persist });
+    const returned = await advanceTransfer(deps, READY);
+    expect(returned.txs[0]?.phase).toBe("submitted");
+    expect(returned.txs[0]?.hash).toBe(TXID_1);
+    expect(requests).toHaveLength(1);
+
+    // The host's last durable write is persisted[0] — `sending{nonce}`, hash unknown.
+    const last = persisted[0] as TransferState;
+    expect(last.txs[0]?.phase).toBe("sending");
+    expect(last.txs[0]?.hash).toBeUndefined();
+
+    // Mined + evidence ⇒ submitted{hash}; the signer stays at one call.
+    const reconciled = await advanceTransfer(flowDeps(minedStub().client, { signer }).deps, last);
+    expect(reconciled.txs[0]?.phase).toBe("submitted");
+    expect(reconciled.txs[0]?.hash).toBe(TXID_1);
+
+    // Mined with silent logs ⇒ unknown{unknown-outcome}, never not-sent.
+    const silent = makeFlowStub({ count: { latest: NONCE + 1 }, logs: () => [] });
+    const unknown = await advanceTransfer(flowDeps(silent.client, { signer }).deps, last);
+    expect(unknown.txs[0]?.phase).toBe("unknown");
+    expect(unknown.txs[0]?.error).toBe("unknown-outcome");
+
+    // Nonce provably unused at two different blocks ⇒ not-sent.
+    const unused = makeFlowStub({
+      count: { latest: NONCE, pending: NONCE },
+      onRequest: risingBlocks(),
+    });
+    const notSent = await advanceTransfer(flowDeps(unused.client, { signer }).deps, last);
+    expect(notSent.step).toBe("not-sent");
+
+    // Across every reconciliation the signer was never invoked a second time.
+    expect(requests).toHaveLength(1);
+  });
+
+  test("the in-memory `submitted{hash}` confirms on the next advance", async () => {
+    const { signer, requests } = makeSigner(OWNER);
+    const storage = failingPersist(2, new Error("storage full"));
+    const { deps } = readyStub({ signer, persist: storage.persist });
+    const returned = await advanceTransfer(deps, READY);
+    expect(returned.txs[0]?.phase).toBe("submitted");
+
+    // Advancing the returned (unpersisted) state reconciles by its own hash receipt.
+    const confirmed = await advanceTransfer(
+      flowDeps(minedStub().client, { signer }).deps,
+      returned,
+    );
+    expect(confirmed.step).toBe("confirmed");
+    expect(confirmed.txs[0]?.hash).toBe(TXID_1);
+    expect(requests).toHaveLength(1);
+  });
+
+  test("signer throws + post-call persist fails ⇒ last persisted `sending` still reconciles", async () => {
+    const { signer, requests } = makeSigner(OWNER, async () =>
+      Promise.reject(new Error("wallet blew up")),
+    );
+    const storage = failingPersist(2, new Error("storage full"));
+    const { deps, persisted } = readyStub({ signer, persist: storage.persist });
+    const returned = await advanceTransfer(deps, READY);
+    expect(returned.txs[0]?.phase).toBe("unknown");
+    expect(requests).toHaveLength(1);
+
+    const last = persisted[0] as TransferState;
+    expect(last.txs[0]?.phase).toBe("sending");
+    const reconciled = await advanceTransfer(flowDeps(minedStub().client, { signer }).deps, last);
+    expect(reconciled.txs[0]?.phase).toBe("submitted");
+    expect(requests).toHaveLength(1);
+  });
+});

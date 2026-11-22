@@ -37,8 +37,8 @@ let state: TransferState = startTransfer({
 while (state.step !== "confirmed" && state.step !== "failed" && state.step !== "not-sent") {
   state = await advanceTransfer(deps, state);
   if (state.txs.at(-1)?.error === "signer-rejected") {
-    // The user declined the prompt: stop and show the rejection; the
-    // persisted state reconciles on a later advance.
+    // The user declined the prompt: stop and show it; advancing again
+    // prompts the signer again.
     break;
   }
   if (state.step === "tx") {

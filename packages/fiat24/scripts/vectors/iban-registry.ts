@@ -7,6 +7,9 @@ type RawCase = {
   readonly variant: string;
   readonly iban: string;
   readonly valid: boolean;
+  // The docs' generic check (alnum + table length + mod-97), recomputed and recorded by
+  // record-iban-registry.py — not by this generator — so the divergence flag is also recorded.
+  readonly docCheck: boolean;
   readonly error?: string;
 };
 
@@ -21,27 +24,9 @@ function isRawCase(value: unknown): value is RawCase {
     typeof value["variant"] === "string" &&
     typeof value["iban"] === "string" &&
     typeof value["valid"] === "boolean" &&
+    typeof value["docCheck"] === "boolean" &&
     (value["error"] === undefined || typeof value["error"] === "string")
   );
-}
-
-// The docs' `isValidIbanNumber` check (Part 2 §10, the check the SDK implements): uppercase,
-// strip non-alphanumerics, `^[A-Z]{2}[0-9]{2}[A-Z0-9]+$`, the per-country length, then the
-// ISO 7064 mod-97 of the rearranged digits equals 1. Used only to flag where schwifty's
-// stricter registry-grammar verdict diverges from the docs' check — never as an expected
-// output (expected outputs are schwifty's verdicts).
-function docCheck(input: string, lengths: Readonly<Record<string, number>>): boolean {
-  const text = input.toUpperCase().replaceAll(/[^A-Z0-9]/g, "");
-  const shape = /^([A-Z]{2})([0-9]{2})[A-Z0-9]+$/.exec(text);
-  const country = shape?.[1];
-  if (country === undefined || lengths[country] !== text.length) {
-    return false;
-  }
-  let digits = "";
-  for (const ch of text.slice(4) + text.slice(0, 4)) {
-    digits += ch >= "A" && ch <= "Z" ? String((ch.codePointAt(0) ?? 0) - 55) : ch;
-  }
-  return BigInt(digits) % 97n === 1n;
 }
 
 export function build(): {
@@ -55,29 +40,21 @@ export function build(): {
   if (!isRecord(raw) || !isRecord(raw["lengths"]) || !Array.isArray(raw["cases"])) {
     throw new TypeError("raw/iban-registry.json: expected {lengths, cases}");
   }
-  const lengths: Record<string, number> = {};
-  for (const [country, length] of Object.entries(raw["lengths"])) {
-    if (typeof length !== "number") {
-      throw new TypeError(`raw/iban-registry.json: lengths.${country} must be a number`);
-    }
-    lengths[country] = length;
-  }
   const out: unknown[] = [];
   for (const c of raw["cases"] as unknown[]) {
     if (!isRawCase(c)) {
       throw new TypeError("raw/iban-registry.json: malformed case");
     }
-    const expected = docCheck(c.iban, lengths);
-    // `output` is schwifty's verdict verbatim. `docCheck` is recorded only where the docs'
-    // check disagrees with schwifty (e.g. schwifty enforces the registry BBAN structure that
-    // the docs' alnum+length+mod-97 check does not implement).
+    // `output` is schwifty's verdict verbatim. `docCheck` is emitted only where the recorded
+    // docs' check disagrees with schwifty (e.g. schwifty enforces the registry BBAN structure
+    // that the docs' alnum+length+mod-97 check does not implement).
     out.push({
       op: "isValidIban",
       country: c.country,
       variant: c.variant,
       input: c.iban,
       output: c.valid,
-      ...(expected === c.valid ? {} : { docCheck: expected }),
+      ...(c.docCheck === c.valid ? {} : { docCheck: c.docCheck }),
     });
   }
   return {

@@ -1,3 +1,19 @@
-// Empty until the layer is implemented; kept a module so the subpath builds.
-// oxlint-disable-next-line unicorn/require-module-specifiers -- placeholder for a layer that exports nothing yet
-export {};
+export type { Fiat24Account } from "./account.ts";
+export { getAccount } from "./account.ts";
+export type { Allowances } from "./balances.ts";
+export { getAllowance, getAllowances, getBalances } from "./balances.ts";
+export type { DeploymentCheck, Drift } from "./deployment.ts";
+export { assertDeployment, verifyDeployment } from "./deployment.ts";
+export type { Availability } from "./availability.ts";
+export { getAvailability } from "./availability.ts";
+export type { ExchangeQuote, TopUpQuote } from "./quote.ts";
+export { getExchangeQuote, getTopUpQuote, quoteExchange, quoteTopUp } from "./quote.ts";
+export type { TransferCheck } from "./transfer.ts";
+export { checkTransfer } from "./transfer.ts";
+export type { PayoutSettlement } from "./payout.ts";
+export { getPayoutMinimum, getPayoutSettlement } from "./payout.ts";
+export type { MintQuote } from "./mint.ts";
+export { getMintQuote, mintPriceWei } from "./mint.ts";
+export { getHistory } from "./history.ts";
+export { simulateCall } from "./simulate.ts";
+export type { ChainArgs } from "./context.ts";

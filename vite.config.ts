@@ -164,7 +164,7 @@ const config: UserConfig = defineConfig({
       {
         // The root entry composes the public surface; the api and flows
         // layers stay opt-in subpath imports (AGENTS.md).
-        files: ["packages/fiat24/src/index.ts"],
+        files: ["packages/fiat24/src/index.ts", "packages/fiat24/src/actions.ts"],
         rules: {
           "eslint/no-restricted-imports": [
             "error",

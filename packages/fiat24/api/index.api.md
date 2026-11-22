@@ -5,6 +5,7 @@
 ```ts
 
 import { Address } from 'viem';
+import { Client } from 'viem';
 import { Hash } from 'viem';
 import { Hex } from 'viem';
 
@@ -14,6 +15,46 @@ export type AccountStatus = "na" | "soft-blocked" | "tourist" | "blocked" | "clo
 // @public (undocumented)
 export function accountStatusFromIndex(index: number): AccountStatus;
 
+// @public
+export type Allowances = {
+    readonly card: Readonly<Record<Currency, bigint>>;
+    readonly deposit: Readonly<Record<Currency | "USDC", bigint>>;
+    readonly account: {
+        readonly F24: bigint;
+    };
+    readonly blockNumber: bigint;
+};
+
+// @public (undocumented)
+type AnyClient$1 = Client;
+
+// @public (undocumented)
+type AnyClient$2 = Client;
+
+// @public (undocumented)
+type AnyClient$3 = Client;
+
+// @public (undocumented)
+type AnyClient$4 = Client;
+
+// @public (undocumented)
+type AnyClient$5 = Client;
+
+// @public (undocumented)
+type AnyClient$6 = Client;
+
+// @public (undocumented)
+type AnyClient$7 = Client;
+
+// @public (undocumented)
+type AnyClient$8 = Client;
+
+// @public (undocumented)
+type AnyClient$9 = Client;
+
+// @public (undocumented)
+type AnyClient = Client;
+
 // @public (undocumented)
 export type ApprovalSpender = "card" | "deposit" | "account";
 
@@ -21,10 +62,38 @@ export type ApprovalSpender = "card" | "deposit" | "account";
 export const arbitrum: Deployment;
 
 // @public
+function assertDeployment(client: AnyClient$7, args: ChainArgs & {
+    contracts: ReadonlyArray<ContractName>;
+}): Promise<bigint>;
+
+// @public
 export function assertTokenId(tokenId: bigint): void;
 
 // @public (undocumented)
 export type Asset = Currency | "USDC" | "F24";
+
+// @public
+export type Availability = {
+    readonly account: {
+        readonly paused: boolean;
+        readonly f24Active: boolean;
+        readonly maxDigitForSale: number;
+    };
+    readonly tokens: Readonly<Record<Currency, {
+        readonly paused: boolean;
+    }>>;
+    readonly deposit: {
+        readonly paused: boolean;
+        readonly marketClosed: boolean;
+    };
+    readonly card: {
+        readonly paused: boolean;
+    };
+    readonly f24Sales: {
+        readonly paused: boolean;
+    };
+    readonly blockNumber: bigint;
+};
 
 // @public (undocumented)
 type Base = {
@@ -34,8 +103,25 @@ type Base = {
     readonly logIndex: number;
 };
 
+// @public (undocumented)
+type Bound<F> = F extends ((client: Client, args: infer A) => infer R) ? (args: A) => R : never;
+
 // @public
 export const CHAIN_ID = 42161;
+
+// @public
+export type ChainArgs = {
+    readonly deployment?: Deployment | undefined;
+    readonly blockNumber?: bigint | undefined;
+};
+
+// @public
+function checkTransfer(client: AnyClient$4, args: ChainArgs & {
+    from: Address;
+    to: Recipient;
+    currency: Currency;
+    amount: bigint;
+}): Promise<TransferCheck>;
 
 // @public
 export function contractAddress(deployment: Deployment, name: ContractName): Address;
@@ -79,8 +165,61 @@ export type Deployment = {
     };
 };
 
+// @public
+export type DeploymentCheck = {
+    readonly ok: boolean;
+    readonly drift: ReadonlyArray<Drift>;
+    readonly proxyAdminOwner: Address;
+    readonly ownerChanged: boolean;
+    readonly blockNumber: bigint;
+};
+
+// @public
+export type Drift = {
+    readonly contract: ContractName;
+    readonly field: DriftField;
+    readonly expected: Hex;
+    readonly actual: Hex;
+};
+
 // @public (undocumented)
 export type DriftField = "implementation" | "admin" | "priceList" | "f24" | "f24Sales" | "usdc";
+
+// @public
+export type ExchangeQuote = {
+    readonly side: "exact-in" | "exact-out";
+    readonly from: Currency;
+    readonly to: Currency;
+    readonly input: bigint;
+    readonly output: bigint;
+    readonly rate: bigint;
+    readonly spread: bigint;
+    readonly marketClosed: boolean;
+    readonly blockNumber: bigint;
+};
+
+// @public
+export type Fiat24Account = {
+    readonly tokenId: bigint;
+    readonly owner: Address;
+    readonly status: AccountStatus;
+    readonly ownsToken: boolean;
+    readonly walletProvider: bigint;
+    readonly approved: Address | undefined;
+    readonly limit: {
+        readonly max: bigint;
+        readonly used: bigint;
+        readonly periodStart: bigint;
+        readonly periodEnd: bigint;
+    };
+    readonly iban: string | undefined;
+    readonly blockNumber: bigint;
+};
+
+// @public
+export type Fiat24ActionsOptions = {
+    deployment?: Deployment | undefined;
+};
 
 // @public
 export type Fiat24Call = {
@@ -261,6 +400,28 @@ export type Fiat24Intent = {
     readonly usdcAmount: bigint;
 };
 
+// @public
+export function fiat24PublicActions(options?: Fiat24ActionsOptions): (client: Client) => Fiat24PublicActionSet;
+
+// @public
+export type Fiat24PublicActionSet = {
+    fiat24GetAccount: Bound<typeof getAccount>;
+    fiat24GetBalances: Bound<typeof getBalances>;
+    fiat24GetAllowance: Bound<typeof getAllowance>;
+    fiat24GetAllowances: Bound<typeof getAllowances>;
+    fiat24GetAvailability: Bound<typeof getAvailability>;
+    fiat24VerifyDeployment: Bound<typeof verifyDeployment>;
+    fiat24AssertDeployment: Bound<typeof assertDeployment>;
+    fiat24GetExchangeQuote: Bound<typeof getExchangeQuote>;
+    fiat24GetTopUpQuote: Bound<typeof getTopUpQuote>;
+    fiat24CheckTransfer: Bound<typeof checkTransfer>;
+    fiat24GetPayoutMinimum: Bound<typeof getPayoutMinimum>;
+    fiat24GetPayoutSettlement: Bound<typeof getPayoutSettlement>;
+    fiat24GetMintQuote: Bound<typeof getMintQuote>;
+    fiat24GetHistory: Bound<typeof getHistory>;
+    fiat24SimulateCall: Bound<typeof simulateCall>;
+};
+
 // @public (undocumented)
 export type Fiat24SessionGrant = {
     readonly chainId: 42161;
@@ -295,7 +456,81 @@ export type Fiat24TransactionRequest = {
 export function formatAmount(asset: Asset, units: bigint): string;
 
 // @public
+function getAccount(client: AnyClient$9, args: ChainArgs & ({
+    owner: Address;
+} | {
+    tokenId: bigint;
+})): Promise<Fiat24Account | undefined>;
+
+// @public
+function getAllowance(client: AnyClient$8, args: ChainArgs & {
+    owner: Address;
+    asset: Asset;
+    spender: ApprovalSpender;
+}): Promise<bigint>;
+
+// @public
+function getAllowances(client: AnyClient$8, args: ChainArgs & {
+    owner: Address;
+}): Promise<Allowances>;
+
+// @public
+function getAvailability(client: AnyClient$6, args?: ChainArgs): Promise<Availability>;
+
+// @public
+function getBalances(client: AnyClient$8, args: ChainArgs & {
+    owner: Address;
+}): Promise<{
+    readonly balances: Readonly<Record<Currency, bigint>>;
+    readonly blockNumber: bigint;
+}>;
+
+// @public
 export function getDeployment(chainId: number): Deployment | undefined;
+
+// @public
+function getExchangeQuote(client: AnyClient$5, args: ChainArgs & {
+    side: "exact-in" | "exact-out";
+    from: Currency;
+    to: Currency;
+    amount: bigint;
+}): Promise<ExchangeQuote>;
+
+// @public
+function getHistory(client: AnyClient$1, args: ChainArgs & {
+    owner: Address;
+    tokenId?: bigint;
+    fromBlock: bigint;
+    toBlock: bigint;
+    chunkSize?: bigint;
+}): Promise<ReadonlyArray<Fiat24Event>>;
+
+// @public
+function getMintQuote(client: AnyClient$2, args: ChainArgs & {
+    tokenId: bigint;
+}): Promise<MintQuote>;
+
+// @public
+function getPayoutMinimum(client: AnyClient$3, args: ChainArgs & {
+    currency: PayoutCurrency;
+}): Promise<bigint>;
+
+// @public
+function getPayoutSettlement(client: AnyClient$3, args: ChainArgs & {
+    currency: PayoutCurrency;
+    tokenId: bigint;
+    contactId: string;
+    txid: string;
+    fromBlock: bigint;
+    chunkSize?: bigint;
+}): Promise<PayoutSettlement>;
+
+// @public
+function getTopUpQuote(client: AnyClient$5, args: ChainArgs & {
+    owner: Address;
+    output: Currency;
+    usdcAmount: bigint;
+}): Promise<TopUpQuote>;
 
 // @public
 export function ibanOf(tokenId: bigint): string;
@@ -328,11 +563,27 @@ export function isValidIban(text: string): boolean;
 // @public (undocumented)
 export const MAX_UNITS: bigint;
 
+// @public
+export type MintQuote = {
+    readonly tokenId: bigint;
+    readonly taken: boolean;
+    readonly priceF24: bigint;
+    readonly priceWei: bigint;
+    readonly blockNumber: bigint;
+};
+
 // @public (undocumented)
 export function parseAmount(asset: Asset, text: string): bigint;
 
 // @public (undocumented)
 export type PayoutCurrency = "EUR24" | "CHF24";
+
+// @public
+export type PayoutSettlement = {
+    readonly status: "pending" | "settled" | "rejected";
+    readonly event?: Fiat24Event;
+    readonly blockNumber: bigint;
+};
 
 // @public
 export type PinnedProxy = {
@@ -376,8 +627,39 @@ export type RevertReason = {
     readonly kind: "unknown";
 };
 
+// @public
+function simulateCall(client: AnyClient, args: {
+    call: Fiat24Call;
+    from: Address;
+    blockNumber: bigint;
+}): Promise<Hex>;
+
+// @public
+export type TopUpQuote = {
+    readonly output: Currency;
+    readonly usdcAmount: bigint;
+    readonly fee: bigint;
+    readonly outputAmount: bigint;
+    readonly min: bigint;
+    readonly max: bigint;
+    readonly paused: boolean;
+    readonly blockNumber: bigint;
+};
+
+// @public
+export type TransferCheck = {
+    readonly recipient: Address;
+    readonly recipientTokenId: bigint | undefined;
+    readonly blockNumber: bigint;
+};
+
 // @public (undocumented)
 export type UnavailableReason = "account-paused" | "token-paused" | "deposit-paused" | "card-paused" | "f24-sales-paused" | "f24-sales-empty" | "f24-inactive" | "mint-digits";
+
+// @public
+function verifyDeployment(client: AnyClient$7, args?: ChainArgs & {
+    contracts?: ReadonlyArray<ContractName>;
+}): Promise<DeploymentCheck>;
 
 // (No @packageDocumentation comment for this package)
 

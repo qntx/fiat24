@@ -438,6 +438,16 @@ describe("api transport", () => {
         return response;
       },
     },
+    {
+      name: "url on a lookalike origin",
+      make: () => {
+        const response = new Response("{}", { status: 200 });
+        Object.defineProperty(response, "url", {
+          value: "https://api.fiat24.com.evil.example/timestamp",
+        });
+        return response;
+      },
+    },
   ])(
     "a redirect-shaped response ($name) is invalid-response and the body is never read",
     async ({ make }) => {
@@ -461,6 +471,45 @@ describe("api transport", () => {
       expect(bodyRead, "the body was read").toBe(false);
     },
   );
+
+  test("a same-origin response.url rewritten by URL parsing is accepted", async () => {
+    // An injected WHATWG fetch reports the resolved url after parsing, which percent-encodes
+    // characters our request path keeps literal — `'` in /verify?sp= becomes %27 — without any
+    // redirect having happened.
+    const request = {
+      account: "LI7830174502999200012",
+      bankName: "D'Angelo SA",
+      bic: "SAHHCHZ2",
+      purpose: 2n,
+      creditor: "BR" as const,
+    };
+    const path = `/verify?sp=${encodeURIComponent(
+      JSON.stringify({
+        account: request.account,
+        bankName: request.bankName,
+        bic: request.bic,
+        purpose: 2,
+        creditor: "BR",
+      }),
+    )}`;
+    const stub = stubFetch({
+      "/timestamp": timestampRoute(SERVER_MS),
+      [path]: json(fixtureBody("secured/verify-sp.json")),
+    });
+    const fetchFn = (async (input: unknown, init?: RequestInit) => {
+      const response = await stub.fetch(input as never, init);
+      Object.defineProperty(response, "url", { value: new URL(String(input)).href });
+      return response;
+    }) as typeof fetch;
+    const api = createFiat24Api({ fetch: fetchFn, now: () => SERVER_MS });
+    const session = api.openSession({ tokenId: TOKEN_ID, signer: testSigner() });
+    const verified = await session.verifyBankPayment(request);
+    expect(verified.contactId).toBe("EA-123456");
+    // Premise: the resolved url really differed from the literal request string.
+    const requested = String(stub.calls[1]?.url);
+    expect(requested).toContain("'");
+    expect(new URL(requested).href).not.toBe(requested);
+  });
 
   test("error detail never carries the concrete path or query", async () => {
     const { api } = publicApi({ "/status-kyc?id=9102": json("{}", 500) });

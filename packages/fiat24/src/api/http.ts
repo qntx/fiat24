@@ -150,14 +150,16 @@ export async function request(
   }
   const { status } = response;
   // A fetch that ignored `redirect: "error"` surfaced a redirect: refuse it before any status or
-  // body handling — the request may have carried the bearer grant to another origin's answer.
+  // body handling — the request may have carried the bearer grant to another origin's answer. The
+  // url check is origin-level, not string equality: WHATWG parsing percent-encodes characters the
+  // request path keeps literal (`'` becomes %27), so a no-redirect answer can differ in spelling.
   if (
     response.type === "opaqueredirect" ||
     (status >= 300 && status < 400) ||
     response.redirected ||
     (typeof response.url === "string" &&
       response.url !== "" &&
-      response.url !== API_BASE_URL + spec.path)
+      !response.url.startsWith(`${API_BASE_URL}/`))
   ) {
     throw apiError("invalid-response", endpoint);
   }

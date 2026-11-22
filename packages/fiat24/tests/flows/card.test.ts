@@ -1,4 +1,5 @@
 import { encodeFunctionData, getAddress } from "viem";
+import type { Hex } from "viem";
 import { describe, expect, test } from "vite-plus/test";
 
 import { tokenAbi } from "../../src/abi/index.ts";
@@ -16,6 +17,7 @@ import {
   availabilityEntries,
   B,
   flowDeps,
+  guardCalls,
   honestStorage,
   makeFlowStub,
   makeSigner,
@@ -25,6 +27,7 @@ import {
   receiptPayload,
   txPayload,
   TXID_1,
+  wordWithAddress,
 } from "./stub.ts";
 
 const EUR24 = C.tokens.EUR24.proxy;
@@ -683,5 +686,18 @@ describe("advanceCard API write", () => {
     };
     const error = await expectErrorAsync(async () => advanceCard(deps, confirmed), "invalid-state");
     expect(error).toBeInstanceOf(Fiat24Error);
+  });
+});
+
+describe("advanceCard drift before guard reads", () => {
+  test("chain leg ⇒ contract-changed before any guard read", async () => {
+    const storage = honestStorage();
+    const impl = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc" as Hex;
+    storage.set(`${CARD.toLowerCase()}:${impl}`, wordWithAddress(OWNER));
+    const stub = makeFlowStub({ calls: proxyAdminEntry(), storage });
+    const { deps } = flowDeps(stub.client);
+    const error = await expectErrorAsync(async () => advanceCard(deps, SETUP), "contract-changed");
+    expect(error.detail).toMatchObject({ contract: "card", field: "implementation" });
+    expect(guardCalls(stub)).toStrictEqual([]);
   });
 });

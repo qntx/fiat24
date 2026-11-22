@@ -1,6 +1,7 @@
 import { erc20Abi, isAddressEqual } from "viem";
 import type { Address, Client } from "viem";
 
+import type { Fiat24Call } from "../calls/types.ts";
 import { getAccount } from "../chain/account.ts";
 import type { Fiat24Account } from "../chain/account.ts";
 import type { Availability } from "../chain/availability.ts";
@@ -12,10 +13,11 @@ import {
   readAt,
   revertError,
 } from "../chain/context.ts";
+import { assertDeployment } from "../chain/deployment.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import { isFiat24Signer } from "../core/signer.ts";
 import type { Fiat24Signer } from "../core/signer.ts";
-import type { Asset, Currency } from "../core/types.ts";
+import type { Asset, ContractName, Currency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 
 /**
@@ -53,6 +55,29 @@ export function assertUnpaused(
       });
     }
   }
+}
+
+/**
+ * §4/§8.2: an advance that issues chain reads asserts the deployment at that advance's block B
+ * before the first delegated read — a drifted implementation must never feed guard values or
+ * surface as a bare `invalid-rpc-response`. `contracts` is the deduplicated union of every call the
+ * state can send; the tx machine's ready-phase assertion at its own fresh B is unchanged.
+ */
+export async function assertPath(
+  client: Client,
+  deployment: Deployment,
+  blockNumber: bigint,
+  calls: ReadonlyArray<Fiat24Call>,
+): Promise<void> {
+  const contracts: ContractName[] = [];
+  for (const call of calls) {
+    for (const name of call.contracts) {
+      if (!contracts.includes(name)) {
+        contracts.push(name);
+      }
+    }
+  }
+  await assertDeployment(client, { deployment, contracts, blockNumber });
 }
 
 /** §5: `getAccount({owner, B})` absent ⇒ `no-account`; `status !== "live"` ⇒ `not-live`. */

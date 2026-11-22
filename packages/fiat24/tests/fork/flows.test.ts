@@ -63,6 +63,7 @@ const CARD = arbitrum.card.proxy;
 const USDC = arbitrum.usdc;
 const F24 = arbitrum.f24.address;
 const PRICELIST = arbitrum.priceList.proxy;
+const F24SALES = arbitrum.f24Sales.proxy;
 
 // Fresh EOAs with no historicOwnership at the fork block (checked via exists()).
 const FRESH_1 = getAddress("0x10000000000000000000000000000000000000F1");
@@ -567,14 +568,13 @@ describe.skipIf(!FORK_ENABLED)("fork: flows", () => {
       state = await resumed(advanceExchange, deps, state);
       expect(state.step).toBe("tx");
       expect(state.txs.at(-1)?.phase).toBe("submitted");
-      state = await resumed(advanceExchange, deps, state);
-      expect(state.step).toBe("tx");
+      state = await driveUntil(advanceExchange, deps, state, mainReady);
       expect(state.txs.at(-1)).toStrictEqual({ purpose: "main", phase: "ready" });
       // The down-approve took effect: allowance is exactly the quoted input.
       await expect(erc20Allowance(fork, EUR24, owner1, DEPOSIT)).resolves.toBe(quote?.input);
       state = await resumed(advanceExchange, deps, state);
       expect(state.txs.at(-1)?.phase).toBe("submitted");
-      state = await resumed(advanceExchange, deps, state);
+      state = await driveUntil(advanceExchange, deps, state, isConfirmed);
       expect(state.step).toBe("confirmed");
       expect(state.actual?.input).toBeLessThanOrEqual(quote.input);
       const after = await erc20Balance(fork, EUR24, owner1);
@@ -1134,28 +1134,28 @@ describe.skipIf(!FORK_ENABLED)("fork: flows", () => {
     const transferProbe: Probe = async (f) => {
       const sign = forkSigner(f, owner1);
       const { deps } = makeDeps(f, sign.signer);
-      let state = startTransfer({
+      const state = startTransfer({
         owner: owner1,
         currency: "EUR24",
         amount: 10n,
         to: { tokenId: LIVE_2 },
       });
-      state = await resumed(advanceTransfer, deps, state); // draft → ready
-      return { sign, advance: async () => advanceTransfer(deps, state) };
+      await Promise.resolve();
+      return { sign, advance: async () => advanceTransfer(deps, state) }; // draft → guards next
     };
 
     const exchangeProbe: Probe = async (f) => {
       const sign = forkSigner(f, owner1);
       const { deps } = makeDeps(f, sign.signer);
-      let state = startExchange({
+      const state = startExchange({
         owner: owner1,
         side: "exact-in",
         from: "EUR24",
         to: "USD24",
         amount: 1000n,
       });
-      state = await resumed(advanceExchange, deps, state); // draft → quoted (max-uint allowance ⇒ main next)
-      return { sign, advance: async () => advanceExchange(deps, state) };
+      await Promise.resolve();
+      return { sign, advance: async () => advanceExchange(deps, state) }; // draft → quote next
     };
 
     const payoutProbe: Probe = async (f) => {
@@ -1186,28 +1186,28 @@ describe.skipIf(!FORK_ENABLED)("fork: flows", () => {
     };
 
     const onboardingProbe: Probe = async (f) => {
-      const price = await f.publicClient.readContract({
-        address: PRICELIST,
-        abi: priceListAbi,
-        functionName: "getPrice",
-        args: [MINT_ID_1],
-      });
-      expectSuccess(await fund(f, F24, DESK, FRESH_1, price));
       const sign = forkSigner(f, FRESH_1);
       const { deps } = makeDeps(f, sign.signer, { api: API_COMPLETED });
-      let state = startOnboarding({ owner: FRESH_1, tokenId: MINT_ID_1, payment: "f24" });
-      state = await resumed(advanceOnboarding, deps, state); // check → ready
-      return { sign, advance: async () => advanceOnboarding(deps, state) };
+      const state = startOnboarding({ owner: FRESH_1, tokenId: MINT_ID_1, payment: "f24" });
+      await Promise.resolve();
+      return { sign, advance: async () => advanceOnboarding(deps, state) }; // check → guards next
+    };
+
+    // The eth path puts f24Sales on the call path (the f24 path does not).
+    const onboardingEthProbe: Probe = async (f) => {
+      const sign = forkSigner(f, FRESH_1);
+      const { deps } = makeDeps(f, sign.signer, { api: API_COMPLETED });
+      const state = startOnboarding({ owner: FRESH_1, tokenId: MINT_ID_1, payment: "eth" });
+      await Promise.resolve();
+      return { sign, advance: async () => advanceOnboarding(deps, state) }; // check → guards next
     };
 
     const topupProbe: Probe = async (f) => {
-      expectSuccess(await unpause(f, DEPOSIT));
-      await mintUsdc(f, owner1, 10_000_000n);
       const sign = forkSigner(f, owner1);
       const { deps } = makeDeps(f, sign.signer);
-      let state = startTopUp({ owner: owner1, output: "EUR24", usdcAmount: 5_000_000n });
-      state = await resumed(advanceTopUp, deps, state); // check → quoted (approve send next)
-      return { sign, advance: async () => advanceTopUp(deps, state) };
+      const state = startTopUp({ owner: owner1, output: "EUR24", usdcAmount: 5_000_000n });
+      await Promise.resolve();
+      return { sign, advance: async () => advanceTopUp(deps, state) }; // check → quote next
     };
 
     // Parks exchange at `main{ready}` (exact-out approve confirmed). Mutating an impl slot
@@ -1271,8 +1271,13 @@ describe.skipIf(!FORK_ENABLED)("fork: flows", () => {
         flow: "exchange",
         probe: exchangeProbe,
         mutations: [
+          implMut(DEPOSIT),
           adminMut(DEPOSIT),
+          implMut(EUR24),
           adminMut(EUR24),
+          implMut(USD24),
+          adminMut(USD24),
+          implMut(ACCOUNT),
           adminMut(ACCOUNT),
           ...ACCOUNT_WIRING,
           DEPOSIT_USDC,
@@ -1281,35 +1286,83 @@ describe.skipIf(!FORK_ENABLED)("fork: flows", () => {
       {
         flow: "exchange (main)",
         probe: exchangeMainProbe,
-        mutations: [implMut(DEPOSIT), implMut(EUR24), implMut(USD24), implMut(ACCOUNT)],
+        mutations: [
+          implMut(DEPOSIT),
+          adminMut(DEPOSIT),
+          implMut(EUR24),
+          adminMut(EUR24),
+          implMut(USD24),
+          adminMut(USD24),
+          implMut(ACCOUNT),
+          adminMut(ACCOUNT),
+          ...ACCOUNT_WIRING,
+          DEPOSIT_USDC,
+        ],
       },
       {
         flow: "payout",
         probe: payoutProbe,
-        mutations: [implMut(EUR24), implMut(ACCOUNT), ...ACCOUNT_WIRING],
+        mutations: [
+          implMut(EUR24),
+          adminMut(EUR24),
+          implMut(ACCOUNT),
+          adminMut(ACCOUNT),
+          ...ACCOUNT_WIRING,
+        ],
       },
       {
-        // CARD's impl is the impl-slot case on the approve path: the proxy is never read
-        // before the send. (EUR24's impl mutates to invalid-rpc-response — the delegated
-        // allowance read fails before assertDeployment — equally defensive, different code.)
         flow: "card",
         probe: cardProbe,
-        mutations: [implMut(CARD), adminMut(CARD), adminMut(EUR24)],
+        mutations: [implMut(CARD), adminMut(CARD), implMut(EUR24), adminMut(EUR24)],
       },
       {
-        flow: "onboarding",
+        flow: "onboarding (f24)",
         probe: onboardingProbe,
-        mutations: [implMut(ACCOUNT), adminMut(ACCOUNT), ...ACCOUNT_WIRING],
+        mutations: [
+          implMut(ACCOUNT),
+          adminMut(ACCOUNT),
+          implMut(PRICELIST),
+          adminMut(PRICELIST),
+          ...ACCOUNT_WIRING,
+        ],
+      },
+      {
+        // f24Sales is only on the eth path — the f24 path's call set cannot see it.
+        flow: "onboarding (eth)",
+        probe: onboardingEthProbe,
+        mutations: [implMut(F24SALES), adminMut(F24SALES)],
       },
       {
         flow: "top-up",
         probe: topupProbe,
-        mutations: [implMut(DEPOSIT), adminMut(DEPOSIT), DEPOSIT_USDC],
+        mutations: [
+          implMut(DEPOSIT),
+          adminMut(DEPOSIT),
+          implMut(EUR24),
+          adminMut(EUR24),
+          implMut(USD24),
+          adminMut(USD24),
+          implMut(ACCOUNT),
+          adminMut(ACCOUNT),
+          ...ACCOUNT_WIRING,
+          DEPOSIT_USDC,
+        ],
       },
       {
         flow: "top-up (main)",
         probe: topupMainProbe,
-        mutations: [implMut(DEPOSIT), implMut(USD24), ...ACCOUNT_WIRING],
+        mutations: [
+          implMut(DEPOSIT),
+          adminMut(DEPOSIT),
+          implMut(EUR24),
+          adminMut(EUR24),
+          implMut(USD24),
+          adminMut(USD24),
+          implMut(ACCOUNT),
+          adminMut(ACCOUNT),
+          ...ACCOUNT_WIRING,
+          DEPOSIT_USDC,
+        ],
       },
     ];
 

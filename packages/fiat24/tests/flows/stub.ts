@@ -7,7 +7,7 @@ import type { Fiat24Signer, Fiat24TransactionRequest } from "../../src/core/sign
 import { arbitrum as C } from "../../src/deployments/index.ts";
 import type { FlowDeps, FlowState } from "../../src/flows/types.ts";
 import { B, makeStub, OWNER, RECIPIENT, wordWithAddress } from "../chain/stub.ts";
-import type { CallEntry, CallTable, Stub } from "../chain/stub.ts";
+import type { CallEntry, CallTable, RecordedRequest, Stub } from "../chain/stub.ts";
 
 export { B, B_HEX, OWNER, RECIPIENT, wordWithAddress } from "../chain/stub.ts";
 
@@ -244,6 +244,15 @@ export function availabilityEntries(
     answer: { result: opts.maxDigitForSale ?? 6 },
   });
   return entries;
+}
+
+/** `eth_call` requests other than the ProxyAdmin.owner probe — i.e. guard/plan reads. */
+export function guardCalls(stub: Stub): RecordedRequest[] {
+  return stub.requests.filter(
+    (r) =>
+      r.method === "eth_call" &&
+      (r.params as ReadonlyArray<{ to?: Address }>)[0]?.to !== C.proxyAdmin.address,
+  );
 }
 
 /** The proxyAdmin.owner read every deployment check performs. */

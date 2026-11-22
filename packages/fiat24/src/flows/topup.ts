@@ -23,7 +23,7 @@ import type { UnavailableReason } from "../core/errors.ts";
 import type { ContractName, Currency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
-import { checkedSigner, deskOwner, legAllowed, supplyBound } from "./guards.ts";
+import { assertPath, checkedSigner, deskOwner, legAllowed, supplyBound } from "./guards.ts";
 import { checkedState } from "./state.ts";
 import { advanceTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
@@ -273,6 +273,15 @@ export async function advanceTopUp(deps: FlowDeps, state: TopUpState): Promise<T
       return invalidState();
     case "check": {
       const { blockNumber } = await snapshot(deps.client, { deployment });
+      await assertPath(deps.client, deployment, blockNumber, [
+        approveCall({
+          asset: "USDC",
+          spender: "deposit",
+          amount: checked.usdcAmount,
+          deployment,
+        }),
+        topUpCall({ output: checked.output, usdcAmount: checked.usdcAmount, deployment }),
+      ]);
       const quote = await getTopUpQuote(deps.client, {
         deployment,
         owner: checked.owner,
@@ -317,6 +326,15 @@ export async function advanceTopUp(deps: FlowDeps, state: TopUpState): Promise<T
       return invalidState();
     }
     const { blockNumber } = await snapshot(deps.client, { deployment });
+    await assertPath(deps.client, deployment, blockNumber, [
+      approveCall({
+        asset: "USDC",
+        spender: "deposit",
+        amount: checked.usdcAmount,
+        deployment,
+      }),
+      topUpCall({ output: checked.output, usdcAmount: checked.usdcAmount, deployment }),
+    ]);
     const allowance = await getAllowance(deps.client, {
       deployment,
       owner: checked.owner,

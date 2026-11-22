@@ -17,6 +17,7 @@ import {
   availabilityEntries,
   B,
   flowDeps,
+  guardCalls,
   honestStorage,
   logPayload,
   makeFlowStub,
@@ -28,6 +29,7 @@ import {
   SENDER_ID,
   txPayload,
   TXID_1,
+  wordWithAddress,
 } from "./stub.ts";
 
 const EUR24 = C.tokens.EUR24.proxy;
@@ -737,5 +739,36 @@ describe("advanceExchange tx records", () => {
     await expectErrorAsync(async () => advanceExchange(deps, confirmed), "invalid-state");
     expect(stub.requests).toHaveLength(0);
     expect(persisted).toHaveLength(0);
+  });
+});
+
+describe("advanceExchange drift before guard reads", () => {
+  const IMPL_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc" as Hex;
+  const ADMIN_SLOT = "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103" as Hex;
+
+  test("draft ⇒ contract-changed before any guard read", async () => {
+    const storage = honestStorage();
+    storage.set(`${DEPOSIT.toLowerCase()}:${IMPL_SLOT}`, wordWithAddress(THIRD));
+    const stub = makeFlowStub({ calls: proxyAdminEntry(), storage });
+    const { deps } = flowDeps(stub.client);
+    const error = await expectErrorAsync(
+      async () => advanceExchange(deps, DRAFT),
+      "contract-changed",
+    );
+    expect(error.detail).toMatchObject({ contract: "deposit", field: "implementation" });
+    expect(guardCalls(stub)).toStrictEqual([]);
+  });
+
+  test("quoted planning ⇒ contract-changed before any guard read", async () => {
+    const storage = honestStorage();
+    storage.set(`${USD24.toLowerCase()}:${ADMIN_SLOT}`, wordWithAddress(THIRD));
+    const stub = makeFlowStub({ calls: proxyAdminEntry(), storage });
+    const { deps } = flowDeps(stub.client);
+    const error = await expectErrorAsync(
+      async () => advanceExchange(deps, QUOTED),
+      "contract-changed",
+    );
+    expect(error.detail).toMatchObject({ contract: "USD24", field: "admin" });
+    expect(guardCalls(stub)).toStrictEqual([]);
   });
 });

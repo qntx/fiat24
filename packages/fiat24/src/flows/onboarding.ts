@@ -4,6 +4,7 @@ import type { Address, Client, Hex, TransactionReceipt } from "viem";
 import { freeze } from "../api/schemas.ts";
 import { mintAccountCall, mintAccountWithEthCall } from "../calls/account.ts";
 import { approveCall } from "../calls/approve.ts";
+import type { Fiat24Call } from "../calls/types.ts";
 import { getAccount } from "../chain/account.ts";
 import { getAvailability } from "../chain/availability.ts";
 import { getAllowance } from "../chain/balances.ts";
@@ -21,7 +22,7 @@ import type { MintQuote } from "../chain/mint.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
-import { checkedSigner, supplyBound } from "./guards.ts";
+import { assertPath, checkedSigner, supplyBound } from "./guards.ts";
 import { checkedState } from "./state.ts";
 import { advanceTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
@@ -138,6 +139,20 @@ async function checkGuards(
     }
   }
   return quote;
+}
+
+/**
+ * The calls a `check`/`ready` state can send — approve F24 (f24 path) plus the mint call.
+ * `assertPath` consumes only `.contracts`, so the amounts stand in until a quote exists.
+ */
+function pathCalls(state: OnboardingState, deployment: Deployment): ReadonlyArray<Fiat24Call> {
+  if (state.payment === "f24") {
+    return [
+      approveCall({ asset: "F24", spender: "account", amount: 1n, deployment }),
+      mintAccountCall({ tokenId: state.tokenId, deployment }),
+    ];
+  }
+  return [mintAccountWithEthCall({ tokenId: state.tokenId, value: 1n, deployment })];
 }
 
 function requiredInput(state: OnboardingState): bigint {
@@ -281,6 +296,7 @@ export async function advanceOnboarding(
       return invalidState();
     case "check": {
       const { blockNumber } = await snapshot(deps.client, { deployment });
+      await assertPath(deps.client, deployment, blockNumber, pathCalls(checked, deployment));
       const quote = await checkGuards(deps.client, deployment, checked, blockNumber);
       const next = freeze({
         ...checked,
@@ -334,6 +350,7 @@ export async function advanceOnboarding(
     }
     if (checked.payment === "f24") {
       const { blockNumber } = await snapshot(deps.client, { deployment });
+      await assertPath(deps.client, deployment, blockNumber, pathCalls(checked, deployment));
       const allowance = await getAllowance(deps.client, {
         deployment,
         owner: checked.owner,

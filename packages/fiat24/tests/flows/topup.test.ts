@@ -16,6 +16,7 @@ import {
   availabilityEntries,
   B,
   flowDeps,
+  guardCalls,
   honestStorage,
   logPayload,
   makeFlowStub,
@@ -27,6 +28,7 @@ import {
   SENDER_ID,
   txPayload,
   TXID_1,
+  wordWithAddress,
 } from "./stub.ts";
 
 const EUR24 = C.tokens.EUR24.proxy;
@@ -606,5 +608,33 @@ describe("advanceTopUp tx records", () => {
     await expectErrorAsync(async () => advanceTopUp(deps, confirmed), "invalid-state");
     expect(stub.requests).toHaveLength(0);
     expect(persisted).toHaveLength(0);
+  });
+});
+
+describe("advanceTopUp drift before guard reads", () => {
+  const IMPL_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc" as Hex;
+  const USDC_SLOT = "0xd0" as Hex;
+
+  test("check ⇒ contract-changed before any guard read", async () => {
+    const storage = honestStorage();
+    storage.set(`${USD24.toLowerCase()}:${IMPL_SLOT}`, wordWithAddress(THIRD));
+    const stub = makeFlowStub({ calls: proxyAdminEntry(), storage });
+    const { deps } = flowDeps(stub.client);
+    const error = await expectErrorAsync(async () => advanceTopUp(deps, CHECK), "contract-changed");
+    expect(error.detail).toMatchObject({ contract: "USD24", field: "implementation" });
+    expect(guardCalls(stub)).toStrictEqual([]);
+  });
+
+  test("quoted planning ⇒ contract-changed before any guard read", async () => {
+    const storage = honestStorage();
+    storage.set(`${DEPOSIT.toLowerCase()}:${USDC_SLOT}`, wordWithAddress(THIRD));
+    const stub = makeFlowStub({ calls: proxyAdminEntry(), storage });
+    const { deps } = flowDeps(stub.client);
+    const error = await expectErrorAsync(
+      async () => advanceTopUp(deps, QUOTED),
+      "contract-changed",
+    );
+    expect(error.detail).toMatchObject({ contract: "deposit", field: "usdc" });
+    expect(guardCalls(stub)).toStrictEqual([]);
   });
 });

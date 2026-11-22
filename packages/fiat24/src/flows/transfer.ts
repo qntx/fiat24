@@ -15,7 +15,7 @@ import { checkTransfer } from "../chain/transfer.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import type { Currency, Recipient } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
-import { assertUnpaused, checkedSigner } from "./guards.ts";
+import { assertPath, assertUnpaused, checkedSigner } from "./guards.ts";
 import { checkedState } from "./state.ts";
 import { advanceTx } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
@@ -166,6 +166,7 @@ export async function advanceTransfer(
       return invalidState();
     case "draft": {
       const { blockNumber } = await snapshot(deps.client, { deployment });
+      await assertPath(deps.client, deployment, blockNumber, [buildCall(checked, deployment)]);
       await transferGuards(deps.client, deployment, checked, blockNumber);
       const next = freeze({ ...checked, step: "ready" as const });
       await deps.persist(next);

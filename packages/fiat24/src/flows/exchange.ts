@@ -22,6 +22,7 @@ import type { Currency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
 import {
+  assertPath,
   assertUnpaused,
   checkedSigner,
   deskOwner,
@@ -283,6 +284,17 @@ export async function advanceExchange(
       return invalidState();
     case "draft": {
       const { blockNumber } = await snapshot(deps.client, { deployment });
+      // Draft predates the quote/allowance split: the union is the exchange call alone
+      // (the approve's contracts are a subset of it).
+      await assertPath(deps.client, deployment, blockNumber, [
+        exchangeCall({
+          side: checked.side,
+          from: checked.from,
+          to: checked.to,
+          amount: checked.amount,
+          deployment,
+        }),
+      ]);
       const quote = await quotedGuards(deps.client, deployment, checked, blockNumber);
       const next = freeze({
         ...checked,
@@ -308,6 +320,21 @@ export async function advanceExchange(
       return invalidState();
     }
     const { blockNumber } = await snapshot(deps.client, { deployment });
+    await assertPath(deps.client, deployment, blockNumber, [
+      approveCall({
+        asset: checked.from,
+        spender: "deposit",
+        amount: approveAmount(checked),
+        deployment,
+      }),
+      exchangeCall({
+        side: checked.side,
+        from: checked.from,
+        to: checked.to,
+        amount: checked.amount,
+        deployment,
+      }),
+    ]);
     const allowance = await getAllowance(deps.client, {
       deployment,
       owner: checked.owner,

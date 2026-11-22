@@ -17,6 +17,7 @@ import {
   availabilityEntries,
   B,
   flowDeps,
+  guardCalls,
   honestStorage,
   logPayload,
   makeFlowStub,
@@ -29,6 +30,7 @@ import {
   txPayload,
   TXID_1,
   word,
+  wordWithAddress,
 } from "./stub.ts";
 
 const ACCOUNT = C.account.proxy;
@@ -704,5 +706,36 @@ describe("kycUrl", () => {
     ];
     const results = attempts.map((attempt) => throwsCode(attempt, new Set(["invalid-argument"])));
     expect(results.every(Boolean)).toBe(true);
+  });
+});
+
+describe("advanceOnboarding drift before guard reads", () => {
+  const IMPL_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc" as Hex;
+
+  test("check ⇒ contract-changed before any guard read", async () => {
+    const storage = honestStorage();
+    storage.set(`${ACCOUNT.toLowerCase()}:${IMPL_SLOT}`, wordWithAddress(OWNER));
+    const stub = makeFlowStub({ calls: proxyAdminEntry(), storage });
+    const { deps } = flowDeps(stub.client);
+    const error = await expectErrorAsync(
+      async () => advanceOnboarding(deps, CHECK),
+      "contract-changed",
+    );
+    expect(error.detail).toMatchObject({ contract: "account", field: "implementation" });
+    expect(guardCalls(stub)).toStrictEqual([]);
+  });
+
+  test("ready planning ⇒ contract-changed before any guard read", async () => {
+    const storage = honestStorage();
+    // Wiring slot 359: bytes 0-19 hold the priceList address — zeroed ⇒ drift.
+    storage.set(`${ACCOUNT.toLowerCase()}:${PRICELIST_SLOT}`, word(0n));
+    const stub = makeFlowStub({ calls: proxyAdminEntry(), storage });
+    const { deps } = flowDeps(stub.client);
+    const error = await expectErrorAsync(
+      async () => advanceOnboarding(deps, READY_F24),
+      "contract-changed",
+    );
+    expect(error.detail).toMatchObject({ contract: "account", field: "priceList" });
+    expect(guardCalls(stub)).toStrictEqual([]);
   });
 });

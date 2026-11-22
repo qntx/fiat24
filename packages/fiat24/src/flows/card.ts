@@ -18,7 +18,7 @@ import { Fiat24Error } from "../core/errors.ts";
 import type { Fiat24ErrorCode } from "../core/errors.ts";
 import type { Currency } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
-import { assertUnpaused, checkedSigner, supplyBound } from "./guards.ts";
+import { assertPath, assertUnpaused, checkedSigner, supplyBound } from "./guards.ts";
 import { API_READY_ERRORS, checkedState } from "./state.ts";
 import { advanceTx, persistSwallow } from "./tx.ts";
 import type { TxEvidence } from "./tx.ts";
@@ -413,6 +413,14 @@ export async function advanceCard(deps: FlowDeps, state: CardState): Promise<Car
     purpose = "main";
   } else {
     const { blockNumber } = await snapshot(deps.client, { deployment });
+    await assertPath(deps.client, deployment, blockNumber, [
+      approveCall({
+        asset: chain.currency,
+        spender: "card",
+        amount: chain.amount,
+        deployment,
+      }),
+    ]);
     const allowance = await getAllowance(deps.client, {
       deployment,
       owner: checked.owner,

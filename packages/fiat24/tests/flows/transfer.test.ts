@@ -18,6 +18,7 @@ import {
   B,
   balanceEntries,
   flowDeps,
+  guardCalls,
   honestStorage,
   interleaveCalls,
   makeFlowStub,
@@ -508,5 +509,21 @@ describe("advanceTransfer send path", () => {
         expect(persisted).toHaveLength(0);
       }),
     );
+  });
+});
+
+describe("advanceTransfer drift at the draft step", () => {
+  test("impl drift ⇒ contract-changed before any guard read", async () => {
+    const storage = honestStorage();
+    const impl = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc" as Hex;
+    storage.set(`${TOKEN.toLowerCase()}:${impl}`, wordWithAddress(RECIPIENT));
+    const stub = makeFlowStub({ calls: proxyAdminEntry(), storage });
+    const { deps } = flowDeps(stub.client);
+    const error = await expectErrorAsync(
+      async () => advanceTransfer(deps, DRAFT),
+      "contract-changed",
+    );
+    expect(error.detail).toMatchObject({ contract: "EUR24", field: "implementation" });
+    expect(guardCalls(stub)).toStrictEqual([]);
   });
 });

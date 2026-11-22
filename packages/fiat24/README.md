@@ -12,6 +12,8 @@ Platform-neutral (Node, browsers, Hermes): one subpath export per layer — `@qn
 
 ### Reads
 
+<!-- example: tests/readme/reads.ts -->
+
 ```ts
 import { createPublicClient, http } from "viem";
 import { arbitrum } from "viem/chains";
@@ -30,6 +32,8 @@ Every read pins one block and returns it as `blockNumber`. Balances, status, lim
 ### The signer
 
 The SDK holds no keys and never signs. Writes go through an injected `Fiat24Signer`:
+
+<!-- example: tests/readme/signer.ts -->
 
 ```ts
 import { createWalletClient, http } from "viem";
@@ -57,6 +61,8 @@ const signer: Fiat24Signer = {
 
 Each flow is a resumable state machine: `start*` returns a state, `advance*(deps, state)` performs one step and returns the next state, and the host stores every state through `persist`.
 
+<!-- example: tests/readme/flows.ts -->
+
 ```ts
 import {
   advanceTransfer,
@@ -64,14 +70,17 @@ import {
   encodeFlowState,
   startTransfer,
 } from "@qntx/fiat24/flows";
+import type { FlowDeps, TransferState } from "@qntx/fiat24/flows";
 
-const deps = {
+const deps: FlowDeps = {
   client,
   signer,
-  persist: async (state) => store.set(id, encodeFlowState(state)),
+  persist: async (state) => {
+    await store.set(id, encodeFlowState(state));
+  },
 };
 
-let state = startTransfer({
+let state: TransferState = startTransfer({
   owner: signer.address,
   currency: "EUR24",
   amount: 1000n,
@@ -79,21 +88,32 @@ let state = startTransfer({
 });
 while (state.step !== "confirmed" && state.step !== "failed" && state.step !== "not-sent") {
   state = await advanceTransfer(deps, state);
+  if (state.txs.at(-1)?.error === "signer-rejected") {
+    // The user declined the prompt: stop and show the rejection; the
+    // persisted state reconciles on a later advance.
+    break;
+  }
+  if (state.step === "tx") {
+    await sleep(15_000);
+  }
 }
 
-// After a restart: resume from what was persisted.
-state = await advanceTransfer(deps, decodeFlowState(await store.get(id)));
+// After a restart: resume from what was persisted, narrowing the decoded union.
+const resumed = decodeFlowState(await store.get(id));
+if (resumed.flow === "transfer") {
+  state = await advanceTransfer(deps, resumed);
+}
 ```
 
-| Flow                   | Start                                  | Steps                                                                                       |
-| ---------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Account (read model)   | `loadAccount(deps, { owner })`         | `no-account`, the account status, or `stale` (the account NFT moved away from this address) |
-| P2P transfer           | `startTransfer`                        | `draft → ready → tx → confirmed`                                                            |
-| FX exchange            | `startExchange`                        | `draft → quoted → tx (approve) → tx (main) → confirmed`                                     |
-| Payout (EUR24 / CHF24) | `startPayout`                          | `draft` (memory only) `→ verified → tx → confirmed`                                         |
-| Card                   | `startCardSetup`, `startCardOperation` | `ready → tx (approve) → tx (API write) → confirmed`                                         |
-| Onboarding             | `startOnboarding`                      | `check → ready → tx (approve F24) → tx (mint) → tourist → kyc → live / rejected`            |
-| Top-up (USDC)          | `startTopUp`                           | `check → quoted → tx (approve USDC) → tx (main) → confirmed`, or `unavailable`              |
+| Flow                   | Start                                  | Steps                                                                                            |
+| ---------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Account (read model)   | `loadAccount(deps, { owner })`         | `no-account`, the account status, or `stale` (the account NFT moved away from this address)      |
+| P2P transfer           | `startTransfer`                        | `draft → ready → tx → confirmed`                                                                 |
+| FX exchange            | `startExchange`                        | `draft → quoted → tx (approve) → tx (main) → confirmed`                                          |
+| Payout (EUR24 / CHF24) | `startPayout`                          | `draft` (memory only) `→ verified → tx → confirmed`; `loadPayoutSettlement` reads the settlement |
+| Card                   | `startCardSetup`, `startCardOperation` | `ready → tx (approve) → tx (API write) → confirmed`                                              |
+| Onboarding             | `startOnboarding`                      | `check → ready → tx (approve F24) → tx (mint) → tourist → kyc → live / rejected`                 |
+| Top-up (USDC)          | `startTopUp`                           | `check → quoted → tx (approve USDC) → tx (main) → confirmed`, or `unavailable`                   |
 
 While a transaction is in flight the step is `tx` and the last entry of `txs` carries its phase (`ready`, `sending`, `submitted`, `unknown`); every flow can also end in `failed` or `not-sent`. `advance*` throws a `Fiat24Error` only when no transition happened (a guard refused, the RPC or API failed); the state is then unchanged and nothing was sent. Every advance re-reads the chain at a fresh block, asserts the pinned deployment of every contract its reads touch before the first read, and re-runs its guards before any send; a persisted state is untrusted input and calls are always rebuilt from its fields.
 
@@ -143,7 +163,7 @@ This SDK is unofficial. It is not affiliated with or endorsed by SR Saphirstein 
 
 These facts hold for the pinned deployment (Arbitrum block 526365924) and are outside the SDK's control:
 
-- A single externally owned account, `0x1272c99bEFa7a70f935Edca81BF9a6E85C6D9D59`, owns the ProxyAdmin of every Fiat24 proxy and holds the admin and operator roles on every contract. It can upgrade any implementation, pause any contract, change account status and limits, change rates, spreads and fees, maintain the sanctions list, and change the wiring pointers (price list, F24, F24 sales, USDC).
+- A single externally owned account, `0x1272c99bEFa7a70f935Edca81BF9a6E85C6D9D59`, owns the ProxyAdmin of every Fiat24 proxy, so it can upgrade any implementation, including the price list. At block 526527688 it holds `DEFAULT_ADMIN_ROLE` and `OPERATOR_ROLE` on the account contract, the four cash tokens, the deposit contract, the card contract, F24Sales and F24 (an admin can grant itself every other role); on the price list it holds no role. Through these powers it can pause any contract, change account status and limits, change rates, spreads and fees, maintain the sanctions list, and change the wiring pointers (price list, F24, F24 sales, USDC).
 - Card authorisations are pulled by Fiat24's authoriser up to the allowance granted to the card contract.
 - Cash tokens (USD24, EUR24, CHF24, CNH24) represent liabilities of the issuer; holding them is not self-custody of the underlying funds.
 - Fiat24 currently states that it is in maintenance mode: new client onboarding and crypto top-ups are suspended. There is no on-chain signal for this; the SDK reports `unavailable` only from on-chain facts (for example the paused deposit contract) and onboarding surfaces the KYC states returned by the API.

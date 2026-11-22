@@ -1,0 +1,118 @@
+{
+  "name": "@qntx/fiat24",
+  "version": "0.0.0",
+  "description": "Unofficial TypeScript SDK for the Fiat24 protocol on Arbitrum One; not affiliated with or endorsed by SR Saphirstein AG",
+  "keywords": [
+    "arbitrum",
+    "ethereum",
+    "fiat24",
+    "sdk",
+    "typescript",
+    "viem"
+  ],
+  "homepage": "https://github.com/qntx/fiat24#readme",
+  "bugs": {
+    "url": "https://github.com/qntx/fiat24/issues"
+  },
+  "license": "MIT OR Apache-2.0",
+  "author": "QuantX <x@qntx.org>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qntx/fiat24.git",
+    "directory": "packages/fiat24"
+  },
+  "files": [
+    "dist",
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
+    },
+    "./abi": {
+      "types": "./dist/abi.d.mts",
+      "import": "./dist/abi.mjs",
+      "default": "./dist/abi.mjs"
+    },
+    "./api": {
+      "types": "./dist/api.d.mts",
+      "import": "./dist/api.mjs",
+      "default": "./dist/api.mjs"
+    },
+    "./calls": {
+      "types": "./dist/calls.d.mts",
+      "import": "./dist/calls.mjs",
+      "default": "./dist/calls.mjs"
+    },
+    "./chain": {
+      "types": "./dist/chain.d.mts",
+      "import": "./dist/chain.mjs",
+      "default": "./dist/chain.mjs"
+    },
+    "./core": {
+      "types": "./dist/core.d.mts",
+      "import": "./dist/core.mjs",
+      "default": "./dist/core.mjs"
+    },
+    "./deployments": {
+      "types": "./dist/deployments.d.mts",
+      "import": "./dist/deployments.mjs",
+      "default": "./dist/deployments.mjs"
+    },
+    "./events": {
+      "types": "./dist/events.d.mts",
+      "import": "./dist/events.mjs",
+      "default": "./dist/events.mjs"
+    },
+    "./flows": {
+      "types": "./dist/flows.d.mts",
+      "import": "./dist/flows.mjs",
+      "default": "./dist/flows.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "dev": "vp pack --watch",
+    "test": "vp test --coverage && bun scripts/size-check.ts",
+    "test:fork": "vp test tests/fork",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.src.json",
+    "smoke:hermes": "bun scripts/hermes-smoke.ts",
+    "check:pkg": "vp pack && bun ../../scripts/check-dist-deps.ts . && bun ../../scripts/check-api.ts . && publint && attw --pack . --profile esm-only",
+    "prepublishOnly": "vp run build"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
+    "@qntx/tsconfig": "1.0.1",
+    "@types/node": "26.6.6",
+    "publint": "0.3.25",
+    "typescript": "7.0.2",
+    "viem": "2.57.12",
+    "vite-plus": "1.4.0"
+  },
+  "peerDependencies": {
+    "viem": "^2.57.12"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "bun",
+      "version": "1.4.0",
+      "onFail": "ignore"
+    }
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}

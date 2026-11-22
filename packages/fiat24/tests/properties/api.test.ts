@@ -28,6 +28,18 @@ const SP_PATH = `/verify?sp=${encodeURIComponent(
 )}`;
 const QR_PATH = `/verify?qr=${encodeURIComponent(DOC_QR)}`;
 
+// The recorded /banks body is ~1.5 MB: mutating and re-parsing it per property run times out a
+// slow CI runner, so the seed is a valid cut-down of the same body (the full recorded body is
+// still parsed end-to-end in tests/api/public.test.ts).
+const banksBody = JSON.parse(fixtureBody("public/banks.json")) as {
+  lastUpdateAt: number;
+  banks: Record<string, ReadonlyArray<unknown>>;
+};
+const BANKS_SEED = JSON.stringify({
+  lastUpdateAt: banksBody.lastUpdateAt,
+  banks: { CH: banksBody.banks["CH"]?.slice(0, 3), DE: banksBody.banks["DE"]?.slice(0, 2) },
+});
+
 const READ_CODES = new Set(["invalid-response", "api-rejected"]);
 const VERIFY_CODES = new Set(["invalid-response", "api-rejected", "api-mismatch"]);
 
@@ -71,7 +83,7 @@ const ENDPOINTS: ReadonlyArray<Endpoint> = [
   {
     name: "banks",
     route: "/banks",
-    valid: fixtureBody("public/banks.json"),
+    valid: BANKS_SEED,
     codes: READ_CODES,
     run: async (api) => api.banks(),
   },

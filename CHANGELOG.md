@@ -19,20 +19,34 @@ Saphirstein AG.
 ### Added
 
 - `abi` and `deployments`: the verified ABIs and the pinned deployment
-  (proxies, implementations, admin, wiring) generated from `data/`.
-- `core`: `Fiat24Error` with the closed `Fiat24ErrorCode` union, amount
-  parsing and formatting, account-id rules, IBAN derivation and validation,
-  revert decoding and the `Fiat24Signer` seam.
+  (proxies, implementations, admin, wiring) generated from `data/`;
+  every exported constant table is deep-frozen.
+- `core`: `Fiat24Error` with the closed `Fiat24ErrorCode` union,
+  amount parsing and formatting, account-id rules, IBAN derivation and
+  validation (LY included; unregistered countries pass the generic
+  check), revert decoding and the `Fiat24Signer` seam.
 - `calls`: data-first builders for transfer, exchange, payout, approve,
-  mint and top-up, each returning `{ to, data, value }` plus a typed intent.
+  mint and top-up, each returning `{ to, data, value }` plus a typed
+  intent; `approveCall` alone accepts `0n` (allowance revoke).
 - `events`: decoding of every Fiat24 event the SDK reports.
 - `chain`: viem-style read actions (account, balances, allowances,
   availability, deployment verification, FX and top-up quotes, transfer
-  checks, payout minimum and settlement, mint quote, history, simulation)
-  and the `fiat24PublicActions` client decorator.
-- `api`: the REST client for public endpoints, session grants with local
-  lifetime bounds, secured reads, `/verify` bindings and card writes.
-- `flows`: resumable state machines for the account view, P2P transfer, FX
-  exchange, payout, card management, onboarding and USDC top-up, with
-  persist-before-send, SDK-chosen nonces and reconciliation that never
+  checks, payout minimum and settlement, mint quote, history,
+  simulation) and the `fiat24PublicActions` client decorator.
+- `api`: the REST client for public endpoints (redirects refused, the
+  response body capped while streaming, display and id JSON numbers
+  required safe), session grants with local lifetime bounds and the
+  exported `SessionArgs`, secured reads, `/verify` bindings and card
+  writes (card `create` counts as done only on an `Active` card).
+- `flows`: resumable state machines for the account view, P2P transfer,
+  FX exchange, payout, card management, onboarding and USDC top-up.
+  `FlowDeps` injects `client`, `signer` and `persist` (no clock).
+  Every chain read happens at a `verifiedBlock` that asserts the pinned
+  deployment of the contracts it touches first. Persist-before-send with
+  SDK-chosen nonces; a hash-carrying record reconciles by its own
+  receipt (a mined own-hash transaction is never `not-sent`; a binding
+  mismatch is `unknown` with `mismatch`); `not-sent` needs the nonce at
+  two blocks plus the pending count; `confirmed` re-checks the
+  receipt on advance; payout settlement is read with
+  `loadPayoutSettlement` from a fresh receipt; reconciliation never
   resends.

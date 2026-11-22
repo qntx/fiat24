@@ -1,3 +1,5 @@
+import { bytesToString } from "viem";
+
 import { Fiat24Error } from "../core/errors.ts";
 import type { Fiat24ErrorCode, Fiat24ErrorDetail } from "../core/errors.ts";
 
@@ -34,6 +36,56 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isFetch(value: unknown): value is typeof fetch {
   return typeof value === "function";
+}
+
+/**
+ * The response body capped while reading: chunks are summed as they arrive and the stream is
+ * cancelled the moment the total crosses `maxBytes`, so an uncapped 2xx body is never buffered
+ * whole (R-03). A reader rejection is a transport failure (network-error); a chunk that is not a
+ * `Uint8Array` is a malformed body (invalid-response). The stream is cancelled on every refusal; a
+ * cancel rejection is not the failure.
+ */
+async function readBody(
+  reader: ReadableStreamDefaultReader<unknown>,
+  maxBytes: number,
+  endpoint: string,
+): Promise<string> {
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  let refused = false;
+  try {
+    for (;;) {
+      // oxlint-disable-next-line eslint/no-await-in-loop -- stream chunks are sequential
+      const part: { done: boolean; value?: unknown } = await reader.read();
+      if (part.done) {
+        break;
+      }
+      const { value } = part;
+      if (!(value instanceof Uint8Array)) {
+        refused = true;
+        break;
+      }
+      total += value.byteLength;
+      chunks.push(value);
+      if (total > maxBytes) {
+        refused = true;
+        break;
+      }
+    }
+  } catch {
+    throw apiError("network-error", endpoint);
+  }
+  if (refused) {
+    await reader.cancel().catch(() => undefined);
+    throw apiError("invalid-response", endpoint);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytesToString(bytes);
 }
 
 // UTF-8 byte length of a JS string, computed over UTF-16 code units (<0x80 -> 1, <0x800 -> 2,
@@ -128,14 +180,26 @@ export async function request(
   ) {
     throw apiError("invalid-response", endpoint);
   }
+  // When fetch exposes a response stream the cap is enforced while reading; a host fetch without
+  // streams (React Native's XHR fetch) only offers text(), which buffers the body before the cap.
+  const stream = response.body;
   let text: string;
-  try {
-    text = await response.text();
-  } catch {
-    throw apiError("network-error", endpoint);
-  }
-  if (utf8Length(text) > maxBytes) {
-    throw apiError("invalid-response", endpoint);
+  if (
+    typeof stream === "object" &&
+    stream !== null &&
+    "getReader" in stream &&
+    typeof stream.getReader === "function"
+  ) {
+    text = await readBody(stream.getReader(), maxBytes, endpoint);
+  } else {
+    try {
+      text = await response.text();
+    } catch {
+      throw apiError("network-error", endpoint);
+    }
+    if (utf8Length(text) > maxBytes) {
+      throw apiError("invalid-response", endpoint);
+    }
   }
   let body: unknown;
   try {

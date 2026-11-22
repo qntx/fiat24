@@ -22,6 +22,50 @@ import {
 const TOKEN_ID = 690333n;
 const SERVER_MS = 1_795_328_524_822;
 
+const MIB = 1024 * 1024;
+const CHUNK = 64 * 1024;
+
+/** A pull-based stream of `total` zero bytes in 64 KiB chunks, reporting pulls and cancel(). */
+function countingStream(total: number): {
+  stream: ReadableStream<Uint8Array>;
+  counter: { pulled: number; cancelled: boolean };
+} {
+  const counter = { pulled: 0, cancelled: false };
+  const chunk = new Uint8Array(CHUNK).fill(48);
+  let served = 0;
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (served < total) {
+        served += CHUNK;
+        counter.pulled += CHUNK;
+        controller.enqueue(chunk);
+      } else {
+        controller.close();
+      }
+    },
+    cancel() {
+      counter.cancelled = true;
+    },
+  });
+  return { stream, counter };
+}
+
+/** A pull-based stream serving `bytes` in `chunkSize` slices. */
+function streamOf(bytes: Uint8Array, chunkSize: number): ReadableStream<Uint8Array> {
+  let offset = 0;
+  return new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (offset >= bytes.byteLength) {
+        controller.close();
+        return;
+      }
+      const slice = bytes.subarray(offset, offset + chunkSize);
+      offset += slice.byteLength;
+      controller.enqueue(slice);
+    },
+  });
+}
+
 function publicApi(routes: Record<string, ReturnType<typeof json>>) {
   const stub = stubFetch(routes);
   const api = createFiat24Api({ fetch: stub.fetch, now: clock(SERVER_MS).now });
@@ -198,6 +242,8 @@ describe("api transport", () => {
     const stub = stubFetch({
       "/timestamp": () => {
         const response = new Response("{}", { status: 200 });
+        // `body: null` routes the read through text() (the no-stream fallback).
+        Object.defineProperty(response, "body", { value: null });
         Object.defineProperty(response, "text", {
           value: async () => Promise.reject(new Error("stream failed")),
         });
@@ -205,6 +251,21 @@ describe("api transport", () => {
       },
     });
     const api = createFiat24Api({ fetch: stub.fetch, now: () => SERVER_MS });
+    await expectApiError(async () => api.timestamp(), "network-error", "GET /timestamp");
+  });
+
+  test("a failing stream reader => network-error", async () => {
+    expect.hasAssertions();
+    const stream = new ReadableStream<Uint8Array>({
+      pull() {
+        throw new Error("stream failed");
+      },
+    });
+    const fetchFn = (async (): Promise<Response> =>
+      Promise.resolve(
+        new Response(stream, { status: 200, headers: { "content-type": "application/json" } }),
+      )) as typeof fetch;
+    const api = createFiat24Api({ fetch: fetchFn, now: () => SERVER_MS });
     await expectApiError(async () => api.timestamp(), "network-error", "GET /timestamp");
   });
 
@@ -265,17 +326,25 @@ describe("api transport", () => {
     await expectApiError(async () => other.api.timestamp(), "invalid-response", "GET /timestamp");
   });
 
-  test("content-length over cap => invalid-response and text() never called", async () => {
-    let textCalled = false;
+  test("content-length over cap => invalid-response and the body is never read", async () => {
+    let bodyRead = false;
     const stub = stubFetch({
       "/timestamp": () => {
         const response = new Response("{}", {
           status: 200,
           headers: { "content-length": "2097152" },
         });
+        Object.defineProperty(response, "body", {
+          value: {
+            getReader: () => {
+              bodyRead = true;
+              throw new Error("read attempted");
+            },
+          },
+        });
         Object.defineProperty(response, "text", {
           value: async () => {
-            textCalled = true;
+            bodyRead = true;
             return Promise.resolve("{}");
           },
         });
@@ -284,7 +353,7 @@ describe("api transport", () => {
     });
     const api = createFiat24Api({ fetch: stub.fetch, now: () => SERVER_MS });
     await expectApiError(async () => api.timestamp(), "invalid-response", "GET /timestamp");
-    expect(textCalled).toBe(false);
+    expect(bodyRead).toBe(false);
   });
 
   test("2 MiB body => invalid-response", async () => {
@@ -471,4 +540,67 @@ describe("redirected answers (R-02)", () => {
       }
     },
   );
+});
+
+describe("response body cap (R-03)", () => {
+  test("a 16 MiB stream without content-length is cut at the 1 MiB cap while reading", async () => {
+    const { stream, counter } = countingStream(16 * MIB);
+    const fetchFn = (async (): Promise<Response> =>
+      Promise.resolve(
+        new Response(stream, { status: 200, headers: { "content-type": "application/json" } }),
+      )) as typeof fetch;
+    const api = createFiat24Api({ fetch: fetchFn, now: () => SERVER_MS });
+    await expectApiError(async () => api.countries(), "invalid-response", "GET /countries");
+    // At most the cap plus the in-flight pull is served; buffered-before-cap would pull all 16.
+    expect(counter.pulled).toBeLessThanOrEqual(MIB + 2 * CHUNK);
+    expect(counter.cancelled).toBe(true);
+  });
+
+  test("/banks is cut at the 8 MiB cap while reading", async () => {
+    const { stream, counter } = countingStream(16 * MIB);
+    const fetchFn = (async (): Promise<Response> =>
+      Promise.resolve(
+        new Response(stream, { status: 200, headers: { "content-type": "application/json" } }),
+      )) as typeof fetch;
+    const api = createFiat24Api({ fetch: fetchFn, now: () => SERVER_MS });
+    await expectApiError(async () => api.banks(), "invalid-response", "GET /banks");
+    expect(counter.pulled).toBeLessThanOrEqual(8 * MIB + 2 * CHUNK);
+    expect(counter.cancelled).toBe(true);
+  });
+
+  test("a streamed body exactly at the cap succeeds", async () => {
+    const prefix = `{"timestamp":${SERVER_MS},"pad":"`;
+    const body = `${prefix}${"a".repeat(MIB - prefix.length - 2)}"}`;
+    expect(body).toHaveLength(MIB);
+    const bytes = new TextEncoder().encode(body);
+    const fetchFn = (async (): Promise<Response> =>
+      Promise.resolve(
+        new Response(streamOf(bytes, CHUNK), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      )) as typeof fetch;
+    const api = createFiat24Api({ fetch: fetchFn, now: () => SERVER_MS });
+    await expect(api.timestamp()).resolves.toBe(BigInt(SERVER_MS));
+  });
+
+  test("a response without a stream still applies the cap after text()", async () => {
+    expect.hasAssertions();
+    // The whatwg-fetch (React Native) shape: `body` is null and only text() exists — the body is
+    // buffered by fetch and the cap applies to the decoded string.
+    const stub = stubFetch({
+      "/timestamp": () =>
+        ({
+          status: 200,
+          type: "basic",
+          redirected: false,
+          url: "",
+          headers: new Headers({ "content-type": "application/json" }),
+          body: null,
+          text: async () => Promise.resolve(`{"x":"${"a".repeat(2 * MIB)}"}`),
+        }) as unknown as Response,
+    });
+    const api = createFiat24Api({ fetch: stub.fetch, now: () => SERVER_MS });
+    await expectApiError(async () => api.timestamp(), "invalid-response", "GET /timestamp");
+  });
 });

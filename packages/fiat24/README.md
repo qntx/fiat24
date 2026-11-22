@@ -127,6 +127,7 @@ The `api` layer is for React Native and server hosts.
 - Platform HTTP caches must be configured so `api.fiat24.com` responses are not stored (iOS `NSURLCache`, Android OkHttp cache).
 - A session grant is a bearer credential: the server checks only that `sign` is the account owner's `personal_sign` of the grant message, so until `deadline` anyone holding the four grant header values (`tokenid`, `hash`, `deadline`, `sign`) can call every secured endpoint of that account: profile data, card display tokens, card creation/status/currency/device-token changes, payee creation via `/verify`, and `PUT /email`, which moves the one-time-password channel and which this SDK never calls. A wallet prompt must say what the grant permits.
 - Requests are sent with `redirect: "error"` and any redirect response is refused. React Native's `fetch` (XHR) follows redirects regardless of that option, so on React Native the grant headers can reach a redirect target before the SDK refuses the response — inject a `fetch` that does not follow redirects where that matters.
+- The body cap (1 MiB; 8 MiB for `/banks`) is enforced while reading when `fetch` exposes a response stream. React Native's `fetch` exposes none, so there the body is buffered by `fetch` before the cap applies and the host `fetch` timeout is what bounds it.
 - The SDK grants for 600 seconds and refuses a grant when the server clock differs from the local clock by more than 300 seconds.
 - Owners that cannot produce an ECDSA `personal_sign` signature, including contract wallets, cannot open sessions.
 

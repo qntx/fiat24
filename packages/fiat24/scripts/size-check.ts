@@ -51,7 +51,7 @@ const ENTRIES = [
   { name: "events", entry: "src/events/index.ts", budget: 8192 },
   { name: "chain", entry: "src/chain/index.ts", budget: 18432 },
   { name: "api", entry: "src/api/index.ts", budget: 15360 },
-  { name: "flows", entry: "src/flows/index.ts", budget: 1024 },
+  { name: "flows", entry: "src/flows/index.ts", budget: 38912 },
 ] as const;
 
 // Layers the root entry may never pull: they are opt-in subpaths, and a

@@ -59,6 +59,14 @@ const UNKNOWN: TransferState = state({
   nonce: NONCE,
   error: "unknown-outcome",
 });
+const UNKNOWN_HASHED: TransferState = state({
+  purpose: "main",
+  phase: "unknown",
+  fromBlock: B,
+  nonce: NONCE,
+  hash: TXID_1,
+  error: "unknown-outcome",
+});
 const SUBMITTED: TransferState = state({
   purpose: "main",
   phase: "submitted",
@@ -109,6 +117,90 @@ function honestTx(hash: Hash, nonce = NONCE, blockNumber = B + 1n) {
     blockNumber,
   });
 }
+
+// A 7702/smart-account batching wallet wrapped our call: same hash, from and nonce, but `to` is
+// the owner's own account and the input is some execute-style payload, not our transfer bytes.
+const WRAPPED_INPUT: Hex = "0xac9650d8";
+const WRAPPED_TX = txPayload({
+  hash: TXID_1,
+  from: OWNER,
+  to: OWNER,
+  input: WRAPPED_INPUT,
+  value: 0n,
+  nonce: NONCE,
+  blockNumber: B + 1n,
+});
+
+/** The success receipt of TXID_1 at B+1 containing the real Transfer(OWNER→RECIPIENT, AMOUNT). */
+function ownReceipt() {
+  return receiptPayload({
+    transactionHash: TXID_1,
+    blockNumber: B + 1n,
+    status: "success",
+    logs: [
+      transferLog({
+        token: TOKEN,
+        from: OWNER,
+        to: RECIPIENT,
+        amount: AMOUNT,
+        blockNumber: B + 1n,
+        transactionHash: TXID_1,
+      }),
+    ],
+  });
+}
+
+/** The ledger stub: nonce consumed, our Transfer log under TXID_1, the non-binding wrapped tx. */
+function ledgerStub() {
+  return makeFlowStub({
+    count: { latest: NONCE + 1 },
+    logs: () => [
+      transferLog({
+        token: TOKEN,
+        from: OWNER,
+        to: RECIPIENT,
+        amount: AMOUNT,
+        blockNumber: B + 1n,
+        transactionHash: TXID_1,
+      }),
+    ],
+    transactions: { [TXID_1]: WRAPPED_TX },
+    receipts: { [TXID_1]: ownReceipt() },
+  });
+}
+
+describe("reconcile by the recorded hash's receipt first (R-01)", () => {
+  test("a mined wrapped tx under our hash ⇒ unknown{mismatch}, never not-sent", async () => {
+    const { signer, requests } = makeSigner(OWNER);
+    const first = makeFlowStub({
+      receipts: { [TXID_1]: ownReceipt() },
+      transactions: { [TXID_1]: WRAPPED_TX },
+    });
+    const { deps } = flowDeps(first.client, { signer });
+    const unbound = await advanceTransfer(deps, SUBMITTED);
+    expect(unbound.txs[0]?.phase).toBe("unknown");
+    expect(unbound.txs[0]?.mismatch).toBe("to");
+    expect(unbound.txs[0]?.error).toBe("unknown-outcome");
+
+    const ledger = ledgerStub();
+    const { deps: deps2 } = flowDeps(ledger.client, { signer });
+    const next = await advanceTransfer(deps2, unbound);
+    expect(next.step).toBe("tx");
+    expect(next.txs[0]?.phase).toBe("unknown");
+    expect(next.txs[0]?.mismatch).toBe("to");
+    expect(requests).toHaveLength(0);
+  });
+
+  test("unknown{hash} reconciles by the hash receipt, not the nonce", async () => {
+    const ledger = ledgerStub();
+    const { deps } = flowDeps(ledger.client);
+    const next = await advanceTransfer(deps, UNKNOWN_HASHED);
+    expect(next.step).toBe("tx");
+    expect(next.txs[0]?.phase).toBe("unknown");
+    expect(next.txs[0]?.mismatch).toBe("to");
+    expect(next.step).not.toBe("not-sent");
+  });
+});
 
 describe("unknown outcome", () => {
   test("crash between persist and send", async () => {

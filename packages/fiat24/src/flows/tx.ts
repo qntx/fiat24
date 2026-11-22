@@ -12,7 +12,7 @@ import { CHAIN_ID } from "../core/types.ts";
 import type { Deployment } from "../deployments/deployment.ts";
 import { decodeFiat24Log } from "../events/decode.ts";
 import type { Fiat24Event, RawLog } from "../events/types.ts";
-import type { FlowDeps, FlowState, TxRecord } from "./types.ts";
+import type { FlowDeps, FlowState, TxMismatch, TxRecord } from "./types.ts";
 
 // SPEC §7.2: arb1's eth_getLogs window limit for an address/topic-array filter is
 // 100,000 blocks; the evidence search walks [fromBlock, latest] in those windows.
@@ -113,21 +113,30 @@ function isRejection(error: unknown): boolean {
 }
 
 /**
- * The five-field binding (§4): the transaction must be exactly the rebuilt call — `from`, `to`,
- * `input`, `value`, `nonce` — else it is not ours.
+ * The five-field binding (§4): the transaction must be exactly the rebuilt call — `from`, `nonce`,
+ * `to`, `input`, `value` — else it is not ours, and the first differing field (in that order) is
+ * the record's `mismatch`. A contract-creation `to: null` is a `to` mismatch.
  */
-function binds(
+export function mismatchOf(
   tx: Transaction,
   args: { readonly owner: Address; readonly call: Fiat24Call; readonly nonce: number },
-): boolean {
-  return (
-    isAddressEqual(tx.from, args.owner) &&
-    tx.to !== null &&
-    isAddressEqual(tx.to, args.call.to) &&
-    tx.input.toLowerCase() === args.call.data.toLowerCase() &&
-    tx.value === args.call.value &&
-    tx.nonce === args.nonce
-  );
+): TxMismatch | undefined {
+  if (!isAddressEqual(tx.from, args.owner)) {
+    return "from";
+  }
+  if (tx.nonce !== args.nonce) {
+    return "nonce";
+  }
+  if (tx.to === null || !isAddressEqual(tx.to, args.call.to)) {
+    return "to";
+  }
+  if (tx.input.toLowerCase() !== args.call.data.toLowerCase()) {
+    return "input";
+  }
+  if (tx.value !== args.call.value) {
+    return "value";
+  }
+  return undefined;
 }
 
 function checkedCount(value: number): number {
@@ -233,8 +242,56 @@ async function readyPhase<S extends FlowState, R>(
   return { record: next, state, result: undefined };
 }
 
-/** §4 `submitted`: receipt → binding → status; receipt missing → tx lookup → reconcile. */
-async function submittedPhase<S extends FlowState, R>(
+// The outcome for a hash-bearing record whose transaction has no receipt yet: a mismatching
+// pending tx is `unknown{…, mismatch}`, a binding one is (back to) `submitted`; a vanished tx
+// falls through to the nonce reconciliation.
+async function pendingOrVanished<S extends FlowState, R>(
+  deps: FlowDeps,
+  args: TxArgs<S, R>,
+  record: TxRecord,
+  hash: Hash,
+  nonce: number,
+  fromBlock: bigint,
+): Promise<TxOutcome<S, R>> {
+  let tx: Transaction;
+  try {
+    tx = await getTransaction(deps.client, { hash });
+  } catch (error) {
+    if (errorNamed(error, "TransactionNotFoundError")) {
+      return byNonce(deps, args, record);
+    }
+    return mapViemError(error);
+  }
+  const mismatch = mismatchOf(tx, { owner: args.owner, call: args.call, nonce });
+  if (mismatch !== undefined) {
+    const next: TxRecord = {
+      purpose: args.purpose,
+      phase: "unknown",
+      fromBlock,
+      nonce,
+      hash,
+      error: "unknown-outcome",
+      mismatch,
+    };
+    const state = args.commit(next);
+    await deps.persist(state);
+    return { record: next, state, result: undefined };
+  }
+  // Binding and pending (or mined without a receipt yet): `submitted` — an `unknown` record is
+  // promoted, a `submitted` stays; persisted once either way (§3.5).
+  const next: TxRecord = { purpose: args.purpose, phase: "submitted", fromBlock, nonce, hash };
+  const state = args.commit(next);
+  await deps.persist(state);
+  return { record: next, state, result: undefined };
+}
+
+/**
+ * §4 hash-first reconciliation (R-01): a record that carries a hash is reconciled by that hash's
+ * receipt before the nonce ledger is consulted — a mined own-hash transaction is never `not-sent`.
+ * Receipt and transaction both bind ⇒ `confirmed`; a mined transaction whose
+ * `from`/`nonce`/`to`/`input`/`value` differs from the rebuilt call is `unknown{…, mismatch}`.
+ */
+async function byHash<S extends FlowState, R>(
   deps: FlowDeps,
   args: TxArgs<S, R>,
   record: TxRecord,
@@ -250,12 +307,13 @@ async function submittedPhase<S extends FlowState, R>(
     receipt = await getTransactionReceipt(deps.client, { hash });
   } catch (error) {
     if (errorNamed(error, "TransactionReceiptNotFoundError")) {
-      return missingReceipt(deps, args, record, hash, nonce, fromBlock);
+      return pendingOrVanished(deps, args, record, hash, nonce, fromBlock);
     }
     return mapViemError(error);
   }
   const tx = await getTx(deps, hash);
-  if (!binds(tx, { owner: args.owner, call: args.call, nonce })) {
+  const mismatch = mismatchOf(tx, { owner: args.owner, call: args.call, nonce });
+  if (mismatch !== undefined) {
     const next: TxRecord = {
       purpose: args.purpose,
       phase: "unknown",
@@ -263,6 +321,7 @@ async function submittedPhase<S extends FlowState, R>(
       nonce,
       hash,
       error: "unknown-outcome",
+      mismatch,
     };
     const state = args.commit(next);
     await deps.persist(state);
@@ -294,43 +353,6 @@ async function submittedPhase<S extends FlowState, R>(
   const state = args.commit(next);
   await deps.persist(state);
   return { record: next, state, result };
-}
-
-// Receipt absent: find the tx (pending impostor ⇒ unknown; vanished ⇒ reconcile).
-async function missingReceipt<S extends FlowState, R>(
-  deps: FlowDeps,
-  args: TxArgs<S, R>,
-  record: TxRecord,
-  hash: Hash,
-  nonce: number,
-  fromBlock: bigint,
-): Promise<TxOutcome<S, R>> {
-  let tx: Transaction;
-  try {
-    tx = await getTransaction(deps.client, { hash });
-  } catch (error) {
-    if (errorNamed(error, "TransactionNotFoundError")) {
-      return reconcile(deps, args, record);
-    }
-    return mapViemError(error);
-  }
-  if (!binds(tx, { owner: args.owner, call: args.call, nonce })) {
-    const next: TxRecord = {
-      purpose: args.purpose,
-      phase: "unknown",
-      fromBlock,
-      nonce,
-      hash,
-      error: "unknown-outcome",
-    };
-    const state = args.commit(next);
-    await deps.persist(state);
-    return { record: next, state, result: undefined };
-  }
-  // Pending (or mined without a receipt yet): unchanged — still persisted once (§3.5).
-  const state = args.commit(record);
-  await deps.persist(state);
-  return { record, state, result: undefined };
 }
 
 async function getTx(deps: FlowDeps, hash: Hash): Promise<Transaction> {
@@ -402,12 +424,12 @@ function decodeEvidence(
 }
 
 /**
- * §4 reconcile — `sending`/`unknown`, and `submitted` whose hash vanished: the nonce ledger
+ * §4 byNonce — `sending`/`unknown`, and hash-bearing records whose hash vanished: the nonce ledger
  * decides. `L <= N` keeps `submitted`/`unknown` unchanged and turns `sending` into `unknown`; `L >
  * N` runs the evidence search — a transaction carrying nonce N with our exact bytes is `submitted`
  * (wallet speed-up), anything else is `not-sent`.
  */
-async function reconcile<S extends FlowState, R>(
+async function byNonce<S extends FlowState, R>(
   deps: FlowDeps,
   args: TxArgs<S, R>,
   record: TxRecord,
@@ -477,7 +499,7 @@ async function reconcile<S extends FlowState, R>(
     const txid = candidates[index];
     if (txid !== undefined) {
       const tx = await getTx(deps, txid);
-      if (!binds(tx, { owner: args.owner, call: args.call, nonce })) {
+      if (mismatchOf(tx, { owner: args.owner, call: args.call, nonce }) !== undefined) {
         return inspect(index + 1);
       }
     }
@@ -493,9 +515,10 @@ async function reconcile<S extends FlowState, R>(
 }
 
 /**
- * The §10.1 sub-machine over one TxRecord. `ready` (or no record) runs the send path; `submitted`
- * reconciles by hash; `sending`/`unknown` reconcile by nonce and never send again (I10). Terminal
- * records are unreachable — the codec and the flow's step check keep them out.
+ * The §10.1 sub-machine over one TxRecord. `ready` (or no record) runs the send path; every
+ * hash-bearing record reconciles by that hash's receipt first; `sending`/`unknown` without a hash
+ * reconcile by nonce and never send again (I10). Terminal records are unreachable — the codec and
+ * the flow's step check keep them out.
  */
 export async function advanceTx<S extends FlowState, R>(
   deps: FlowDeps,
@@ -507,10 +530,10 @@ export async function advanceTx<S extends FlowState, R>(
   }
   switch (record.phase) {
     case "submitted":
-      return submittedPhase(deps, args, record);
+      return byHash(deps, args, record);
     case "sending":
     case "unknown":
-      return reconcile(deps, args, record);
+      return record.hash === undefined ? byNonce(deps, args, record) : byHash(deps, args, record);
     default:
       return invalidState();
   }

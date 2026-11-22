@@ -30,10 +30,14 @@ export type TxPhase =
   | "unknown"
   | "not-sent";
 
+/** The first binding field that differed between the mined transaction and the rebuilt call. */
+export type TxMismatch = "from" | "nonce" | "to" | "input" | "value";
+
 /**
  * SPEC §10.1. The call is never stored — it is rebuilt from the flow's intent fields each advance
  * (I20); `nonce` is chosen by the SDK and passed to the signer, which must sign with exactly that
- * nonce or throw (§10.9).
+ * nonce or throw (§10.9). `mismatch` is legal only on `unknown{hash, unknown-outcome}`: the mined
+ * transaction under that hash is not ours — the field says where it diverged.
  */
 export type TxRecord = {
   readonly purpose: "approve" | "main";
@@ -42,6 +46,7 @@ export type TxRecord = {
   readonly nonce?: number;
   readonly hash?: Hash;
   readonly blockNumber?: bigint;
+  readonly mismatch?: TxMismatch;
   readonly error?: Fiat24ErrorCode;
 };
 

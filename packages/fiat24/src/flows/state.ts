@@ -62,6 +62,7 @@ const phaseField = z.enum([
   "not-sent",
 ]);
 const errorField = z.enum(fiat24ErrorCodes);
+const mismatchField = z.enum(["from", "nonce", "to", "input", "value"]);
 const text64 = z.string().check(z.maxLength(64));
 const textId = z.string().check(z.minLength(1)).check(z.maxLength(1024));
 const text1024 = z.string().check(z.maxLength(1024));
@@ -73,6 +74,7 @@ const txRecordSchema = z.strictObject({
   nonce: z.optional(nonceField),
   hash: z.optional(hashField),
   blockNumber: z.optional(bigintField),
+  mismatch: z.optional(mismatchField),
   error: z.optional(errorField),
 });
 
@@ -247,11 +249,11 @@ export const API_READY_ERRORS: ReadonlyArray<Fiat24ErrorCode> = /* @__PURE__ */ 
 ]);
 
 function chainRecord(record: ParsedRecord): void {
-  const { fromBlock, nonce, hash, blockNumber, error } = record;
+  const { fromBlock, nonce, hash, blockNumber, mismatch, error } = record;
   const none = fromBlock === undefined && nonce === undefined && hash === undefined;
   switch (record.phase) {
     case "ready":
-      if (!none || blockNumber !== undefined) {
+      if (!none || blockNumber !== undefined || mismatch !== undefined) {
         invalidState();
       }
       if (error !== undefined && error !== "signer-rejected") {
@@ -264,6 +266,7 @@ function chainRecord(record: ParsedRecord): void {
         nonce === undefined ||
         hash !== undefined ||
         blockNumber !== undefined ||
+        mismatch !== undefined ||
         error !== undefined
       ) {
         invalidState();
@@ -275,6 +278,7 @@ function chainRecord(record: ParsedRecord): void {
         nonce === undefined ||
         hash === undefined ||
         blockNumber !== undefined ||
+        mismatch !== undefined ||
         error !== undefined
       ) {
         invalidState();
@@ -284,7 +288,9 @@ function chainRecord(record: ParsedRecord): void {
       if (fromBlock === undefined || nonce === undefined || blockNumber !== undefined) {
         invalidState();
       }
-      if (error !== "unknown-outcome") {
+      // `mismatch` describes the mined transaction under `hash` — legal only while both
+      // the hash and the unknown-outcome marker are present.
+      if (error !== "unknown-outcome" || (mismatch !== undefined && hash === undefined)) {
         invalidState();
       }
       return;
@@ -294,6 +300,7 @@ function chainRecord(record: ParsedRecord): void {
         nonce === undefined ||
         hash === undefined ||
         blockNumber === undefined ||
+        mismatch !== undefined ||
         error !== undefined
       ) {
         invalidState();
@@ -305,13 +312,19 @@ function chainRecord(record: ParsedRecord): void {
         nonce === undefined ||
         hash === undefined ||
         blockNumber === undefined ||
+        mismatch !== undefined ||
         error !== "tx-reverted"
       ) {
         invalidState();
       }
       return;
     case "not-sent":
-      if (fromBlock === undefined || nonce === undefined || blockNumber !== undefined) {
+      if (
+        fromBlock === undefined ||
+        nonce === undefined ||
+        blockNumber !== undefined ||
+        mismatch !== undefined
+      ) {
         invalidState();
       }
       if (error !== undefined) {
@@ -321,12 +334,13 @@ function chainRecord(record: ParsedRecord): void {
 }
 
 function apiRecord(record: ParsedRecord): void {
-  const { fromBlock, nonce, hash, blockNumber, error } = record;
+  const { fromBlock, nonce, hash, blockNumber, mismatch, error } = record;
   if (
     fromBlock !== undefined ||
     nonce !== undefined ||
     hash !== undefined ||
-    blockNumber !== undefined
+    blockNumber !== undefined ||
+    mismatch !== undefined
   ) {
     invalidState();
   }
@@ -451,6 +465,7 @@ function normRecord(record: ParsedRecord): TxRecord {
     ...(record.nonce === undefined ? {} : { nonce: record.nonce }),
     ...(record.hash === undefined ? {} : { hash: record.hash }),
     ...(record.blockNumber === undefined ? {} : { blockNumber: record.blockNumber }),
+    ...(record.mismatch === undefined ? {} : { mismatch: record.mismatch }),
     ...(record.error === undefined ? {} : { error: record.error }),
   };
 }

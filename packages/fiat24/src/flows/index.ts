@@ -20,6 +20,7 @@ export type {
   PayoutTarget,
   TopUpState,
   TransferState,
+  TxMismatch,
   TxPhase,
   TxRecord,
 } from "./types.ts";

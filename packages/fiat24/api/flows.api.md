@@ -626,6 +626,9 @@ export type TransferState = Common & {
     readonly to: Recipient;
 };
 
+// @public
+export type TxMismatch = "from" | "nonce" | "to" | "input" | "value";
+
 // @public (undocumented)
 export type TxPhase = "ready" | "sending" | "submitted" | "confirmed" | "failed" | "unknown" | "not-sent";
 
@@ -637,6 +640,7 @@ export type TxRecord = {
     readonly nonce?: number;
     readonly hash?: Hash;
     readonly blockNumber?: bigint;
+    readonly mismatch?: TxMismatch;
     readonly error?: Fiat24ErrorCode;
 };
 

@@ -106,6 +106,15 @@ const SUBMITTED: TxRecord = {
   hash: TXID_1,
 };
 
+const UNKNOWN_HASHED: TxRecord = {
+  purpose: "main",
+  phase: "unknown",
+  fromBlock: B,
+  nonce: 1,
+  hash: TXID_1,
+  error: "unknown-outcome",
+};
+
 function bindingTx(hash: Hash, nonce = 1): Record<string, unknown> {
   return txPayload({
     hash,
@@ -204,7 +213,7 @@ describe("advanceTx", () => {
     expect(outcome.record).toStrictEqual(SUBMITTED);
   });
 
-  test("receipt + non-binding transaction ⇒ unknown", async () => {
+  test("receipt + non-binding transaction ⇒ unknown{mismatch}", async () => {
     const stub = makeFlowStub({
       receipts: {
         [TXID_1.toLowerCase()]: receiptPayload({
@@ -219,6 +228,114 @@ describe("advanceTx", () => {
     const outcome = await advanceTx(deps, base(SUBMITTED));
     expect(outcome.record.phase).toBe("unknown");
     expect(outcome.record.error).toBe("unknown-outcome");
+    expect(outcome.record.mismatch).toBe("nonce");
+  });
+
+  // One mutation per binding field; `to: null` (contract creation) is also a `to` mismatch.
+  const MISMATCH_CASES: ReadonlyArray<{
+    readonly patch: Record<string, unknown>;
+    readonly mismatch: string;
+  }> = [
+    { patch: { from: RECIPIENT }, mismatch: "from" },
+    { patch: { nonce: 2 }, mismatch: "nonce" },
+    { patch: { to: RECIPIENT }, mismatch: "to" },
+    { patch: { to: null }, mismatch: "to" },
+    { patch: { input: "0xac9650d8" }, mismatch: "input" },
+    { patch: { value: 1n }, mismatch: "value" },
+  ];
+
+  test.each(MISMATCH_CASES)(
+    "submitted + mined tx mismatching ⇒ unknown{mismatch: $mismatch}",
+    async ({ patch, mismatch }) => {
+      const stub = makeFlowStub({
+        receipts: {
+          [TXID_1.toLowerCase()]: receiptPayload({
+            transactionHash: TXID_1,
+            blockNumber: B,
+            status: "success",
+          }),
+        },
+        transactions: { [TXID_1.toLowerCase()]: { ...bindingTx(TXID_1), ...patch } },
+      });
+      const { deps } = flowDeps(stub.client);
+      const outcome = await advanceTx(deps, base(SUBMITTED));
+      expect(outcome.record.phase).toBe("unknown");
+      expect(outcome.record.hash).toBe(TXID_1);
+      expect(outcome.record.mismatch).toBe(mismatch);
+      expect(outcome.record.error).toBe("unknown-outcome");
+    },
+  );
+
+  test.each(MISMATCH_CASES)(
+    "unknown{hash} + mined tx mismatching ⇒ unknown{mismatch: $mismatch}",
+    async ({ patch, mismatch }) => {
+      const stub = makeFlowStub({
+        receipts: {
+          [TXID_1.toLowerCase()]: receiptPayload({
+            transactionHash: TXID_1,
+            blockNumber: B,
+            status: "success",
+          }),
+        },
+        transactions: { [TXID_1.toLowerCase()]: { ...bindingTx(TXID_1), ...patch } },
+      });
+      const { deps } = flowDeps(stub.client);
+      const outcome = await advanceTx(deps, base(UNKNOWN_HASHED));
+      expect(outcome.record.phase).toBe("unknown");
+      expect(outcome.record.mismatch).toBe(mismatch);
+    },
+  );
+
+  test("unknown{hash} whose receipt binds ⇒ confirmed", async () => {
+    const stub = makeFlowStub({
+      receipts: {
+        [TXID_1.toLowerCase()]: receiptPayload({
+          transactionHash: TXID_1,
+          blockNumber: B,
+          status: "success",
+        }),
+      },
+      transactions: { [TXID_1.toLowerCase()]: bindingTx(TXID_1) },
+    });
+    const { deps } = flowDeps(stub.client);
+    const outcome = await advanceTx(deps, base(UNKNOWN_HASHED));
+    expect(outcome.record.phase).toBe("confirmed");
+    expect(outcome.record.hash).toBe(TXID_1);
+  });
+
+  test("hash-bearing record + reverted receipt ⇒ failed", async () => {
+    const stub = makeFlowStub({
+      receipts: {
+        [TXID_1.toLowerCase()]: receiptPayload({
+          transactionHash: TXID_1,
+          blockNumber: B,
+          status: "reverted",
+        }),
+      },
+      transactions: { [TXID_1.toLowerCase()]: bindingTx(TXID_1) },
+    });
+    const { deps } = flowDeps(stub.client);
+    const outcomes = await Promise.all(
+      [SUBMITTED, UNKNOWN_HASHED].map(async (record) => advanceTx(deps, base(record))),
+    );
+    for (const outcome of outcomes) {
+      expect(outcome.record.phase).toBe("failed");
+      expect(outcome.record.error).toBe("tx-reverted");
+      expect(outcome.record.hash).toBe(TXID_1);
+    }
+  });
+
+  test("a binding pending tx promotes unknown{hash} to submitted", async () => {
+    const stub = makeFlowStub({
+      transactions: {
+        [TXID_1.toLowerCase()]: { ...bindingTx(TXID_1), blockNumber: null, blockHash: null },
+      },
+    });
+    const { deps, persisted } = flowDeps(stub.client);
+    const outcome = await advanceTx(deps, base(UNKNOWN_HASHED));
+    expect(outcome.record.phase).toBe("submitted");
+    expect(outcome.record.hash).toBe(TXID_1);
+    expect(persisted).toHaveLength(1);
   });
 
   test("receipt found but transaction lookup fails ⇒ rpc-error", async () => {

@@ -3,6 +3,7 @@ import { build as buildEvents } from "./events.ts";
 import { build as buildIban } from "./iban.ts";
 import { finish, vectorFile } from "./lib.ts";
 import { build as buildMoney } from "./money.ts";
+import { build as buildQuote } from "./quote.ts";
 import { build as buildSession } from "./session.ts";
 
 // An entry is ["vectors/<area>/<name>.json", build, "<generator script>"]; the
@@ -12,6 +13,7 @@ const GENERATORS = [
   ["vectors/core/iban.json", buildIban, "packages/fiat24/scripts/vectors/iban.ts"],
   ["vectors/calls/calldata.json", buildCalls, "packages/fiat24/scripts/vectors/calls.ts"],
   ["vectors/events/decode.json", buildEvents, "packages/fiat24/scripts/vectors/events.ts"],
+  ["vectors/chain/quote.json", buildQuote, "packages/fiat24/scripts/vectors/quote.ts"],
   ["vectors/api/session.json", buildSession, "packages/fiat24/scripts/vectors/session.ts"],
 ] as const;
 

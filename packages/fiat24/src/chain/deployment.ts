@@ -1,6 +1,6 @@
 import type { Address, Client, Hex } from "viem";
 
-import { accountAbi, depositAbi, proxyAdminAbi } from "../abi/index.ts";
+import { proxyAdminAbi } from "../abi/index.ts";
 import { Fiat24Error } from "../core/errors.ts";
 import type { DriftField } from "../core/errors.ts";
 import type { ContractName } from "../core/types.ts";
@@ -11,6 +11,7 @@ import {
   addressSlot,
   asAddress,
   F24_SLOT,
+  F24SALES_SLOT,
   IMPL_SLOT,
   packedAddress,
   PRICELIST_SLOT,
@@ -18,6 +19,7 @@ import {
   resolveDeployment,
   snapshot,
   storageAt,
+  USDC_SLOT,
 } from "./context.ts";
 
 /** SPEC §3.6. */
@@ -77,9 +79,10 @@ function proxyOf(deployment: Deployment, name: ContractName): PinnedProxy | unde
 
 /**
  * SPEC §8.2: per proxy `getStorageAt` on the EIP-1967 impl and admin slots; `account` also reads
- * the wiring pointers (slot 359 priceList, slot 358 f24) plus `F24SalesAddress()`; `deposit` reads
- * `usdc()`; `f24` reads nothing (not a proxy); `proxyAdmin.owner()` is always read. All reads
- * concurrently at B. Owner drift is reported, never counted.
+ * the wiring pointers (slot 359 priceList, slot 358 f24, slot 364 F24SalesAddress); `deposit` reads
+ * slot 208 usdc; `f24` reads nothing (not a proxy); `proxyAdmin.owner()` is always read. All reads
+ * concurrently at B. Owner drift is reported, never counted. Wiring checks are storage reads, not
+ * calls: a drifted implementation must never gate the verification itself.
  */
 export async function verifyDeployment(
   client: Client,
@@ -151,14 +154,7 @@ export async function verifyDeployment(
           contract: name,
           field: "f24Sales",
           expected: deployment.f24Sales.proxy,
-          run: async () =>
-            asAddress(
-              await readAt(client, B, {
-                address: pin.proxy,
-                abi: accountAbi,
-                functionName: "F24SalesAddress",
-              }),
-            ),
+          run: async () => addressSlot(await storageAt(client, B, pin.proxy, F24SALES_SLOT)),
         },
       );
     }
@@ -167,14 +163,7 @@ export async function verifyDeployment(
         contract: name,
         field: "usdc",
         expected: deployment.usdc,
-        run: async () =>
-          asAddress(
-            await readAt(client, B, {
-              address: pin.proxy,
-              abi: depositAbi,
-              functionName: "usdc",
-            }),
-          ),
+        run: async () => addressSlot(await storageAt(client, B, pin.proxy, USDC_SLOT)),
       });
     }
   }

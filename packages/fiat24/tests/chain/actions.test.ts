@@ -137,6 +137,8 @@ function honestStorage(): Map<string, Hex> {
   table.set(`${C.account.proxy.toLowerCase()}:0x167`, `0x${"0".repeat(22)}01${priceList}` as Hex);
   const f24 = C.f24.address.toLowerCase().slice(2);
   table.set(`${C.account.proxy.toLowerCase()}:0x166`, `0x${"0".repeat(20)}${f24}0600` as Hex);
+  table.set(`${C.account.proxy.toLowerCase()}:0x16c`, wordWithAddress(C.f24Sales.proxy));
+  table.set(`${C.deposit.proxy.toLowerCase()}:0xd0`, wordWithAddress(C.usdc));
   return table;
 }
 
@@ -248,12 +250,6 @@ describe("fiat24PublicActions", () => {
     });
     calls.set(`${C.account.proxy.toLowerCase()}:maxDigitForSale`, {
       answer: { result: 6 },
-    });
-    calls.set(`${C.account.proxy.toLowerCase()}:F24SalesAddress`, {
-      answer: { result: C.f24Sales.proxy },
-    });
-    calls.set(`${C.deposit.proxy.toLowerCase()}:usdc`, {
-      answer: { result: C.usdc },
     });
     calls.set(`${C.proxyAdmin.address.toLowerCase()}:owner`, {
       answer: { result: C.proxyAdmin.owner },

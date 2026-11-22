@@ -11,6 +11,8 @@ const IMPL_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d3
 const ADMIN_SLOT = "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103" as Hex;
 const PRICELIST_SLOT = "0x167";
 const F24_SLOT = "0x166";
+const F24SALES_SLOT = "0x16c";
+const USDC_SLOT = "0xd0";
 
 const PROXIES: ReadonlyArray<PinnedProxy> = [
   C.account,
@@ -42,6 +44,9 @@ function honestStorage(): Map<string, Hex> {
   // Slot 358: bytes 2-21 f24, byte 1 maxDigit=6, byte 0 minDigit=0.
   const f24 = C.f24.address.toLowerCase().slice(2);
   table.set(`${C.account.proxy.toLowerCase()}:${F24_SLOT}`, `0x${"0".repeat(20)}${f24}0600` as Hex);
+  // Slot 364: F24SalesAddress; deposit slot 208: usdc — both plain address words.
+  table.set(`${C.account.proxy.toLowerCase()}:${F24SALES_SLOT}`, wordWithAddress(C.f24Sales.proxy));
+  table.set(`${C.deposit.proxy.toLowerCase()}:${USDC_SLOT}`, wordWithAddress(C.usdc));
   return table;
 }
 
@@ -50,11 +55,6 @@ function honestStub(storage?: Map<string, Hex>) {
     blockNumber: B,
     storage: storage ?? honestStorage(),
     calls: new Map([
-      [
-        `${C.account.proxy.toLowerCase()}:F24SalesAddress`,
-        { answer: { result: C.f24Sales.proxy } },
-      ],
-      [`${C.deposit.proxy.toLowerCase()}:usdc`, { answer: { result: C.usdc } }],
       [`${C.proxyAdmin.address.toLowerCase()}:owner`, { answer: { result: C.proxyAdmin.owner } }],
     ]),
   });
@@ -69,18 +69,16 @@ describe("verifyDeployment", () => {
     expect(check.proxyAdminOwner).toBe(getAddress(C.proxyAdmin.owner));
     expect(check.ownerChanged).toBe(false);
     expect(check.blockNumber).toBe(B);
-    // 9 proxies × 2 slots + 2 account wiring slots + 3 calls.
+    // 9 proxies × 2 slots + 4 wiring slots + the proxyAdmin owner call.
     const storageReqs = stub.requests.filter((r) => r.method === "eth_getStorageAt");
-    expect(storageReqs).toHaveLength(20);
+    expect(storageReqs).toHaveLength(22);
     for (const r of storageReqs) {
       expect((r.params as string[])[2]).toBe(B_HEX);
     }
     for (const c of stub.calls) {
       expect(c.blockTag).toBe(B_HEX);
     }
-    expect(
-      stub.calls.map((c) => c.functionName).toSorted((a, b) => String(a).localeCompare(String(b))),
-    ).toStrictEqual(["F24SalesAddress", "owner", "usdc"]);
+    expect(stub.calls.map((c) => c.functionName)).toStrictEqual(["owner"]);
   });
 
   test("each wiring field reports its own drift entry", async () => {
@@ -97,12 +95,12 @@ describe("verifyDeployment", () => {
       `${C.account.proxy.toLowerCase()}:${F24_SLOT}`,
       `0x${"0".repeat(20)}${f24}0600` as Hex,
     );
+    storage.set(`${C.account.proxy.toLowerCase()}:${F24SALES_SLOT}`, wordWithAddress(OTHER));
+    storage.set(`${C.deposit.proxy.toLowerCase()}:${USDC_SLOT}`, wordWithAddress(OTHER));
     const stub = makeStub({
       blockNumber: B,
       storage,
       calls: new Map([
-        [`${C.account.proxy.toLowerCase()}:F24SalesAddress`, { answer: { result: OTHER } }],
-        [`${C.deposit.proxy.toLowerCase()}:usdc`, { answer: { result: OTHER } }],
         [`${C.proxyAdmin.address.toLowerCase()}:owner`, { answer: { result: C.proxyAdmin.owner } }],
       ]),
     });
@@ -140,11 +138,6 @@ describe("verifyDeployment", () => {
       blockNumber: B,
       storage: honestStorage(),
       calls: new Map([
-        [
-          `${C.account.proxy.toLowerCase()}:F24SalesAddress`,
-          { answer: { result: C.f24Sales.proxy } },
-        ],
-        [`${C.deposit.proxy.toLowerCase()}:usdc`, { answer: { result: C.usdc } }],
         [`${C.proxyAdmin.address.toLowerCase()}:owner`, { answer: { result: OTHER } }],
       ]),
     });

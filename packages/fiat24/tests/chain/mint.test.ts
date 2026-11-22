@@ -24,6 +24,7 @@ function mintStorage(): Map<string, Hex> {
   table.set(`${C.account.proxy.toLowerCase()}:0x167`, `0x${"0".repeat(22)}01${priceList}` as Hex);
   const f24 = C.f24.address.toLowerCase().slice(2);
   table.set(`${C.account.proxy.toLowerCase()}:0x166`, `0x${"0".repeat(20)}${f24}0600` as Hex);
+  table.set(`${C.account.proxy.toLowerCase()}:0x16c`, wordWithAddress(C.f24Sales.proxy));
   return table;
 }
 
@@ -35,7 +36,6 @@ function mintStub(opts: {
   readonly storage?: Map<string, Hex>;
 }) {
   const calls = new Map([
-    [`${C.account.proxy.toLowerCase()}:F24SalesAddress`, { answer: { result: C.f24Sales.proxy } }],
     [`${C.proxyAdmin.address.toLowerCase()}:owner`, { answer: { result: C.proxyAdmin.owner } }],
     [
       `${C.account.proxy.toLowerCase()}:exists`,
@@ -91,7 +91,7 @@ describe("getMintQuote", () => {
     });
     // Storage reads of the drift check all carry the block tag.
     const storageReqs = stub.requests.filter((r) => r.method === "eth_getStorageAt");
-    expect(storageReqs).toHaveLength(8);
+    expect(storageReqs).toHaveLength(9);
     const existsCall = stub.calls.find((c) => c.functionName === "exists");
     expect(existsCall?.args).toStrictEqual([MINT_ID]);
     const priceCall = stub.calls.find((c) => c.functionName === "getPrice");

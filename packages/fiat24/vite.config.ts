@@ -51,6 +51,9 @@ const config: UserConfig = defineConfig({
       process.env["FIAT24_FORK"] === "1"
         ? configDefaults.exclude
         : [...configDefaults.exclude, "tests/fork/**"],
+    // Fork tests drive a local anvil plus `cast` oracles — 5 s is not enough for a mined
+    // transaction or a 300k-block log scan.
+    testTimeout: process.env["FIAT24_FORK"] === "1" ? 120_000 : 5000,
     coverage: {
       provider: "v8",
       reporter: ["text", "text-summary"],

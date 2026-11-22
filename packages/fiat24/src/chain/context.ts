@@ -34,6 +34,10 @@ export const ADMIN_SLOT =
 // slot 358 (0x166) byte 0 = minDigitForSale, byte 1 = maxDigitForSale, bytes 2-21 = f24.
 export const PRICELIST_SLOT = "0x167" as Hex;
 export const F24_SLOT = "0x166" as Hex;
+// slot 364 (0x16c) = F24SalesAddress (verified storageLayout).
+export const F24SALES_SLOT = "0x16c" as Hex;
+// Fiat24CryptoDeposit slot 208 (0xd0) = usdc (verified storageLayout).
+export const USDC_SLOT = "0xd0" as Hex;
 
 const WORD_RE = /^0x[0-9a-fA-F]{64}$/;
 const HEX_RE = /^0x[0-9a-fA-F]*$/;

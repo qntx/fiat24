@@ -194,6 +194,8 @@ const config: UserConfig = defineConfig({
       "data/abis/**",
       "vectors/**",
       "packages/fiat24/api/**",
+      // Byte-frozen recorded API bodies and sentinelised synthetic fixtures.
+      "packages/fiat24/tests/fixtures/**",
     ],
   },
   run: { cache: process.env["CI"] === undefined || process.env["CI"] === "" },

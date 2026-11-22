@@ -5,6 +5,7 @@
  */
 import * as abi from "../../src/abi/index.ts";
 import * as api from "../../src/api/index.ts";
+import { parseCountries } from "../../src/api/schemas.ts";
 import * as calls from "../../src/calls/index.ts";
 import * as chain from "../../src/chain/index.ts";
 import * as core from "../../src/core/index.ts";
@@ -71,6 +72,27 @@ export function runSmoke(): void {
     api.sessionMessage(session) ===
       "I agree to access my profile. 0x7aa5d53d52ac69271847fc6b9385c9080a249f9d3c2aff9f721ca821a8109025",
     "sessionMessage",
+  );
+  // §9.4 parsing on bare Hermes: the zod/mini converters and the QR grammar (no DOM, no fetch).
+  const countries = parseCountries({
+    eligibleDomiciles: ["CHE"],
+    eligibleDomicilesForCards: [],
+    lowLimitDomiciles: [],
+    blacklistNationalities: ["USA"],
+  });
+  assert(
+    countries.eligibleDomiciles[0] === "CHE" && countries.blacklistNationalities[0] === "USA",
+    "parseCountries",
+  );
+  // The doc Part 2 §9 case 1 `qr=` value verbatim, decoded.
+  const qr = api.parseSwissQr(
+    decodeURIComponent(
+      "SPC%0D%0A0200%0D%0A1%0D%0ALI7830174502999200012%0D%0AS%0D%0ARobert%20Schneider%20AG%0D%0AMusterstrasse%0D%0A18%0D%0A9490%0D%0AVaduz%0D%0ALI%0D%0A%0D%0A%0D%0A%0D%0A%0D%0A%0D%0A%0D%0A%0D%0A1949.75%0D%0ACHF%0D%0AS%0D%0AHans%20Mustermann%0D%0AMusterstrasse%0D%0A27a%0D%0A9490%0D%0AVaduz%0D%0ALI%0D%0AQRR%0D%0A210000000003139471430009017%0D%0AAuftrag%20vom%2015.06.2020%0D%0AEPD%0D%0A%2F%2FS1%2F11%2F200427%2F30%2F102673386%2F31%2F200427%2F32%2F7.7%2F40%2F0%3A30",
+    ),
+  );
+  assert(
+    qr.account === "LI7830174502999200012" && qr.amount === 194975n && qr.currency === "CHF",
+    "parseSwissQr",
   );
   // A transfer call builder + the recorded NUL-padded ClientPayoutRef log (events layer).
   const call = calls.transferCall({ currency: "EUR24", to: `0x${"1".repeat(40)}`, amount: 1n });

@@ -50,7 +50,7 @@ const ENTRIES = [
   { name: "calls", entry: "src/calls/index.ts", budget: 8192 },
   { name: "events", entry: "src/events/index.ts", budget: 8192 },
   { name: "chain", entry: "src/chain/index.ts", budget: 18432 },
-  { name: "api", entry: "src/api/index.ts", budget: 1024 },
+  { name: "api", entry: "src/api/index.ts", budget: 15360 },
   { name: "flows", entry: "src/flows/index.ts", budget: 1024 },
 ] as const;
 

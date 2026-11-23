@@ -38,6 +38,32 @@ export function syncInternalDeps(
   return pkg;
 }
 
+/**
+ * Rewrites the `"version"` of each `workspaces["<dir>"]` entry in bun.lock text to the manifest
+ * version, replacing only the quoted value inside the `"<dir>": { "name": …, "version": … }` entry
+ * so every other byte is unchanged. bun does not rewrite a workspace `version` on its own: `bun
+ * install --lockfile-only` reports "no changes" when nothing else in the lock differs, so a
+ * version-only bump would leave the lock stale. Throws when a dir has no matching entry.
+ */
+export function syncLockVersions(lock: string, versions: ReadonlyMap<string, string>): string {
+  let out = lock;
+  for (const [dir, version] of versions) {
+    const escaped = dir.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+    const entry = new RegExp(
+      `("${escaped}"\\s*:\\s*\\{\\s*"name"\\s*:\\s*"[^"]*?"\\s*,\\s*"version"\\s*:\\s*)"[^"]*?"`,
+    );
+    let found = false;
+    out = out.replace(entry, (_whole: string, prefix: string) => {
+      found = true;
+      return `${prefix}"${version}"`;
+    });
+    if (!found) {
+      throw new Error(`bun.lock: no workspaces["${dir}"] entry with a "version"`);
+    }
+  }
+  return out;
+}
+
 if (import.meta.main) {
   const dirs = readdirSync("packages", { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -67,7 +93,30 @@ if (import.meta.main) {
     // hook without a shell — `&&` would reach bun as arguments — so the
     // refresh is spawned here instead of chained in bump.config.ts.
     const lock = spawnSync("bun", ["install", "--lockfile-only"], { stdio: "inherit" });
-    if (lock.status !== 0) {
+    if (lock.status === 0) {
+      // bun does not rewrite a workspace `version` when nothing else in the lock
+      // changes, so a version-only bump leaves `workspaces["<dir>"].version`
+      // stale; patch it in place.
+      try {
+        const path = "bun.lock";
+        const text = readFileSync(path, "utf8");
+        const lockVersions = new Map<string, string>();
+        for (const dir of dirs) {
+          const manifest = manifests.get(join(dir, "package.json"));
+          const dirVersion = manifest?.["version"];
+          if (typeof dirVersion === "string") {
+            lockVersions.set(dir, dirVersion);
+          }
+        }
+        const synced = syncLockVersions(text, lockVersions);
+        if (synced !== text) {
+          writeFileSync(path, synced);
+        }
+      } catch (error) {
+        console.error(`sync-versions: ${error instanceof Error ? error.message : String(error)}`);
+        process.exitCode = 1;
+      }
+    } else {
       const why =
         lock.error === undefined ? `exit code ${String(lock.status)}` : lock.error.message;
       console.error(`sync-versions: bun install --lockfile-only failed: ${why}`);

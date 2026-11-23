@@ -4,9 +4,17 @@
 
 An unofficial TypeScript SDK for the Fiat24 protocol on Arbitrum One. Not affiliated with or endorsed by SR Saphirstein AG; "Fiat24" is used only to identify the protocol.
 
-> **Status: pre-release (0.1.0, unreleased).** Nothing is published yet. All layers are implemented: `abi`, `core`, `deployments`, `calls`, `events`, `chain` (read actions and the `fiat24PublicActions` viem decorator), `api` (REST client with session grants) and `flows` (resumable user flows).
+> **0.1.0 is the first release.** All layers are implemented: `abi`, `core`, `deployments`, `calls`, `events`, `chain` (read actions and the `fiat24PublicActions` viem decorator), `api` (REST client with session grants) and `flows` (resumable user flows).
 
 Platform-neutral (Node, browsers, Hermes): one subpath export per layer — `@qntx/fiat24` plus `/abi`, `/core`, `/deployments`, `/calls`, `/events`, `/chain`, `/api`, `/flows`. `viem` is a peer dependency. Only Arbitrum One (chain id 42161) is supported; Mantle and GBP24 are not.
+
+## Install
+
+```bash
+npm install @qntx/fiat24 viem
+```
+
+ESM-only; `viem` is a peer dependency (`^2.57.12`) and Node `>=20.19` is required.
 
 ## Usage
 
@@ -146,6 +154,7 @@ The `api` layer is for React Native and server hosts.
 - `api.fiat24.com` must be excluded from network instrumentation such as Sentry, Flipper, proxies or logging interceptors, or an uninstrumented `fetch` must be injected. Request URLs and headers of secured calls must never be logged.
 - Platform HTTP caches must be configured so `api.fiat24.com` responses are not stored (iOS `NSURLCache`, Android OkHttp cache).
 - A session grant is a bearer credential: the server checks only that `sign` is the account owner's `personal_sign` of the grant message, so until `deadline` anyone holding the four grant header values (`tokenid`, `hash`, `deadline`, `sign`) can call every secured endpoint of that account: profile data, card display tokens, card creation/status/currency/device-token changes, payee creation via `/verify`, and `PUT /email`, which moves the one-time-password channel and which this SDK never calls. A wallet prompt must say what the grant permits.
+- The server does not parse chain or account out of `hash` — per the docs it may be any text; the signed text is `keccak256(hash ‖ deadline)` of the separate headers. The SDK sends the label `fiat24-session-v1:<chainId>:<tokenId>:<deadline>;` whose `;` terminator guarantees the signed text cannot be re-split into a `(hash, deadline)` pair with a later deadline than the signer saw.
 - Requests are sent with `redirect: "error"` and any redirect response is refused. React Native's `fetch` (XHR) follows redirects regardless of that option, so on React Native the grant headers can reach a redirect target before the SDK refuses the response — inject a `fetch` that does not follow redirects where that matters.
 - The body cap (1 MiB; 8 MiB for `/banks`) is enforced while reading when `fetch` exposes a response stream. React Native's `fetch` exposes none, so there the body is buffered by `fetch` before the cap applies and the host `fetch` timeout is what bounds it.
 - The SDK grants for 600 seconds and refuses a grant when the server clock differs from the local clock by more than 300 seconds.

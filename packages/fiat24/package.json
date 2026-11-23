@@ -1,6 +1,6 @@
 {
   "name": "@qntx/fiat24",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Unofficial TypeScript SDK for the Fiat24 protocol on Arbitrum One; not affiliated with or endorsed by SR Saphirstein AG",
   "keywords": [
     "arbitrum",

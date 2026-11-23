@@ -10,7 +10,7 @@ trusted publishing / OIDC) and `release.yml` (the GitHub Release).
 
 ## [Unreleased]
 
-## [0.1.0] - Unreleased
+## [0.1.0] - 2026-11-23
 
 First release of `@qntx/fiat24`, an unofficial SDK for the Fiat24 protocol on
 Arbitrum One (chain id 42161). Not affiliated with or endorsed by SR

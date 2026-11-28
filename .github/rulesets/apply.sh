@@ -4,16 +4,20 @@
 # repository admin. The npm side and the settings no API can change are in README.md next to this
 # script.
 #
-#   .github/rulesets/apply.sh <reviewer-login> <reviewer-login> [<reviewer-login>...]
+#   .github/rulesets/apply.sh <reviewer-login> [<reviewer-login>...]
 #
-# npm needs two or more reviewers because the person who starts a job may not approve it.
+# With two or more reviewers the person who starts an npm job may not approve it. With one — a
+# single maintainer — that person approves their own job: the approval is a deliberate second
+# step, not a second person (README.md, "Single maintainer").
 set -euo pipefail
 
 repo="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
-if [ "$#" -lt 2 ]; then
-  echo "usage: apply.sh <reviewer-login> <reviewer-login> [<reviewer-login>...]" >&2
+if [ "$#" -lt 1 ]; then
+  echo "usage: apply.sh <reviewer-login> [<reviewer-login>...]" >&2
   exit 2
 fi
+# A lone reviewer who could not approve their own job could never release.
+if [ "$#" -ge 2 ]; then self_review=true; else self_review=false; fi
 reviewers="$(for login in "$@"; do gh api "users/${login}" --jq '{type: "User", id: .id}'; done | jq -s -c .)"
 here="$(cd "$(dirname "$0")" && pwd)"
 manual=()
@@ -62,7 +66,7 @@ environment() {
     manual+=("Settings → Environments → ${name}: clear \"Allow administrators to bypass configured protection rules\"")
   fi
 }
-environment npm "${reviewers}" true tag 'v*.*.*'
+environment npm "${reviewers}" "${self_review}" tag 'v*.*.*'
 
 gh api --method PATCH "repos/${repo}" -F delete_branch_on_merge=true --silent
 

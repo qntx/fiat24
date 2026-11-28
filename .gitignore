@@ -26,3 +26,6 @@ packages/fiat24/.hermes-smoke*.iife.js
 
 # vp config (prepare) generates hook shims here; only pre-commit is tracked.
 .vite-hooks/_/
+
+# live-verify owner report (scripts/live-verify.ts --out)
+live-verify-report*.md

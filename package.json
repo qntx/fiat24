@@ -31,7 +31,7 @@
     "@qntx/oxlint": "1.1.1",
     "@qntx/tsconfig": "1.0.1",
     "@types/node": "26.6.6",
-    "@vitest/coverage-v8": "5.1.1",
+    "@vitest/coverage-v8": "5.1.0",
     "bumpp": "12.3.0",
     "typescript": "7.0.2",
     "viem": "2.58.4",

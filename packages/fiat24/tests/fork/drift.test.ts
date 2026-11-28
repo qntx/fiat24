@@ -167,10 +167,9 @@ async function contractChanged(
   client: PublicClient,
   contracts: ReadonlyArray<ContractName>,
 ): Promise<Fiat24ErrorDetail> {
-  const error = await assertDeployment(client, { contracts }).then(
-    () => undefined,
-    (error_: unknown) => error_,
-  );
+  const error = await assertDeployment(client, { contracts })
+    .then(() => undefined)
+    .catch((error_: unknown) => error_);
   if (!isFiat24Error(error) || error.code !== "contract-changed") {
     throw new Error(`expected contract-changed, got ${String(error)}`);
   }

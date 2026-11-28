@@ -18,7 +18,9 @@ data/             verified protocol ABIs (data/abis), the on-chain-verified
                   deployment table (data/deployments.json) and per-contract
                   provenance (data/SOURCE.md)
 vectors/          shared test vectors produced by independent oracles
-scripts/          repository tooling: gen.ts, version checks, API reports
+scripts/          repository tooling: gen.ts, version checks, API reports,
+                  live-verify.ts (owner-run read-only live check, see
+                  docs/live-verify.md)
 .github/          workflows, rulesets (protection as code), CODEOWNERS
 ```
 

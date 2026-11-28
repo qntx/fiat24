@@ -18,7 +18,9 @@ vectors/          shared test vectors (see vectors/README.md)
 scripts/          repository tooling: gen.ts regenerates src/abi from
                   data/abis (`bun run gen`, checked in lint via --check),
                   check-version.ts and sync-versions.ts guard version
-                  drift, check-api.ts snapshots the published API surface
+                  drift, check-api.ts snapshots the published API surface,
+                  live-verify.ts runs the read-only live check an owner can
+                  execute (docs/live-verify.md)
 ```
 
 ## Local gate

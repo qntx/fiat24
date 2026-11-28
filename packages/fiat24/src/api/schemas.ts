@@ -98,10 +98,12 @@ function checked<T>(schema: z.ZodMiniType<T>, json: unknown, endpoint: string): 
   return parsed.data;
 }
 
-const timestampSchema = z.object({ timestamp: z.int().check(z.gt(0)) });
+const timestampSchemaBase = z.object({ timestamp: z.int().check(z.gt(0)) });
+// Exported for scripts/live-verify's shape diff; not re-exported from api/index.ts.
+export const timestampSchema: z.ZodMiniType = timestampSchemaBase;
 
 export function parseTimestamp(json: unknown): bigint {
-  const parsed = checked(timestampSchema, json, "GET /timestamp");
+  const parsed = checked(timestampSchemaBase, json, "GET /timestamp");
   return BigInt(parsed.timestamp);
 }
 
@@ -231,7 +233,7 @@ const contactSchema = z.object({
   bank: text,
   country: text,
 });
-const profileSchema = z.object({
+const profileSchemaBase = z.object({
   tokenId: z.int().check(z.gt(0)),
   br: text,
   email: text,
@@ -253,9 +255,10 @@ const profileSchema = z.object({
   ),
   cardActivation: z.optional(z.object({ amount: decimal, currency: fiatCode })),
 });
+export const profileSchema: z.ZodMiniType = profileSchemaBase;
 
 export function parseProfile(json: unknown): Profile {
-  const parsed = checked(profileSchema, json, "GET /br");
+  const parsed = checked(profileSchemaBase, json, "GET /br");
   const contacts: Partial<Record<FiatCode, NonNullable<Profile["contacts"][FiatCode]>>> = {};
   if (parsed.contacts !== undefined) {
     for (const code of FIAT_CODES) {
@@ -301,7 +304,8 @@ const cardSchema = z.object({
   activeTokens: z.optional(list(deviceTokenSchema)),
   inactiveTokens: z.optional(list(deviceTokenSchema)),
 });
-const cardsSchema = z.object({ statusCode: safeInt, body: z.optional(list(cardSchema)) });
+const cardsSchemaBase = z.object({ statusCode: safeInt, body: z.optional(list(cardSchema)) });
+export const cardsSchema: z.ZodMiniType = cardsSchemaBase;
 
 // The parsed card including `cardToken` (the 5-min display secret §9.4); `cards()` drops it and
 // `cardDisplayToken` returns it. Never surfaced inside a `Card`.
@@ -334,7 +338,7 @@ const mapCardTokens = (
   }));
 
 export function parseCards(json: unknown): ReadonlyArray<ApiCard> {
-  const parsed = checked(cardsSchema, json, "GET /cards");
+  const parsed = checked(cardsSchemaBase, json, "GET /cards");
   // Only the body `statusCode` carries the empty-card signal; HTTP-level errors follow §9.5.
   if (parsed.statusCode === 404) {
     return freeze([]);
@@ -374,10 +378,11 @@ const transactionSchema = z.object({
   to: z.optional(z.unknown()),
   blockNumber: z.optional(z.unknown()),
 });
-const transactionsSchema = z.object({
+const transactionsSchemaBase = z.object({
   count: nonNegativeInt,
   transactions: list(transactionSchema),
 });
+export const transactionsSchema: z.ZodMiniType = transactionsSchemaBase;
 
 const DECIMAL_FIELD = /^(0|[1-9][0-9]{0,77})$/;
 const TX_ID = /^0x[0-9a-fA-F]{64}$/;
@@ -403,7 +408,7 @@ function optionalId(value: unknown): bigint | undefined {
 }
 
 export function parseTransactions(json: unknown): TransactionPage {
-  const parsed = checked(transactionsSchema, json, "GET /transactions");
+  const parsed = checked(transactionsSchemaBase, json, "GET /transactions");
   const transactions = parsed.transactions.map((t) => {
     // 13-digit ms timestamps stay; the doc's 10-digit seconds form is scaled to ms (§9.4).
     const digits = String(t.timestamp);

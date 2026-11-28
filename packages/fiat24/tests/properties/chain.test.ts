@@ -177,10 +177,9 @@ const SETTLED = Symbol("settled");
  * other throwable is a defect.
  */
 async function settle(run: () => Promise<unknown>): Promise<void> {
-  const outcome: unknown = await run().then(
-    () => SETTLED,
-    (error: unknown) => error,
-  );
+  const outcome: unknown = await run()
+    .then(() => SETTLED)
+    .catch((error: unknown) => error);
   const ok = outcome === SETTLED || (isFiat24Error(outcome) && ALL_CHAIN_CODES.has(outcome.code));
   if (!ok) {
     throw outcome;

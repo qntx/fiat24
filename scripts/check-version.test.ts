@@ -109,14 +109,41 @@ describe("checkVersion", () => {
 });
 
 describe("checkViteAliases", () => {
-  it("passes when the alias matches vite-plus", () => {
-    const errors = checkViteAliases([
-      manifest({
-        dependencies: { vite: "npm:@voidzero-dev/vite-plus-core@1.4.0" },
-        devDependencies: { "vite-plus": "1.4.0" },
-        overrides: { vite: "npm:@voidzero-dev/vite-plus-core@1.4.0" },
-      }),
+  it("passes when the alias matches the vite-plus core pin", () => {
+    const errors = checkViteAliases(
+      [
+        manifest({
+          dependencies: { vite: "npm:@voidzero-dev/vite-plus-core@1.4.0" },
+          devDependencies: { "vite-plus": "1.4.0" },
+          overrides: { vite: "npm:@voidzero-dev/vite-plus-core@1.4.0" },
+        }),
+        manifest({
+          devDependencies: {
+            "vite-plus": "1.7.0",
+            vite: "npm:@voidzero-dev/vite-plus-core@8.3.8000",
+          },
+        }),
+      ],
+      "1.4.0",
+    );
+    expect(errors).toStrictEqual([
+      'package.json: devDependencies["vite"] resolves vite-plus-core 8.3.8000, expected 1.4.0 pinned by vite-plus',
     ]);
+  });
+
+  it("passes for the independently versioned core", () => {
+    const errors = checkViteAliases(
+      [
+        manifest({
+          devDependencies: {
+            "vite-plus": "1.7.0",
+            vite: "npm:@voidzero-dev/vite-plus-core@8.3.8000",
+          },
+          overrides: { vite: "npm:@voidzero-dev/vite-plus-core@8.3.8000" },
+        }),
+      ],
+      "8.3.8000",
+    );
     expect(errors).toStrictEqual([]);
   });
 
@@ -128,20 +155,23 @@ describe("checkViteAliases", () => {
     ["devDependencies", { devDependencies: { ...devDeps, vite: stale } }],
     ["overrides", { overrides: { vite: stale }, devDependencies: devDeps }],
   ] as const)("fails on %s drift", (section, pkg) => {
-    const errors = checkViteAliases([manifest(pkg)]);
+    const errors = checkViteAliases([manifest(pkg)], "1.4.0");
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain(`${section}["vite"]`);
     expect(errors[0]).toContain("expected 1.4.0");
   });
 
   it("ignores manifests without vite-plus and non-alias vite specs", () => {
-    const errors = checkViteAliases([
-      manifest({ dependencies: { vite: "npm:@voidzero-dev/vite-plus-core@9.9.9" } }),
-      manifest({
-        dependencies: { vite: "^7.0.0" },
-        devDependencies: { "vite-plus": "1.4.0" },
-      }),
-    ]);
+    const errors = checkViteAliases(
+      [
+        manifest({ dependencies: { vite: "npm:@voidzero-dev/vite-plus-core@9.9.9" } }),
+        manifest({
+          dependencies: { vite: "^7.0.0" },
+          devDependencies: { "vite-plus": "1.4.0" },
+        }),
+      ],
+      "1.4.0",
+    );
     expect(errors).toStrictEqual([]);
   });
 });

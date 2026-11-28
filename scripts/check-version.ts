@@ -114,28 +114,36 @@ export function checkVersion(packages: PackageEntry[], bunLock: unknown): string
   return errors;
 }
 
+const VITE_CORE_SPEC = /^npm:@voidzero-dev\/vite-plus-core@(.+)$/;
+
+/** The vite-plus-core version the installed `vite-plus` pins via its `vite` dependency. */
+export function vitePlusCoreVersion(vitePlusDir: string): string | undefined {
+  const path = join(vitePlusDir, "package.json");
+  const pkg = existsSync(path) ? (JSON.parse(readFileSync(path, "utf8")) as unknown) : undefined;
+  const spec = asRecord(asRecord(pkg)["dependencies"])["vite"];
+  return typeof spec === "string" ? VITE_CORE_SPEC.exec(spec)?.[1] : undefined;
+}
+
 /**
- * Every `vite` spec aliased to @voidzero-dev/vite-plus-core must match the manifest's own
- * `vite-plus` version: vp resolves its vite command through the alias, and drift between the two is
- * what broke CI on the vite-plus 1.4.0 bump.
+ * Every `vite` spec aliased to @voidzero-dev/vite-plus-core must resolve the version the installed
+ * `vite-plus` itself depends on: vp resolves its vite command through the alias, and drift between
+ * the two is what broke CI on the vite-plus 1.4.0 bump. Since vite-plus 1.7.0 the core package is
+ * versioned independently (8.x), so the target is read from `vite-plus`'s `dependencies["vite"]`,
+ * not from the `vite-plus` version string.
  */
-export function checkViteAliases(manifests: PackageEntry[]): string[] {
+export function checkViteAliases(manifests: PackageEntry[], expected: string): string[] {
   const errors: string[] = [];
   for (const { path, pkg } of manifests) {
     const manifest = asRecord(pkg);
-    const vitePlus = asRecord(manifest["devDependencies"])["vite-plus"];
-    if (typeof vitePlus !== "string") {
+    if (typeof asRecord(manifest["devDependencies"])["vite-plus"] !== "string") {
       continue;
     }
     for (const section of ["dependencies", "devDependencies", "overrides"] as const) {
       const spec = asRecord(manifest[section])["vite"];
-      const core =
-        typeof spec === "string"
-          ? /^npm:@voidzero-dev\/vite-plus-core@(.+)$/.exec(spec)?.[1]
-          : undefined;
-      if (core !== undefined && core !== vitePlus) {
+      const core = typeof spec === "string" ? VITE_CORE_SPEC.exec(spec)?.[1] : undefined;
+      if (core !== undefined && core !== expected) {
         errors.push(
-          `${path}: ${section}["vite"] resolves vite-plus-core ${core}, expected ${vitePlus} to match vite-plus`,
+          `${path}: ${section}["vite"] resolves vite-plus-core ${core}, expected ${expected} pinned by vite-plus`,
         );
       }
     }
@@ -223,7 +231,13 @@ if (import.meta.main) {
     { path: "package.json", pkg: JSON.parse(readFileSync("package.json", "utf8")) as unknown },
     ...packages,
   ];
-  errors.push(...checkViteAliases(manifests), ...checkDepSpecs(manifests));
+  const viteCore = vitePlusCoreVersion(join("node_modules", "vite-plus"));
+  if (viteCore === undefined) {
+    errors.push("installed vite-plus has no vite-plus-core vite dependency");
+  } else {
+    errors.push(...checkViteAliases(manifests, viteCore));
+  }
+  errors.push(...checkDepSpecs(manifests));
   const tagFlag = process.argv.indexOf("--release-tag");
   if (tagFlag !== -1) {
     errors.push(...checkReleaseTag(process.argv[tagFlag + 1] ?? "", packages));
